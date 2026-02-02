@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIARY | SoDRé</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Zen+Kaku+Gothic+New:wght@300;400;500;700&family=Shippori+Mincho:wght@400;600&display=swap"
+        rel="stylesheet">
+    <!-- CSS -->
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+
+    <!-- Header / Global Navigation -->
+    <header class="header">
+        <div class="container header-container">
+            <a href="index.html" class="logo"><img src="img/logo.webp" alt="SoDRé"></a>
+            <div class="hamburger" id="hamburger-btn">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Menu Overlay -->
+    <div id="menu-overlay">
+        <div class="menu-content">
+            <div class="menu-container">
+                <div class="menu-main">
+                    <ul class="menu-list">
+                        <li><a href="index.html">Top</a></li>
+                        <li><a href="about.html">SoDRéとは？</a></li>
+                        <li><a href="schedule.html">開催スケジュール</a></li>
+                        <li><a href="members.html">運営メンバー</a></li>
+                        <li><a href="plans.html">無料体験会・料金</a></li>
+                        <li><a href="voices.html">参加者のお声</a></li>
+                        <li><a href="contact.html?section=qa">Q&A</a></li>
+                    </ul>
+                </div>
+                <div class="menu-sub">
+                    <ul class="menu-list sub-list">
+                        <li><a href="news.html">News</a></li>
+                        <li><a href="topics.html">Topics</a></li>
+                        <li><a href="diary.html">Diary</a></li>
+                    </ul>
+                    <a href="application.html" class="btn-menu-cta">お申し込み</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="container">
+            <h1>DIARY</h1>
+            <p>日記</p>
+        </div>
+    </div>
+
+    <main>
+        <section class="section">
+            <div class="container">
+                <!-- Posts Container -->
+                <div id="full-post-list" class="posts-grid" data-category="diary">
+                    <!-- Posts loaded here -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Post Modal -->
+    <div id="post-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <div id="modal-post-content"></div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p class="copyright">&copy; 2026 SoDRé & Junxiang Jin. All Rights Reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="script.js"></script>
+    <script src="posts.js"></script>
+</body>
+
+</html>

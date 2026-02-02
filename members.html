@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>運営メンバー | SoDRé</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Zen+Kaku+Gothic+New:wght@300;400;500;700&family=Shippori+Mincho:wght@400;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+
+    <header class="header">
+        <div class="container header-container">
+            <a href="index.html" class="logo"><img src="img/logo.webp" alt="SoDRé"></a>
+            <div class="hamburger" id="hamburger-btn">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Full Screen Menu Overlay -->
+    <div id="menu-overlay">
+        <div class="menu-content">
+            <div class="menu-container">
+                <!-- Left Column: Main Nav -->
+                <div class="menu-main">
+                    <ul class="menu-list">
+                        <li><a href="index.html">Top</a></li>
+                        <li><a href="about.html">SoDRéとは？</a></li>
+                        <li><a href="schedule.html">開催スケジュール</a></li>
+                        <li><a href="members.html">運営メンバー</a></li>
+                        <li><a href="plans.html">無料体験会・料金</a></li>
+                        <li><a href="voices.html">参加者のお声</a></li>
+                        <li><a href="contact.html?section=qa">Q&A</a></li>
+                    </ul>
+                </div>
+
+                <!-- Right Column: Updates -->
+                <div class="menu-sub">
+                    <ul class="menu-list sub-list">
+                        <li><a href="news.html">News</a></li>
+                        <li><a href="topics.html">Topics</a></li>
+                        <li><a href="diary.html">Diary</a></li>
+                    </ul>
+                    <a href="application.html" class="btn-menu-cta">お申し込み</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="page-header">
+        <div class="container">
+            <h1>Members</h1>
+            <p>運営メンバー</p>
+        </div>
+    </div>
+
+    <main>
+        <section id="members" class="section">
+            <div class="container scroll-reveal">
+                <h2 class="section-title">Staff</h2>
+
+                <div class="member-detail" id="tajiaki">
+                    <div class="member-img-large"></div>
+                    <div class="member-info">
+                        <h3>たじあき <span class="role">代表</span></h3>
+                        <p class="member-bio">サービスの中心となって運営。自身の内省経験を元に、より多くの人が心の平和を得られる場を作りたいとSoDRéを設立。</p>
+                    </div>
+                </div>
+
+                <div class="members-grid mt-4">
+                    <div class="member-card" id="mizu">
+                        <div class="member-img"></div>
+                        <h3>葵月 みず</h3>
+                    </div>
+                    <div class="member-card" id="leo">
+                        <div class="member-img"></div>
+                        <h3>今野 レオ</h3>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <!-- Footer Nav Removed -->
+            <p class="copyright">&copy; 2026 SoDRé & Junxiang Jin. All Rights Reserved.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

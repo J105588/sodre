@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SoDRé Admin Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Zen+Kaku+Gothic+New:wght@300;400;500;700&family=Shippori+Mincho:wght@400;600&display=swap"
+        rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Quill.js CSS -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <!-- Custom Admin Styles -->
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Admin Specific Overrides */
+        body {
+            background-color: #f4f6f8;
+            padding-top: 0;
+            /* Override main site padding */
+        }
+
+        .admin-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .login-wrap {
+            max-width: 400px;
+            margin: 100px auto;
+            background: #fff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .login-wrap input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .dashboard {
+            display: none;
+            /* Hidden by default */
+        }
+
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            background: #fff;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .tab-btn.active {
+            background: var(--primary-color);
+            color: #fff;
+            border-color: var(--primary-color);
+        }
+
+        .content-panel {
+            display: none;
+        }
+
+        .content-panel.active {
+            display: block;
+        }
+
+        .editor-container {
+            background: #fff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+
+        .form-group input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        #editor {
+            height: 300px;
+        }
+
+        .post-list {
+            background: #fff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .post-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .post-item:last-child {
+            border-bottom: none;
+        }
+
+        .post-actions button {
+            margin-left: 0.5rem;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-delete {
+            background: #ff4d4f;
+            color: #fff;
+            border: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Login Section -->
+    <div id="login-section" class="login-wrap">
+        <h2>Admin Login</h2>
+        <form id="login-form">
+            <div class="form-group">
+                <input type="email" id="email" placeholder="Email" required>
+            </div>
+            <div class="form-group">
+                <input type="password" id="password" placeholder="Password" required>
+            </div>
+            <button type="submit" class="btn-primary" style="width:100%">Login</button>
+        </form>
+    </div>
+
+    <!-- Dashboard Section -->
+    <div id="dashboard-section" class="dashboard">
+        <div class="admin-container">
+            <header class="admin-header">
+                <h2>SoDRé CMS</h2>
+                <button id="logout-btn" class="btn-nav">Logout</button>
+            </header>
+
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="news">NEWS</button>
+                <button class="tab-btn" data-tab="diary">DIARY</button>
+                <button class="tab-btn" data-tab="topics">TOPICS</button>
+            </div>
+
+            <!-- Editor Area -->
+            <div class="editor-container">
+                <h3 id="editor-title">New Post (NEWS)</h3>
+                <form id="post-form">
+                    <input type="hidden" id="post-category" value="news">
+
+                    <div class="form-group">
+                        <label>Title</label>
+                        <input type="text" id="post-title" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Images</label>
+                        <input type="file" id="post-image" multiple accept="image/*">
+                        <div id="image-preview" style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Content</label>
+                        <div id="quill-editor"></div>
+                    </div>
+
+                    <button type="submit" class="btn-primary">Publish</button>
+                </form>
+            </div>
+
+            <!-- List Area -->
+            <div class="post-list">
+                <h3>Recent Posts</h3>
+                <div id="posts-container">
+                    <!-- Posts will be loaded here -->
+                    <p>Loading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Quill.js -->
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+    <!-- Admin Logic -->
+    <script src="admin.js"></script>
+</body>
+
+</html>

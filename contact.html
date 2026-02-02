@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>お申し込み・Q&A | SoDRé</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Zen+Kaku+Gothic+New:wght@300;400;500;700&family=Shippori+Mincho:wght@400;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+
+    <header class="header">
+        <div class="container header-container">
+            <a href="index.html" class="logo"><img src="img/logo.webp" alt="SoDRé"></a>
+            <div class="hamburger" id="hamburger-btn">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Full Screen Menu Overlay -->
+    <div id="menu-overlay">
+        <div class="menu-content">
+            <div class="menu-container">
+                <!-- Left Column: Main Nav -->
+                <div class="menu-main">
+                    <ul class="menu-list">
+                        <li><a href="index.html">Top</a></li>
+                        <li><a href="about.html">SoDRéとは？</a></li>
+                        <li><a href="schedule.html">開催スケジュール</a></li>
+                        <li><a href="members.html">運営メンバー</a></li>
+                        <li><a href="plans.html">無料体験会・料金</a></li>
+                        <li><a href="voices.html">参加者のお声</a></li>
+                        <li><a href="contact.html?section=qa">Q&A</a></li>
+                    </ul>
+                </div>
+
+                <!-- Right Column: Updates -->
+                <div class="menu-sub">
+                    <ul class="menu-list sub-list">
+                        <li><a href="news.html">News</a></li>
+                        <li><a href="topics.html">Topics</a></li>
+                        <li><a href="diary.html">Diary</a></li>
+                    </ul>
+                    <a href="application.html" class="btn-menu-cta">お申し込み</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="page-header">
+        <div class="container">
+            <h1>Contact & Q&A</h1>
+            <p>よくある質問・お申し込み</p>
+        </div>
+    </div>
+
+    <main>
+
+        <section id="qa" class="section">
+            <div class="container scroll-reveal">
+                <h2 class="section-title">Q & A</h2>
+                <div class="qa-section">
+                    <details class="qa-item">
+                        <summary>内省が初めてでも大丈夫ですか？</summary>
+                        <p>はい、独自のガイドとルールにより、初めての方でも安心してご参加いただけます。</p>
+                    </details>
+                    <details class="qa-item">
+                        <summary>オンラインでの参加は可能ですか？</summary>
+                        <p>はい、基本はオンライン（Zoom等）での実施となります。オフラインイベントも不定期開催しています。</p>
+                    </details>
+                    <details class="qa-item">
+                        <summary>支払い方法は何がありますか？</summary>
+                        <p>クレジットカード決済、銀行振込に対応しています。</p>
+                    </details>
+                </div>
+            </div>
+        </section>
+
+        <section id="contact" class="section alt-bg">
+            <div class="container scroll-reveal">
+                <h2 class="section-title">Application Form</h2>
+                <div class="contact-area">
+                    <p>無料体験会、その他プランへのお申し込みはこちらから。</p>
+
+                    <form class="contact-form">
+                        <div class="form-group">
+                            <label>お名前</label>
+                            <input type="text" placeholder="例：山田 太郎">
+                        </div>
+                        <div class="form-group">
+                            <label>メールアドレス</label>
+                            <input type="email" placeholder="例：info@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label>ご希望のコース</label>
+                            <select>
+                                <option>無料体験会（大人）</option>
+                                <option>無料体験会（大学生）</option>
+                                <option>無料体験会（中高生）</option>
+                                <option>その他・お問い合わせ</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>メッセージ</label>
+                            <textarea rows="5" placeholder="ご質問などあればご記入ください"></textarea>
+                        </div>
+                        <button type="submit" class="btn-primary big-btn" style="width:100%; border:none;">送信する</button>
+                    </form>
+
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <!-- Footer Nav Removed -->
+            <p class="copyright">&copy; 2026 SoDRé & Junxiang Jin. All Rights Reserved.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

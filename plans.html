@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>プラン・料金 | SoDRé</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Zen+Kaku+Gothic+New:wght@300;400;500;700&family=Shippori+Mincho:wght@400;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+
+    <header class="header">
+        <div class="container header-container">
+            <a href="index.html" class="logo"><img src="img/logo.webp" alt="SoDRé"></a>
+            <div class="hamburger" id="hamburger-btn">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Full Screen Menu Overlay -->
+    <div id="menu-overlay">
+        <div class="menu-content">
+            <div class="menu-container">
+                <!-- Left Column: Main Nav -->
+                <div class="menu-main">
+                    <ul class="menu-list">
+                        <li><a href="index.html">Top</a></li>
+                        <li><a href="about.html">SoDRéとは？</a></li>
+                        <li><a href="schedule.html">開催スケジュール</a></li>
+                        <li><a href="members.html">運営メンバー</a></li>
+                        <li><a href="plans.html">無料体験会・料金</a></li>
+                        <li><a href="voices.html">参加者のお声</a></li>
+                        <li><a href="contact.html?section=qa">Q&A</a></li>
+                    </ul>
+                </div>
+
+                <!-- Right Column: Updates -->
+                <div class="menu-sub">
+                    <ul class="menu-list sub-list">
+                        <li><a href="news.html">News</a></li>
+                        <li><a href="topics.html">Topics</a></li>
+                        <li><a href="diary.html">Diary</a></li>
+                    </ul>
+                    <a href="application.html" class="btn-menu-cta">お申し込み</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="page-header">
+        <div class="container">
+            <h1>Plans & Courses</h1>
+            <p>体験会・料金プラン</p>
+        </div>
+    </div>
+
+    <main>
+
+        <!-- Trial -->
+        <section id="trial" class="section">
+            <div class="container scroll-reveal">
+                <h2 class="section-title">Free Trial</h2>
+                <p class="section-subtitle">まずは無料体験会へご参加ください。3つのコースをご用意しています。</p>
+
+                <div class="trial-section">
+                    <div class="plans-grid">
+                        <div class="plan-card" id="trial-adult">
+                            <div class="icon-wrapper"><i class="fas fa-user-friends"></i></div>
+                            <h4>大人コース</h4>
+                            <p>社会人・一般向けの体験コース。<br>仕事や日常のモヤモヤを整理します。</p>
+                        </div>
+                        <div class="plan-card" id="trial-student">
+                            <div class="icon-wrapper"><i class="fas fa-graduation-cap"></i></div>
+                            <h4>大学生コース</h4>
+                            <p>就活や進路、人間関係について。<br>同世代との対話で視点を広げます。</p>
+                        </div>
+                        <div class="plan-card" id="trial-teen">
+                            <div class="icon-wrapper"><i class="fas fa-seedling"></i></div>
+                            <h4>中高生コース</h4>
+                            <p>学校や家庭以外のサードプレイスとして。<br>10代のための安全な場です。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="center-btn mt-4">
+                    <a href="index.html#schedule" class="btn-primary">開催スケジュールを見る</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Paid Plans -->
+        <section id="plans" class="section alt-bg">
+            <div class="container scroll-reveal">
+                <h2 class="section-title">Paid Plans</h2>
+                <p class="section-subtitle">より深く、継続的に。</p>
+
+                <div class="plans-list">
+                    <div class="plan-row" id="standard">
+                        <div class="plan-info">
+                            <h3>スタンダードプラン</h3>
+                            <p>通常の内省プログラム。月額制で定期的に対話の場に参加できます。</p>
+                        </div>
+                        <div class="plan-price">
+                            月額 <span>¥3,300</span> (税込)
+                        </div>
+                    </div>
+
+                    <div class="plan-row" id="short">
+                        <div class="plan-info">
+                            <h3>短期集中プラン</h3>
+                            <p>全4回、1ヶ月間で特定のテーマについて深掘りする集中コース。</p>
+                        </div>
+                        <div class="plan-price">
+                            <span>¥12,000</span> (税込)
+                        </div>
+                    </div>
+
+                    <div class="plan-row" id="coaching">
+                        <div class="plan-info">
+                            <h3>コーチングプラン</h3>
+                            <p>プロのコーチによる1on1の個別セッション。よりパーソナルな課題に。</p>
+                        </div>
+                        <div class="plan-price">
+                            1回 <span>¥8,000</span> (税込)~
+                        </div>
+                    </div>
+
+                    <div class="plan-row" id="event">
+                        <div class="plan-info">
+                            <h3>オフラインイベント</h3>
+                            <p>不定期開催。自然の中や、落ち着いた空間での対面対話。</p>
+                        </div>
+                        <div class="plan-price">
+                            都度お見積り/告知
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <footer>
+        <div class="container">
+            <!-- Footer Nav Removed -->
+            <p class="copyright">&copy; 2026 SoDRé & Junxiang Jin. All Rights Reserved.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

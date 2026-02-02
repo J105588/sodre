@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SoDRé（ソドレー♪）- 対話的内省の暇</title>
+    <meta name="description" content="他者との対話を通じて自分自身の内側を深く省みる「対話的内省」の場を提供するSoDRé（ソドレー♪）の公式サイトです。">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Zen+Kaku+Gothic+New:wght@300;400;500;700&family=Shippori+Mincho:wght@400;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+
+    <!-- Opening Animation Overlay (Aurora Text Style) -->
+    <div id="opening-overlay">
+        <div class="aurora-bg"></div>
+        <div class="opening-content">
+            <h1 class="logo-reveal">
+                <span style="--i:1">S</span><span style="--i:2">o</span><span style="--i:3">D</span><span
+                    style="--i:4">R</span><span style="--i:5">é</span>
+            </h1>
+            <p class="fade-text">対話的内省の暇</p>
+        </div>
+    </div>
+
+    <!-- Header / Global Navigation -->
+    <header class="header">
+        <div class="container header-container">
+            <a href="index.html" class="logo"><img src="img/logo.webp" alt="SoDRé"></a>
+            <div class="hamburger" id="hamburger-btn">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Full Screen Menu Overlay -->
+    <div id="menu-overlay">
+        <div class="menu-content">
+            <div class="menu-container">
+                <!-- Left Column: Main Nav -->
+                <div class="menu-main">
+                    <ul class="menu-list">
+                        <li><a href="index.html">Top</a></li>
+                        <li><a href="about.html">SoDRéとは？</a></li>
+                        <li><a href="schedule.html">開催スケジュール</a></li>
+                        <li><a href="members.html">運営メンバー</a></li>
+                        <li><a href="plans.html">無料体験会・料金</a></li>
+                        <li><a href="voices.html">参加者のお声</a></li>
+                        <li><a href="contact.html?section=qa">Q&A</a></li>
+                    </ul>
+                </div>
+
+                <!-- Right Column: Updates -->
+                <div class="menu-sub">
+                    <ul class="menu-list sub-list">
+                        <li><a href="news.html">News</a></li>
+                        <li><a href="topics.html">Topics</a></li>
+                        <li><a href="diary.html">Diary</a></li>
+                    </ul>
+                    <a href="application.html" class="btn-menu-cta">お申し込み</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Visual -->
+    <div class="hero-section">
+        <div class="hero-bg"></div>
+        <!-- Image Slider (Full Width) -->
+        <div class="slider-viewport reveal-text">
+            <div class="slider-track">
+                <div class="slide"><img src="img/2.png" alt="SoDRé Visual 1"></div>
+                <div class="slide"><img src="img/3.png" alt="SoDRé Visual 2"></div>
+                <div class="slide"><img src="img/1.png" alt="SoDRé Visual 3"></div>
+            </div>
+        </div>
+
+        <div class="hero-content">
+
+            <div class="hero-message reveal-text delay-200">
+                <p>SoDRé （ソドレー♪）へのメインサイトへ、ようこそお越しくださいました。</p>
+                <p class="mt-2">ここは、対話を通じて内省を行う場所です。内省は「自らの心の形を知ること」であると私は考えています。</p>
+                <p>自分だけでは見えない部分があり、他者から見てもらうことで初めて気づく心の形があるかもしれません。</p>
+                <p>どんな方でも、対話を通じて深い内省ができるようサポートするために私たち運営メンバーがいます。</p>
+                <p>まずは、無料体験会にお越しください。人を言語化する対話の楽しさを知っていただけたら幸いです。</p>
+                <p class="mt-2">あなたのことをお待ちしております。</p>
+                <p class="greeting-author mt-2">代表　たじあき より</p>
+            </div>
+        </div>
+    </div>
+
+    <main>
+        <div class="split-section-container">
+            <!-- NEWS -->
+            <section class="section split-col alt-bg">
+                <div class="container scroll-reveal">
+                    <h2 class="section-title">NEWS</h2>
+                    <div id="news-list" class="posts-grid">
+                        <!-- Loaded via JS -->
+                    </div>
+                    <div style="text-align:center; margin-top:2rem;">
+                        <a href="news.html" class="btn-nav">View All News</a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- DIARY -->
+            <section class="section split-col alt-bg">
+                <div class="container scroll-reveal">
+                    <h2 class="section-title">DIARY</h2>
+                    <div id="diary-list" class="posts-grid">
+                        <!-- Loaded via JS -->
+                    </div>
+                    <div style="text-align:center; margin-top:2rem;">
+                        <a href="diary.html" class="btn-nav">View All Diary</a>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- TOPICS -->
+        <section class="section">
+            <div class="container scroll-reveal">
+                <h2 class="section-title">TOPICS</h2>
+                <div id="topics-list" class="posts-grid">
+                    <!-- Loaded via JS -->
+                </div>
+                <div style="text-align:center; margin-top:2rem;">
+                    <a href="topics.html" class="btn-nav">View All Topics</a>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- Brief Intros (Teasers) -->
+        <section class="section alt-bg">
+            <div class="container scroll-reveal">
+                <div class="columns-2">
+                    <div class="col-box" style="text-align:center;">
+                        <h3>About SoDRé</h3>
+                        <p>一人では気づけない部分を、他者の視点を借りて言語化する。</p>
+                        <a href="about.html" class="text-link">詳しくはこちら <i class="fas fa-arrow-right"></i></a>
+                    </div>
+                    <div class="col-box" style="text-align:center;">
+                        <h3>Members</h3>
+                        <p>安心して内省に集中できる場を作る運営メンバー。</p>
+                        <a href="members.html" class="text-link">メンバー紹介 <i class="fas fa-arrow-right"></i></a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <!-- Footer Nav Removed -->
+            <p class="copyright">&copy; 2026 SoDRé & Junxiang Jin. All Rights Reserved.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="posts.js"></script>
+    <script src="calendar.js"></script>
+</body>
+
+</html>
