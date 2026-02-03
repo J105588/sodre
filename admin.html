@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SoDRé Admin Dashboard</title>
+    <title>SoDRé 管理画面</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,13 +22,8 @@
         body {
             background-color: #f4f6f8;
             padding-top: 0;
-            /* Override main site padding */
-        }
-
-        .admin-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
+            margin: 0;
+            font-family: "Zen Kaku Gothic New", sans-serif;
         }
 
         .login-wrap {
@@ -43,15 +38,90 @@
 
         .login-wrap input {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             margin-bottom: 1rem;
             border: 1px solid #ddd;
             border-radius: 4px;
+            box-sizing: border-box;
         }
 
         .dashboard {
             display: none;
             /* Hidden by default */
+            height: 100vh;
+        }
+
+        .admin-layout {
+            display: flex;
+            height: 100%;
+        }
+
+        /* Sidebar Styling */
+        .sidebar {
+            width: 250px;
+            background: #2c3e50;
+            color: #ecf0f1;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            background: #243342;
+            text-align: center;
+        }
+
+        .sidebar-header h2 {
+            margin: 0;
+            font-size: 1.4rem;
+            font-family: "Cinzel", serif;
+            letter-spacing: 0.1em;
+        }
+
+        .sidebar-nav {
+            padding: 1rem 0;
+            flex: 1;
+        }
+
+        .nav-item {
+            display: block;
+            padding: 1rem 1.5rem;
+            color: #bdc3c7;
+            text-decoration: none;
+            transition: all 0.3s;
+            cursor: pointer;
+            border-left: 4px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: #34495e;
+            color: #fff;
+        }
+
+        .nav-item.active {
+            background: #34495e;
+            color: #fff;
+            border-left-color: var(--primary-color);
+        }
+
+        .nav-item i {
+            width: 25px;
+            text-align: center;
+            margin-right: 10px;
+        }
+
+        .sidebar-footer {
+            padding: 1rem;
+            border-top: 1px solid #34495e;
+        }
+
+        /* Main Content Styling */
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+            background: #f4f6f8;
         }
 
         .admin-header {
@@ -59,39 +129,29 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 2rem;
-            background: #fff;
-            padding: 1rem 2rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        }
-
-        .tabs {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-
-        .tab-btn {
-            padding: 10px 20px;
-            background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        .tab-btn.active {
-            background: var(--primary-color);
-            color: #fff;
-            border-color: var(--primary-color);
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #ddd;
         }
 
         .content-panel {
             display: none;
+            animation: fadeIn 0.3s ease;
         }
 
         .content-panel.active {
             display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .editor-container {
@@ -110,13 +170,20 @@
             display: block;
             margin-bottom: 0.5rem;
             font-weight: bold;
+            color: #333;
         }
 
-        .form-group input[type="text"] {
+        .form-group input[type="text"],
+        .form-group input[type="email"],
+        .form-group input[type="password"],
+        .form-group input[type="date"],
+        .form-group select {
             width: 100%;
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 1rem;
         }
 
         #editor {
@@ -142,17 +209,51 @@
             border-bottom: none;
         }
 
+        .post-info strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 1.1rem;
+        }
+
         .post-actions button {
             margin-left: 0.5rem;
-            padding: 5px 10px;
+            padding: 6px 12px;
             border-radius: 4px;
             cursor: pointer;
+            font-size: 0.9rem;
         }
 
         .btn-delete {
             background: #ff4d4f;
             color: #fff;
             border: none;
+        }
+
+        .btn-delete:hover {
+            background: #d9363e;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .admin-layout {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: auto;
+            }
+
+            .sidebar-nav {
+                display: flex;
+                overflow-x: auto;
+                padding: 0;
+            }
+
+            .nav-item {
+                padding: 1rem;
+                white-space: nowrap;
+            }
         }
     </style>
 </head>
@@ -161,72 +262,252 @@
 
     <!-- Login Section -->
     <div id="login-section" class="login-wrap">
-        <h2>Admin Login</h2>
+        <h2>SoDRé 管理画面</h2>
         <form id="login-form">
             <div class="form-group">
-                <input type="email" id="email" placeholder="Email" required>
+                <input type="email" id="email" placeholder="メールアドレス" required>
             </div>
             <div class="form-group">
-                <input type="password" id="password" placeholder="Password" required>
+                <input type="password" id="password" placeholder="パスワード" required>
             </div>
-            <button type="submit" class="btn-primary" style="width:100%">Login</button>
+            <button type="submit" class="btn-primary" style="width:100%">ログイン</button>
         </form>
     </div>
 
     <!-- Dashboard Section -->
     <div id="dashboard-section" class="dashboard">
-        <div class="admin-container">
-            <header class="admin-header">
-                <h2>SoDRé CMS</h2>
-                <button id="logout-btn" class="btn-nav">Logout</button>
-            </header>
+        <div class="admin-layout">
 
-            <div class="tabs">
-                <button class="tab-btn active" data-tab="news">NEWS</button>
-                <button class="tab-btn" data-tab="diary">DIARY</button>
-                <button class="tab-btn" data-tab="topics">TOPICS</button>
-            </div>
-
-            <!-- Editor Area -->
-            <div class="editor-container">
-                <h3 id="editor-title">New Post (NEWS)</h3>
-                <form id="post-form">
-                    <input type="hidden" id="post-category" value="news">
-
-                    <div class="form-group">
-                        <label>Title</label>
-                        <input type="text" id="post-title" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Images</label>
-                        <input type="file" id="post-image" multiple accept="image/*">
-                        <div id="image-preview" style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;"></div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Content</label>
-                        <div id="quill-editor"></div>
-                    </div>
-
-                    <button type="submit" class="btn-primary">Publish</button>
-                </form>
-            </div>
-
-            <!-- List Area -->
-            <div class="post-list">
-                <h3>Recent Posts</h3>
-                <div id="posts-container">
-                    <!-- Posts will be loaded here -->
-                    <p>Loading...</p>
+            <!-- Sidebar Navigation -->
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <h2>SoDRé CMS</h2>
                 </div>
-            </div>
+                <nav class="sidebar-nav">
+                    <a class="nav-item tab-btn active" data-tab="news">
+                        <i class="fas fa-newspaper"></i> ニュース
+                    </a>
+                    <a class="nav-item tab-btn" data-tab="diary">
+                        <i class="fas fa-book-open"></i> ダイアリー
+                    </a>
+                    <a class="nav-item tab-btn" data-tab="topics">
+                        <i class="fas fa-star"></i> トピックス
+                    </a>
+                    <a class="nav-item tab-btn" data-tab="groups">
+                        <i class="fas fa-users"></i> グループ管理
+                    </a>
+                    <a class="nav-item tab-btn" data-tab="calendar">
+                        <i class="fas fa-calendar-alt"></i> カレンダー管理
+                    </a>
+                    <a class="nav-item tab-btn" data-tab="users">
+                        <i class="fas fa-user-cog"></i> ユーザー管理
+                    </a>
+                </nav>
+                <div class="sidebar-footer">
+                    <button id="logout-btn" class="btn-delete" style="width:100%"><i class="fas fa-sign-out-alt"></i>
+                        ログアウト</button>
+                </div>
+            </aside>
+
+            <!-- Main Content Area -->
+            <main class="main-content">
+
+                <!-- Posts Editor (NEWS, DIARY, TOPICS) -->
+                <div id="posts-editor-area" class="content-panel active">
+                    <div class="admin-header">
+                        <h2 id="editor-title">記事投稿 (ニュース)</h2>
+                    </div>
+                    <div class="editor-container">
+                        <form id="post-form">
+                            <input type="hidden" id="post-category" value="news">
+
+                            <div class="form-group">
+                                <label>タイトル</label>
+                                <input type="text" id="post-title" required placeholder="記事のタイトルを入力">
+                            </div>
+
+                            <div class="form-group">
+                                <label>画像 (選択時のみアップロード)</label>
+                                <input type="file" id="post-image" multiple accept="image/*">
+                                <div id="image-preview"
+                                    style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>本文</label>
+                                <div id="quill-editor" style="background:#fff; height: 300px;"></div>
+                            </div>
+
+                            <button type="submit" class="btn-primary">記事を公開する</button>
+                        </form>
+                    </div>
+
+                    <!-- List Area -->
+                    <div class="post-list">
+                        <h3>投稿一覧</h3>
+                        <div id="posts-container">
+                            <!-- Posts will be loaded here -->
+                            <p>読み込み中...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Groups Management Area -->
+                <div id="groups-manager-area" class="content-panel">
+                    <div class="admin-header">
+                        <h2>グループ管理</h2>
+                    </div>
+
+                    <!-- Create Group -->
+                    <div class="editor-container">
+                        <h3>新規グループ作成</h3>
+                        <form id="create-group-form">
+                            <div class="form-group">
+                                <label>グループ名</label>
+                                <input type="text" id="new-group-name" required placeholder="例: Aチーム">
+                            </div>
+                            <div class="form-group">
+                                <label>説明</label>
+                                <input type="text" id="new-group-desc" placeholder="グループの説明">
+                            </div>
+                            <button type="submit" class="btn-primary">グループを作成</button>
+                        </form>
+                    </div>
+
+                    <!-- Groups List -->
+                    <div class="post-list">
+                        <h3>グループ一覧</h3>
+                        <div id="admin-groups-list">
+                            <!-- Loaded via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Group Member Management Panel -->
+                    <div id="group-detail-panel"
+                        style="display:none; margin-top:2rem; background:#fff; padding:2rem; border-radius:8px; border:1px solid #ddd;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <h3 id="manage-group-title">グループメンバー管理</h3>
+                            <button id="close-group-panel" class="btn-delete">閉じる</button>
+                        </div>
+
+                        <div style="margin: 1.5rem 0; padding:1.5rem; background:#f9f9f9; border-radius:6px;">
+                            <h4 style="margin-top:0;">メンバーを追加</h4>
+                            <div style="display:flex; gap:10px;">
+                                <input type="email" id="add-member-email" placeholder="ユーザーのメールアドレスを入力" style="flex:1;">
+                                <button id="btn-add-member" class="btn-primary">追加</button>
+                            </div>
+                            <p id="add-member-msg" style="color:red; font-size:0.9rem; margin-top:5px;"></p>
+                        </div>
+
+                        <h4>参加メンバー一覧</h4>
+                        <div id="group-members-list"
+                            style="max-height:300px; overflow-y:auto; border:1px solid #eee; border-radius:4px; padding:0.5rem;">
+                            <!-- Members loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Calendar Management Area -->
+                <div id="calendar-manager-area" class="content-panel">
+                    <div class="admin-header">
+                        <h2>カレンダー管理</h2>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+
+                        <!-- 1. Event Types (Legend) -->
+                        <div class="editor-container">
+                            <h3>予定タイプ (凡例)</h3>
+                            <p style="font-size:0.9rem; color:#666; margin-bottom:1rem;">カレンダーに表示する予定の色分け設定です。</p>
+                            <form id="create-cal-type-form">
+                                <div class="form-group">
+                                    <label>ラベル名 (例: 体験会)</label>
+                                    <input type="text" id="cal-type-label" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>表示色</label>
+                                    <input type="color" id="cal-type-color" value="#ff5733"
+                                        style="width:100%; height:40px; cursor:pointer;">
+                                </div>
+                                <button type="submit" class="btn-primary">タイプを追加</button>
+                            </form>
+
+                            <div id="cal-types-list"
+                                style="margin-top:1.5rem; border-top:1px solid #eee; padding-top:1rem;">
+                                <!-- Loaded via JS -->
+                            </div>
+                        </div>
+
+                        <!-- 2. Manage Events -->
+                        <div class="editor-container">
+                            <h3>特定日の予定設定</h3>
+                            <form id="create-cal-event-form">
+                                <div class="form-group">
+                                    <label>日付</label>
+                                    <input type="date" id="cal-event-date" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>予定タイプ</label>
+                                    <select id="cal-event-type-select" required>
+                                        <!-- Loaded via JS -->
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn-primary">予定を登録</button>
+                            </form>
+
+                            <div class="post-list" style="margin-top:2rem;">
+                                <h4>登録済みの予定 (直近)</h4>
+                                <div id="cal-events-list">
+                                    <!-- Loaded via JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Management Area -->
+                <div id="users-manager-area" class="content-panel">
+                    <div class="admin-header">
+                        <h2>ユーザー管理</h2>
+                    </div>
+                    <div class="editor-container">
+                        <h3>新規ユーザー登録申請</h3>
+                        <p style="margin-bottom:1rem; color:#666;">
+                            新しいユーザーのアカウントを作成します。初期パスワードを設定してください。
+                        </p>
+                        <form id="create-user-form">
+                            <div class="form-group">
+                                <label>メールアドレス</label>
+                                <input type="email" id="new-user-email" required>
+                            </div>
+                            <div class="form-group">
+                                <label>表示名 (氏名)</label>
+                                <input type="text" id="new-user-name" required>
+                            </div>
+                            <div class="form-group">
+                                <label>初期パスワード</label>
+                                <input type="text" id="new-user-password" required minlength="6" placeholder="6文字以上">
+                            </div>
+                            <button type="submit" class="btn-primary">ユーザーを作成</button>
+                        </form>
+                    </div>
+
+                    <div class="post-list">
+                        <h3>登録ユーザー一覧</h3>
+                        <div id="admin-users-list">
+                            <!-- Loaded via JS -->
+                        </div>
+                    </div>
+                </div>
+
+            </main>
         </div>
     </div>
 
     <!-- Scripts -->
     <!-- Supabase Client -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="config.js"></script>
     <!-- Quill.js -->
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     <!-- Admin Logic -->

@@ -55,6 +55,8 @@
                         <li><a href="plans.html">無料体験会・料金</a></li>
                         <li><a href="voices.html">参加者のお声</a></li>
                         <li><a href="contact.html?section=qa">Q&A</a></li>
+                        <li class="member-login"><a href="login.html"><i class="fas fa-sign-in-alt"></i> Member
+                                Login</a></li>
                     </ul>
                 </div>
 
@@ -166,8 +168,18 @@
         </div>
     </footer>
 
+    <!-- Post Detail Modal -->
+    <div id="post-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <div id="modal-post-content"></div>
+        </div>
+    </div>
+
+    <!-- Scripts: Load Order is Important -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="config.js"></script>
     <script src="script.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="posts.js"></script>
     <script src="calendar.js"></script>
 </body>
