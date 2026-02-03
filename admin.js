@@ -159,6 +159,71 @@
             }
         });
 
+        // --- Preview Logic ---
+        const previewBtn = document.getElementById('preview-btn');
+        const previewModal = document.getElementById('preview-modal');
+        const closePreview = document.getElementById('close-preview');
+        const closePreviewBtn = document.getElementById('close-preview-btn');
+        const previewTitle = document.getElementById('preview-title');
+        const previewBody = document.getElementById('preview-body');
+        const previewContainer = document.getElementById('preview-container');
+
+        previewBtn.addEventListener('click', () => {
+            const title = postTitleInput.value;
+            const content = quill.root.innerHTML;
+
+            // 1. Set Title
+            previewTitle.innerText = title || '(No Title)';
+
+            // 2. Build Images HTML from selectedImages (File objects)
+            let imagesHtml = '';
+            if (selectedImages && selectedImages.length > 0) {
+                imagesHtml = '<div class="post-images" style="display:flex; gap:10px; overflow-x:auto; margin-bottom:1rem;">';
+                selectedImages.forEach(file => {
+                    const imgUrl = URL.createObjectURL(file);
+                    imagesHtml += `<img src="${imgUrl}" style="max-height:200px; border-radius:4px;">`;
+                });
+                imagesHtml += '</div>';
+            }
+
+            // 3. Set Body (Images + Content)
+            // Note: We prepend images to body container to match frontend layout approx
+            // But frontend puts images *before* .post-body-text. 
+            // In admin.html I created #preview-body with class .post-body-text.
+            // So I should insert images *before* #preview-body or inside it at the top?
+            // posts.js puts images OUTSIDE .post-body-text.
+
+            // Let's reconstruct the container content slightly to match posts.js structure:
+            // <h2>Title</h2> <p>Date</p> <images> <body-text>
+
+            // Re-render the container
+            previewContainer.innerHTML = `
+                <h2 class="post-title">${escapeHtml(title || '(No Title)')}</h2>
+                <p class="post-date" style="color:#888; font-size:0.9rem; margin-bottom:1rem;">${new Date().toLocaleDateString()} (Preview)</p>
+                ${imagesHtml}
+                <div class="post-body-text">
+                    ${content}
+                </div>
+            `;
+
+            previewModal.style.display = 'flex';
+            setTimeout(() => previewModal.style.opacity = '1', 10);
+        });
+
+        const hidePreview = () => {
+            previewModal.style.opacity = '0';
+            setTimeout(() => previewModal.style.display = 'none', 300);
+        };
+
+        closePreview.addEventListener('click', hidePreview);
+        closePreviewBtn.addEventListener('click', hidePreview);
+
+        window.onclick = function (event) {
+            if (event.target == previewModal) {
+                hidePreview();
+            }
+        };
+
         // Create Post
         postForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -395,11 +460,11 @@
                 alert("Access denied. Admin rights required.");
                 // Optional: Logout if not admin
                 await supabase.auth.signOut();
-                loginSection.style.display = 'block';
+                loginSection.style.display = 'flex';
                 dashboardSection.style.display = 'none';
             }
         } else {
-            loginSection.style.display = 'block';
+            loginSection.style.display = 'flex';
             dashboardSection.style.display = 'none';
         }
     }
@@ -511,12 +576,13 @@
             }
 
             groupMembersList.innerHTML = data.map(member => `
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding:5px 0;">
-                    <div>
-                        <div>${escapeHtml(member.profiles?.display_name || 'No Name')} (${escapeHtml(member.profiles?.email || 'No Email')})</div>
+                <div class="post-item">
+                    <div class="post-info">
+                        <strong>${escapeHtml(member.profiles?.display_name || 'No Name')}</strong>
+                        <span style="font-size:0.85rem; color:#666;">${escapeHtml(member.profiles?.email || 'No Email')}</span>
                     </div>
-                    <div>
-                        <button onclick="togglePostPermission('${member.id}', ${member.can_post})" style="padding:2px 5px; font-size:0.8rem; margin-right:5px; border:1px solid #ccc; background:${member.can_post ? '#e6fffa' : '#fff5f5'}">
+                    <div class="post-actions">
+                        <button onclick="togglePostPermission('${member.id}', ${member.can_post})" style="padding:6px 12px; font-size:0.8rem; margin-right:5px; border:1px solid #ccc; background:${member.can_post ? '#e8f5e9' : '#fff5f5'}; border-radius:4px; cursor:pointer;">
                             ${member.can_post ? 'Can Post' : 'Read Only'}
                         </button>
                         <button onclick="removeMember('${member.id}')" class="btn-delete" style="font-size:0.8rem;">Remove</button>
@@ -585,12 +651,14 @@
         }
 
         calTypesList.innerHTML = data.map(type => `
-            <div style="display:flex; justify-content:space-between; align-items:center; border:1px solid #eee; padding:5px 10px; margin-bottom:5px; border-radius:4px;">
-                <div style="display:flex; align-items:center;">
+            <div class="post-item">
+                <div class="post-info" style="display:flex; align-items:center;">
                     <span style="display:inline-block; width:15px; height:15px; background:${type.color}; margin-right:10px; border-radius:3px;"></span>
-                    <span>${escapeHtml(type.label)}</span>
+                    <strong>${escapeHtml(type.label)}</strong>
                 </div>
-                <button onclick="deleteCalType('${type.id}')" class="btn-delete" style="font-size:0.8rem; padding:2px 5px;">Delete</button>
+                <div class="post-actions">
+                    <button onclick="deleteCalType('${type.id}')" class="btn-delete" style="font-size:0.8rem; padding:6px 12px;">Delete</button>
+                </div>
             </div>
         `).join('');
 
@@ -626,12 +694,14 @@
         }
 
         calEventsList.innerHTML = data.map(event => `
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding:5px 0;">
-                <div>
-                    <strong>${event.event_date}</strong>: 
-                    <span style="color:${event.calendar_types?.color}">${escapeHtml(event.calendar_types?.label)}</span>
+            <div class="post-item">
+                <div class="post-info">
+                    <strong>${event.event_date}</strong>
+                    <span style="color:${event.calendar_types?.color}; font-size:0.9rem;">${escapeHtml(event.calendar_types?.label)}</span>
                 </div>
-                <button onclick="deleteCalEvent('${event.id}')" class="btn-delete" style="font-size:0.8rem;">Delete</button>
+                <div class="post-actions">
+                    <button onclick="deleteCalEvent('${event.id}')" class="btn-delete" style="font-size:0.8rem;">Delete</button>
+                </div>
             </div>
         `).join('');
     }

@@ -6,34 +6,74 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 window.supabaseClient = provider.createClient(window.SUPABASE_URL, window.SUPABASE_KEY);
                 supabase = window.supabaseClient;
-            } catch (e) { console.error(e); }
+            } catch (e) {
+                console.error(e);
+            }
         }
     }
     if (!supabase) return;
 
-    // UI Elements
+    // --- DOM Elements ---
     const displayNameEl = document.getElementById('user-display-name');
     const logoutBtn = document.getElementById('logout-btn');
     const tabBtns = document.querySelectorAll('.m-tab-btn');
     const viewAll = document.getElementById('view-all');
     const viewGroups = document.getElementById('view-groups');
 
-    // Auth Check
+    // Feeds
+    const allFeed = document.getElementById('all-board-feed');
+    const groupFeed = document.getElementById('group-board-feed');
+    const groupsList = document.getElementById('my-groups-list');
+    const groupBoardView = document.getElementById('group-board-view');
+    const currentGroupName = document.getElementById('current-group-name');
+    const backToGroupsBtn = document.getElementById('back-to-groups-btn');
+
+    // FAB & Modal Elements
+    const fabPost = document.getElementById('fab-post');
+    const postModal = document.getElementById('post-modal');
+    const modalClose = document.getElementById('modal-close');
+    const modalTitle = document.getElementById('modal-title');
+    const modalPostContent = document.getElementById('modal-post-content');
+    const modalSubmitBtn = document.getElementById('modal-submit-btn');
+
+    // --- State ---
+    let currentPostContext = 'all'; // 'all' or 'group'
+    let currentGroupId = null;
+    let currentGroupCanPost = false;
+
+    // --- Auth Check ---
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
         window.location.href = 'login.html';
         return;
     }
-
     const user = session.user;
     loadProfile(user.id);
 
-    // --- Layout & Tabs ---
+    // --- Profile Logic ---
+    async function loadProfile(uid) {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('display_name')
+            .eq('id', uid)
+            .maybeSingle();
+
+        if (data && data.display_name) {
+            displayNameEl.textContent = `Welcome, ${data.display_name}`;
+        } else {
+            // Prioritize Display Name but fallback to email if empty
+            displayNameEl.textContent = `Welcome, ${user.email}`;
+            // If display_name is retrieved but empty, logic holds.
+        }
+    }
+
+    // --- Logout ---
     logoutBtn.addEventListener('click', async () => {
         await supabase.auth.signOut();
         window.location.href = 'login.html';
     });
 
+    // --- Tab Switching ---
     tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             tabBtns.forEach(b => b.classList.remove('active'));
@@ -43,10 +83,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (tab === 'all') {
                 viewAll.style.display = 'block';
                 viewGroups.style.display = 'none';
+
+                // Update Context
+                currentPostContext = 'all';
+                fabPost.style.display = 'flex'; // Show FAB for All Board
                 loadAllPosts();
             } else {
                 viewAll.style.display = 'none';
                 viewGroups.style.display = 'block';
+
+                // Update Context (Initially Group List)
+                currentPostContext = 'group_list';
+                fabPost.style.display = 'none'; // Hide FAB in Group List
                 loadMyGroups();
             }
         });
@@ -55,48 +103,72 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Initial Load ---
     loadAllPosts();
 
-    // --- Profile ---
-    async function loadProfile(uid) {
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('display_name')
-            .eq('id', uid)
-            .single();
-
-        if (data && data.display_name) {
-            displayNameEl.textContent = `Welcome, ${data.display_name}`;
-        } else {
-            displayNameEl.textContent = `Welcome, ${user.email}`;
-            // Optionally prompt to set display name?
-            // If profile doesn't exist, Create it? (Should be done by trigger)
+    // --- Modal / FAB Logic ---
+    fabPost.addEventListener('click', () => {
+        modalPostContent.value = '';
+        if (currentPostContext === 'all') {
+            modalTitle.textContent = '全体掲示板に投稿';
+        } else if (currentPostContext === 'group') {
+            modalTitle.textContent = `${currentGroupName.innerText} に投稿`;
         }
-    }
 
-    // --- All Members Board ---
-    const allPostBtn = document.getElementById('all-post-btn');
-    const allPostContent = document.getElementById('all-post-content');
-    const allFeed = document.getElementById('all-board-feed');
+        postModal.classList.add('active');
+        setTimeout(() => { modalPostContent.focus(); }, 100);
+    });
 
-    allPostBtn.addEventListener('click', async () => {
-        const content = allPostContent.value.trim();
+    modalClose.addEventListener('click', () => {
+        postModal.classList.remove('active');
+    });
+
+    // Close on click outside
+    postModal.addEventListener('click', (e) => {
+        if (e.target === postModal) {
+            postModal.classList.remove('active');
+        }
+    });
+
+    modalSubmitBtn.addEventListener('click', async () => {
+        const content = modalPostContent.value.trim();
         if (!content) return;
+
+        let insertData = {
+            user_id: user.id,
+            content: content
+        };
+
+        if (currentPostContext === 'all') {
+            insertData.group_id = null;
+        } else if (currentPostContext === 'group') {
+            if (!currentGroupId) return;
+            insertData.group_id = currentGroupId;
+        } else {
+            return; // Should not happen
+        }
+
+        modalSubmitBtn.disabled = true;
+        modalSubmitBtn.textContent = '送信中...';
 
         const { error } = await supabase
             .from('board_posts')
-            .insert([{
-                user_id: user.id,
-                group_id: null, // Global
-                content: content
-            }]);
+            .insert([insertData]);
+
+        modalSubmitBtn.disabled = false;
+        modalSubmitBtn.textContent = '送信';
 
         if (error) {
             alert('投稿に失敗しました: ' + error.message);
         } else {
-            allPostContent.value = '';
-            loadAllPosts();
+            postModal.classList.remove('active');
+            if (currentPostContext === 'all') {
+                loadAllPosts();
+            } else {
+                loadGroupPosts(currentGroupId);
+            }
         }
     });
 
+
+    // --- All Board Logic ---
     async function loadAllPosts() {
         allFeed.innerHTML = '<p>Loading...</p>';
         const { data, error } = await supabase
@@ -113,54 +185,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             allFeed.innerHTML = '<p>Error loading posts.</p>';
             return;
         }
-
         renderPosts(data, allFeed);
     }
 
-    function renderPosts(posts, container) {
-        if (!posts || posts.length === 0) {
-            container.innerHTML = '<p>まだ投稿はありません。</p>';
-            return;
-        }
-
-        container.innerHTML = posts.map(post => `
-            <div class="board-post">
-                <div class="bp-header">
-                    <span class="bp-author">${post.profiles?.display_name || 'Unknown'}</span>
-                    <span class="bp-date">${new Date(post.created_at).toLocaleString()}</span>
-                </div>
-                <div class="bp-content">${escapeHtml(post.content)}</div>
-            </div>
-        `).join('');
-    }
-
-    function escapeHtml(text) {
-        return text
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
-
     // --- Group Logic ---
-    const groupsList = document.getElementById('my-groups-list');
-    const groupBoardView = document.getElementById('group-board-view');
-    const currentGroupName = document.getElementById('current-group-name');
-    const backToGroupsBtn = document.getElementById('back-to-groups-btn');
-
-    const groupPostBtn = document.getElementById('group-post-btn');
-    const groupPostContent = document.getElementById('group-post-content');
-    const groupFeed = document.getElementById('group-board-feed');
-    const groupFormArea = document.getElementById('group-post-form-area');
-
-    let currentGroupId = null;
-    let currentGroupCanPost = false; // Initialize safe
-
     backToGroupsBtn.addEventListener('click', () => {
         groupBoardView.style.display = 'none';
         groupsList.style.display = 'grid';
         currentGroupId = null;
+
+        // Context Update
+        currentPostContext = 'group_list';
+        fabPost.style.display = 'none'; // Hide FAB
     });
 
     async function loadMyGroups() {
@@ -203,35 +239,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         groupBoardView.style.display = 'block';
         currentGroupName.innerText = gname;
 
-        // Handle posting permission UI
+        // Context Update
+        currentPostContext = 'group';
+
         if (canPost) {
-            groupFormArea.style.display = 'block';
+            fabPost.style.display = 'flex'; // Show FAB
         } else {
-            groupFormArea.style.display = 'none';
+            fabPost.style.display = 'none'; // Hide FAB if read-only
         }
 
         loadGroupPosts(gid);
     };
-
-    groupPostBtn.addEventListener('click', async () => {
-        const content = groupPostContent.value.trim();
-        if (!content || !currentGroupId) return;
-
-        const { error } = await supabase
-            .from('board_posts')
-            .insert([{
-                user_id: user.id,
-                group_id: currentGroupId,
-                content: content
-            }]);
-
-        if (error) {
-            alert('投稿に失敗しました: ' + error.message);
-        } else {
-            groupPostContent.value = '';
-            loadGroupPosts(currentGroupId);
-        }
-    });
 
     async function loadGroupPosts(gid) {
         groupFeed.innerHTML = '<p>Loading...</p>';
@@ -245,9 +263,37 @@ document.addEventListener('DOMContentLoaded', async () => {
             .order('created_at', { ascending: false });
 
         if (error) {
-            renderPosts([], groupFeed); // Empty or error
+            renderPosts([], groupFeed);
             return;
         }
         renderPosts(data, groupFeed);
+    }
+
+    // --- Components ---
+    function renderPosts(posts, container) {
+        if (!posts || posts.length === 0) {
+            container.innerHTML = '<p>まだ投稿はありません。</p>';
+            return;
+        }
+
+        container.innerHTML = posts.map(post => `
+            <div class="board-post">
+                <div class="bp-header">
+                    <span class="bp-author">${post.profiles?.display_name || 'Unknown'}</span>
+                    <span class="bp-date">${new Date(post.created_at).toLocaleString()}</span>
+                </div>
+                <div class="bp-content">${escapeHtml(post.content)}</div>
+            </div>
+        `).join('');
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
     }
 });

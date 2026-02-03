@@ -3,6 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
+    <link rel="icon"
+        href="https://lh3.googleusercontent.com/a/ACg8ocKrevxxn-jyPFTJ3zy5r6EFRGmv0Tp8-qWyb3bMaXduuMzHS0Y=s400-c">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SoDRé 管理画面</title>
     <!-- Google Fonts -->
@@ -20,35 +22,77 @@
     <style>
         /* Admin Specific Overrides */
         body {
-            background-color: #f4f6f8;
+            background-color: var(--warm-bg);
             padding-top: 0;
             margin: 0;
-            font-family: "Zen Kaku Gothic New", sans-serif;
+            font-family: var(--font-sans);
+            color: var(--text-color);
+            min-height: 100vh;
+        }
+
+        /* --- Login Section --- */
+        #login-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+            background: radial-gradient(circle at 50% 50%, rgba(60, 120, 0, 0.05), rgba(20, 90, 180, 0.05));
+            position: fixed;
+            /* Changed to fixed to ensure full coverage */
+            top: 0;
+            left: 0;
+            overflow: hidden;
+            z-index: 100;
+            /* Ensure on top of other body elements but below overlays */
+        }
+
+        /* Minimal Aurora Effect for Login */
+        #login-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(from 0deg, transparent 0deg, rgba(250, 180, 60, 0.1) 120deg, transparent 240deg);
+            animation: rotateBg 20s linear infinite;
+            z-index: -1;
+        }
+
+        @keyframes rotateBg {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         .login-wrap {
-            max-width: 400px;
-            margin: 100px auto;
-            background: #fff;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            text-align: center;
-        }
-
-        .login-wrap input {
             width: 100%;
-            padding: 12px;
-            margin-bottom: 1rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
+            max-width: 400px;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 3rem;
+            border-radius: 12px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.5);
         }
 
+        .login-wrap h2 {
+            margin-bottom: 2rem;
+            color: var(--text-color);
+            font-family: var(--font-display);
+        }
+
+        /* --- Dashboard Layout --- */
         .dashboard {
             display: none;
-            /* Hidden by default */
             height: 100vh;
+            overflow: hidden;
         }
 
         .admin-layout {
@@ -58,108 +102,139 @@
 
         /* Sidebar Styling */
         .sidebar {
-            width: 250px;
-            background: #2c3e50;
-            color: #ecf0f1;
+            width: 260px;
+            background: var(--text-color);
+            /* Deep Blue Base */
+            color: #fff;
             display: flex;
             flex-direction: column;
             flex-shrink: 0;
+            box-shadow: 4px 0 15px rgba(0, 0, 0, 0.05);
+            z-index: 10;
         }
 
         .sidebar-header {
-            padding: 1.5rem;
-            background: #243342;
+            padding: 2rem;
+            background: rgba(0, 0, 0, 0.1);
             text-align: center;
         }
 
         .sidebar-header h2 {
             margin: 0;
-            font-size: 1.4rem;
-            font-family: "Cinzel", serif;
+            font-size: 1.5rem;
+            font-family: var(--font-display);
             letter-spacing: 0.1em;
+            color: var(--accent-color);
+            /* Orange Accent */
         }
 
         .sidebar-nav {
-            padding: 1rem 0;
+            padding: 1.5rem 0;
             flex: 1;
+            overflow-y: auto;
         }
 
         .nav-item {
-            display: block;
-            padding: 1rem 1.5rem;
-            color: #bdc3c7;
+            display: flex;
+            align-items: center;
+            padding: 1rem 2rem;
+            color: rgba(255, 255, 255, 0.7);
             text-decoration: none;
             transition: all 0.3s;
             cursor: pointer;
             border-left: 4px solid transparent;
+            font-weight: 500;
         }
 
         .nav-item:hover {
-            background: #34495e;
+            background: rgba(255, 255, 255, 0.05);
             color: #fff;
+            padding-left: 2.2rem;
         }
 
         .nav-item.active {
-            background: #34495e;
-            color: #fff;
-            border-left-color: var(--primary-color);
+            background: linear-gradient(90deg, rgba(250, 180, 60, 0.1), transparent);
+            color: var(--accent-color);
+            /* Orange Active */
+            border-left-color: var(--accent-color);
         }
 
         .nav-item i {
-            width: 25px;
-            text-align: center;
+            width: 30px;
+            font-size: 1.1rem;
             margin-right: 10px;
+            text-align: center;
         }
 
         .sidebar-footer {
-            padding: 1rem;
-            border-top: 1px solid #34495e;
+            padding: 1.5rem;
+            background: rgba(0, 0, 0, 0.1);
         }
 
         /* Main Content Styling */
         .main-content {
             flex: 1;
-            padding: 2rem;
+            padding: 2.5rem;
+            background: var(--bg-color);
             overflow-y: auto;
-            background: #f4f6f8;
+            position: relative;
+        }
+
+        /* Decorative BG for Main Content */
+        .main-content::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 50vw;
+            height: 50vh;
+            background: radial-gradient(circle at 100% 0%, rgba(60, 120, 0, 0.03), transparent 60%);
+            pointer-events: none;
+            z-index: 0;
         }
 
         .admin-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 2rem;
+            margin-bottom: 2.5rem;
             padding-bottom: 1rem;
-            border-bottom: 1px solid #ddd;
+            border-bottom: 2px solid rgba(0, 0, 0, 0.05);
+            position: relative;
+            z-index: 1;
+        }
+
+        .admin-header h2 {
+            font-size: 1.8rem;
+            color: var(--text-color);
         }
 
         .content-panel {
             display: none;
-            animation: fadeIn 0.3s ease;
+            animation: fadeIn 0.4s ease;
+            position: relative;
+            z-index: 1;
         }
 
         .content-panel.active {
             display: block;
         }
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
+        /* Forms & Editors */
         .editor-container {
             background: #fff;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-            margin-bottom: 2rem;
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.03);
+            margin-bottom: 2.5rem;
+            border: 1px solid rgba(0, 0, 0, 0.02);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Green Accent Bar on Cards */
+        .editor-container::top {
+            border-top: 4px solid var(--green-accent);
         }
 
         .form-group {
@@ -168,9 +243,10 @@
 
         .form-group label {
             display: block;
-            margin-bottom: 0.5rem;
-            font-weight: bold;
-            color: #333;
+            margin-bottom: 0.6rem;
+            font-weight: 600;
+            color: var(--text-color);
+            font-size: 0.95rem;
         }
 
         .form-group input[type="text"],
@@ -179,30 +255,107 @@
         .form-group input[type="date"],
         .form-group select {
             width: 100%;
-            padding: 10px;
+            padding: 12px 15px;
             border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
+            border-radius: 6px;
             font-size: 1rem;
+            font-family: inherit;
+            transition: all 0.3s;
+            background: #fdfdfd;
         }
 
-        #editor {
-            height: 300px;
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(20, 90, 180, 0.1);
         }
 
+        /* Buttons */
+        .btn-primary {
+            background: var(--primary-color);
+            color: #fff;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 4px 10px rgba(20, 90, 180, 0.2);
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            letter-spacing: 0.05em;
+        }
+
+        .btn-primary:hover {
+            background: #0f4b96;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(20, 90, 180, 0.3);
+        }
+
+        .btn-delete {
+            background: #fff;
+            color: #d63031;
+            border: 1px solid #d63031;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-delete:hover {
+            background: #d63031;
+            color: #fff;
+        }
+
+        .btn-add {
+            background: var(--green-accent);
+            /* Green for positive action */
+            color: #fff;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-add:hover {
+            background: #2d5a00;
+            transform: translateY(-2px);
+        }
+
+        /* Lists */
         .post-list {
             background: #fff;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            padding: 0;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.03);
+            overflow: hidden;
+            border: 1px solid rgba(0, 0, 0, 0.02);
+        }
+
+        .post-list h3 {
+            background: #f9f9f9;
+            margin: 0;
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid #eee;
+            font-size: 1.1rem;
+            color: var(--text-color);
         }
 
         .post-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1rem;
-            border-bottom: 1px solid #eee;
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.2s;
+        }
+
+        .post-item:hover {
+            background: #fcfcfc;
         }
 
         .post-item:last-child {
@@ -211,30 +364,13 @@
 
         .post-info strong {
             display: block;
-            margin-bottom: 4px;
-            font-size: 1.1rem;
-        }
-
-        .post-actions button {
-            margin-left: 0.5rem;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.9rem;
-        }
-
-        .btn-delete {
-            background: #ff4d4f;
-            color: #fff;
-            border: none;
-        }
-
-        .btn-delete:hover {
-            background: #d9363e;
+            margin-bottom: 6px;
+            font-size: 1.05rem;
+            color: var(--text-color);
         }
 
         /* Responsive */
-        @media (max-width: 768px) {
+        @media (max-width: 900px) {
             .admin-layout {
                 flex-direction: column;
             }
@@ -242,17 +378,36 @@
             .sidebar {
                 width: 100%;
                 height: auto;
+                box-shadow: none;
             }
 
             .sidebar-nav {
                 display: flex;
                 overflow-x: auto;
                 padding: 0;
+                background: rgba(0, 0, 0, 0.2);
             }
 
             .nav-item {
+                flex-direction: column;
                 padding: 1rem;
-                white-space: nowrap;
+                font-size: 0.8rem;
+                justify-content: center;
+                text-align: center;
+            }
+
+            .nav-item i {
+                margin: 0 0 5px 0;
+                font-size: 1.2rem;
+            }
+
+            .nav-item:hover {
+                padding-left: 1rem;
+                /* Reset hover effect */
+            }
+
+            .main-content {
+                padding: 1.5rem;
             }
         }
     </style>
@@ -261,17 +416,24 @@
 <body>
 
     <!-- Login Section -->
-    <div id="login-section" class="login-wrap">
-        <h2>SoDRé 管理画面</h2>
-        <form id="login-form">
-            <div class="form-group">
-                <input type="email" id="email" placeholder="メールアドレス" required>
+    <div id="login-section">
+        <div class="login-wrap">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <img src="img/logo.webp" alt="SoDRé" style="width: 80px; height: auto; margin-bottom: 1rem;">
+                <h2>SoDRé Admin</h2>
             </div>
-            <div class="form-group">
-                <input type="password" id="password" placeholder="パスワード" required>
-            </div>
-            <button type="submit" class="btn-primary" style="width:100%">ログイン</button>
-        </form>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" placeholder="admin@sodre.jp" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn-primary" style="width:100%">Login</button>
+            </form>
+        </div>
     </div>
 
     <!-- Dashboard Section -->
@@ -339,7 +501,11 @@
                                 <div id="quill-editor" style="background:#fff; height: 300px;"></div>
                             </div>
 
-                            <button type="submit" class="btn-primary">記事を公開する</button>
+                            <div style="display:flex; gap:10px;">
+                                <button type="button" id="preview-btn" class="btn-primary"
+                                    style="background:var(--accent-color); flex:1;">プレビュー</button>
+                                <button type="submit" class="btn-primary" style="flex:2;">記事を公開する</button>
+                            </div>
                         </form>
                     </div>
 
@@ -384,8 +550,7 @@
                     </div>
 
                     <!-- Group Member Management Panel -->
-                    <div id="group-detail-panel"
-                        style="display:none; margin-top:2rem; background:#fff; padding:2rem; border-radius:8px; border:1px solid #ddd;">
+                    <div id="group-detail-panel" class="editor-container" style="display:none;">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <h3 id="manage-group-title">グループメンバー管理</h3>
                             <button id="close-group-panel" class="btn-delete">閉じる</button>
@@ -502,7 +667,24 @@
 
             </main>
         </div>
+        <!-- Preview Modal -->
+        <div id="preview-modal" class="modal">
+            <div class="modal-content" style="max-width: 800px; width: 90%;">
+                <span class="close-modal" id="close-preview">&times;</span>
+                <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px;">プレビュー</h3>
+                <div id="preview-container" style="margin-top:20px; max-height: 60vh; overflow-y: auto;">
+                    <!-- Content injected here -->
+                    <h2 id="preview-title" class="post-title"></h2>
+                    <div id="preview-body" class="post-body-text"></div>
+                </div>
+                <div style="margin-top:20px; text-align:right;">
+                    <button id="close-preview-btn" class="btn-primary">閉じる</button>
+                </div>
+            </div>
+        </div>
+
     </div>
+    <!-- End of admin-layout wrapper (if needed, checking context) -->
 
     <!-- Scripts -->
     <!-- Supabase Client -->

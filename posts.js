@@ -103,7 +103,7 @@
         // Store post in registry
         window.postRegistry[post.id] = post;
 
-        const thumb = (post.images && post.images.length > 0) ? post.images[0] : 'img/logo.webp'; // Fallback image
+        const thumb = (post.images && post.images.length > 0) ? post.images[0] : 'https://lh3.googleusercontent.com/a/ACg8ocKrevxxn-jyPFTJ3zy5r6EFRGmv0Tp8-qWyb3bMaXduuMzHS0Y=s400-c'; // Fallback image
 
         // Strip HTML for excerpt
         const tempDiv = document.createElement("div");

@@ -3,6 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
+    <link rel="icon"
+        href="https://lh3.googleusercontent.com/a/ACg8ocKrevxxn-jyPFTJ3zy5r6EFRGmv0Tp8-qWyb3bMaXduuMzHS0Y=s400-c">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Members Area | SoDRé</title>
     <link rel="stylesheet" href="style.css">
@@ -182,10 +184,7 @@
             <h3>全体掲示板 (All Members)</h3>
             <p style="margin-bottom: 1rem; color:#666; font-size:0.9rem;">ここは全メンバーが閲覧・投稿できるオープンスペースです。</p>
 
-            <div class="post-form-area">
-                <textarea id="all-post-content" class="post-input" placeholder="メッセージを投稿..."></textarea>
-                <button id="all-post-btn" class="btn-post">投稿する</button>
-            </div>
+            <!-- Inline Form Removed for FAB -->
 
             <div id="all-board-feed" class="board-feed">
                 <!-- Posts go here -->
@@ -210,10 +209,7 @@
                     <button id="back-to-groups-btn" class="btn-logout">一覧に戻る</button>
                 </div>
 
-                <div class="post-form-area" id="group-post-form-area">
-                    <textarea id="group-post-content" class="post-input" placeholder="このグループに投稿..."></textarea>
-                    <button id="group-post-btn" class="btn-post">グループに投稿</button>
-                </div>
+                <!-- Inline Form Removed for FAB -->
 
                 <div id="group-board-feed" class="board-feed">
                     <!-- Group posts here -->
@@ -221,6 +217,25 @@
             </div>
         </div>
 
+    </div>
+
+    <!-- FAB Button -->
+    <button id="fab-post" class="fab-btn" title="投稿する">
+        <i class="fas fa-pen"></i>
+    </button>
+
+    <!-- Post Modal -->
+    <div id="post-modal" class="post-modal-overlay">
+        <div class="post-modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">投稿する</h3>
+                <button id="modal-close" class="modal-close"><i class="fas fa-times"></i></button>
+            </div>
+            <textarea id="modal-post-content" class="modal-textarea" placeholder="メッセージを入力..."></textarea>
+            <div class="modal-actions">
+                <button id="modal-submit-btn" class="btn-post">送信</button>
+            </div>
+        </div>
     </div>
 
     <footer>
