@@ -225,14 +225,25 @@
     </button>
 
     <!-- Post Modal -->
-    <div id="post-modal" class="post-modal-overlay">
-        <div class="post-modal-content">
-            <div class="modal-header">
-                <h3 id="modal-title">投稿する</h3>
-                <button id="modal-close" class="modal-close"><i class="fas fa-times"></i></button>
+    <div id="post-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <span id="modal-close" class="close-modal">&times;</span>
+            <div class="modal-header"
+                style="margin-bottom: 1rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem;">
+                <h3 id="modal-title" style="margin:0;">投稿する</h3>
             </div>
-            <textarea id="modal-post-content" class="modal-textarea" placeholder="メッセージを入力..."></textarea>
-            <div class="modal-actions">
+
+            <textarea id="modal-post-content" class="modal-textarea" placeholder="メッセージを入力..."
+                style="width: 100%; height: 150px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; resize: vertical; font-family: inherit; margin-bottom: 1rem;"></textarea>
+
+            <div style="margin-bottom: 1rem;">
+                <label for="modal-post-image" style="display:block; font-size:0.9rem; margin-bottom:0.5rem;"><i
+                        class="fas fa-image"></i> 画像を追加</label>
+                <input type="file" id="modal-post-image" multiple accept="image/*" style="width:100%;">
+                <div id="modal-image-preview" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;"></div>
+            </div>
+
+            <div class="modal-actions" style="text-align: right;">
                 <button id="modal-submit-btn" class="btn-post">送信</button>
             </div>
         </div>

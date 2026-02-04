@@ -80,6 +80,26 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        resetMsg.textContent = 'Checking email...';
+
+        // 1. Check if email exists in Supabase
+        const { data: emailExists, error: checkError } = await supabase.rpc('check_email_exists', { p_email: email });
+
+        if (checkError) {
+            resetMsg.textContent = 'Error checking email: ' + checkError.message;
+            resetMsg.style.color = 'red';
+            return;
+        }
+
+        if (!emailExists) {
+            resetMsg.textContent = 'Email address not found.';
+            resetMsg.style.color = 'red';
+            return;
+        }
+
+        resetMsg.textContent = 'Sending code... please wait.';
+
+
         try {
             // Call GAS
             // Note: fetch to GAS might have CORS issues if not set up correctly (Simple Request).

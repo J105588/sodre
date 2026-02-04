@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentPostContext = 'all'; // 'all' or 'group'
     let currentGroupId = null;
     let currentGroupCanPost = false;
+    let selectedImages = []; // Store selected files for upload
 
     // --- Auth Check ---
     const { data: { session } } = await supabase.auth.getSession();
@@ -112,18 +113,45 @@ document.addEventListener('DOMContentLoaded', async () => {
             modalTitle.textContent = `${currentGroupName.innerText} に投稿`;
         }
 
-        postModal.classList.add('active');
+        // Reset Images
+        selectedImages = [];
+        document.getElementById('modal-post-image').value = '';
+        document.getElementById('modal-image-preview').innerHTML = '';
+
+        postModal.classList.add('show'); // .show for standard modal
         setTimeout(() => { modalPostContent.focus(); }, 100);
     });
 
     modalClose.addEventListener('click', () => {
-        postModal.classList.remove('active');
+        postModal.classList.remove('show');
+    });
+
+    // Image Selection
+    document.getElementById('modal-post-image').addEventListener('change', (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length > 0) {
+            const previewArea = document.getElementById('modal-image-preview');
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const img = document.createElement('img');
+                    img.src = ev.target.result;
+                    img.style.width = '80px';
+                    img.style.height = '80px';
+                    img.style.objectFit = 'cover';
+                    img.style.borderRadius = '4px';
+                    previewArea.appendChild(img);
+                }
+                reader.readAsDataURL(file);
+                selectedImages.push(file);
+            });
+        }
     });
 
     // Close on click outside
     postModal.addEventListener('click', (e) => {
         if (e.target === postModal) {
-            postModal.classList.remove('active');
+            postModal.classList.remove('show');
         }
     });
 
@@ -148,6 +176,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         modalSubmitBtn.disabled = true;
         modalSubmitBtn.textContent = '送信中...';
 
+        // Upload Images
+        let imageUrls = [];
+        if (selectedImages.length > 0) {
+            for (const file of selectedImages) {
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
+                const filePath = `${fileName}`;
+                const { data, error } = await supabase.storage.from('images').upload(filePath, file);
+                if (!error) {
+                    const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(filePath);
+                    imageUrls.push(publicUrl);
+                }
+            }
+        }
+        insertData.images = imageUrls;
+
+
         const { error } = await supabase
             .from('board_posts')
             .insert([insertData]);
@@ -158,7 +203,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (error) {
             alert('投稿に失敗しました: ' + error.message);
         } else {
-            postModal.classList.remove('active');
+            postModal.classList.remove('show');
             if (currentPostContext === 'all') {
                 loadAllPosts();
             } else {
@@ -282,6 +327,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <span class="bp-author">${post.profiles?.display_name || 'Unknown'}</span>
                     <span class="bp-date">${new Date(post.created_at).toLocaleString()}</span>
                 </div>
+                ${post.images && post.images.length > 0 ? `
+                    <div style="display:flex; gap:10px; overflow-x:auto; margin-bottom:10px;">
+                        ${post.images.map(url => `<img src="${url}" style="height:100px; width:auto; border-radius:4px;">`).join('')}
+                    </div>
+                ` : ''}
                 <div class="bp-content">${escapeHtml(post.content)}</div>
             </div>
         `).join('');

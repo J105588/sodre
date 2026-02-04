@@ -72,8 +72,10 @@
             <h2>${post.title}</h2>
             <p class="post-date">${new Date(post.created_at).toLocaleDateString()}</p>
             ${imagesHtml}
-            <div class="post-body-text">
-                ${post.content}
+            <div class="ql-snow">
+                <div class="ql-editor post-body-text">
+                    ${post.content}
+                </div>
             </div>
         `;
 
@@ -109,7 +111,7 @@
         const tempDiv = document.createElement("div");
         tempDiv.innerHTML = post.content;
         const textContent = tempDiv.textContent || tempDiv.innerText || "";
-        const excerpt = textContent.slice(0, 80) + '...';
+        const excerpt = textContent.slice(0, 20) + '...';
 
         return `
             <article class="post-card" onclick="openModalFromId('${post.id}')">
@@ -150,6 +152,9 @@
         const supabase = window.supabaseClient;
         if (!supabase) return;
 
+        // Show Loader
+        container.innerHTML = '<div class="loader-container"><div class="loader"></div></div>';
+
         const { data, error } = await supabase
             .from('posts')
             .select('*')
@@ -174,6 +179,9 @@
     async function loadAllPosts(category, container) {
         const supabase = window.supabaseClient;
         if (!supabase) return;
+
+        // Show Loader
+        container.innerHTML = '<div class="loader-container"><div class="loader"></div></div>';
 
         const { data, error } = await supabase
             .from('posts')
