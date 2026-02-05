@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (error) {
             console.error('Login error:', error);
-            errorMsg.textContent = 'Login failed: ' + error.message;
+            errorMsg.textContent = 'ログインに失敗しました: ' + error.message;
             errorMsg.style.display = 'block';
         } else {
             // Success - Redirect to Members Area
@@ -66,65 +66,66 @@ document.addEventListener('DOMContentLoaded', () => {
     requestOtpForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('reset-email').value;
-        resetMsg.textContent = 'Sending code... please wait.';
+        resetMsg.textContent = '認証コードを送信中... お待ちください。';
         resetMsg.style.color = 'blue';
 
-        if (GAS_OTP_URL.includes('AKfycbx') || GAS_OTP_URL.includes('YOUR_GAS_WEB_APP_URL_HERE')) {
-            // Just a warning, but let them try if they updated config.js partially?
-            // Actually, if it includes 'AKfycbx...' but ends in 'exec', it might be valid.
-            // Let's just warn if it's the exact placeholder.
-            if (GAS_OTP_URL === 'YOUR_GAS_WEB_APP_URL_HERE' || GAS_OTP_URL.includes('macros/s/AKfycbx.../exec')) {
-                resetMsg.textContent = 'Error: GAS URL not configured in config.js';
-                resetMsg.style.color = 'red';
-                return;
-            }
+        // Use window.GAS_OTP_URL to ensure scope access
+        const targetUrl = window.GAS_OTP_URL || GAS_OTP_URL;
+
+        if (!targetUrl || targetUrl.includes('YOUR_GAS_WEB_APP_URL_HERE') || targetUrl.includes('AKfycbx...')) {
+            resetMsg.textContent = 'Error: GASのURLが設定されていないか、無効です。';
+            resetMsg.style.color = 'red';
+            alert('Error: GAS_OTP_URLが見つからないか無効です: ' + targetUrl);
+            return;
         }
 
-        resetMsg.textContent = 'Checking email...';
+        resetMsg.textContent = 'メールアドレスを確認中...';
 
         // 1. Check if email exists in Supabase
+        // DEBUG: Alerting to confirm execution
+        // alert('Debug: Checking email existence for ' + email);
+
         const { data: emailExists, error: checkError } = await supabase.rpc('check_email_exists', { p_email: email });
 
         if (checkError) {
-            resetMsg.textContent = 'Error checking email: ' + checkError.message;
+            console.error('Check Error:', checkError);
+            resetMsg.textContent = 'メール確認エラー: ' + checkError.message;
             resetMsg.style.color = 'red';
             return;
         }
 
         if (!emailExists) {
-            resetMsg.textContent = 'Email address not found.';
+            resetMsg.textContent = 'メールアドレスが見つかりません。（入力ミスがないかご確認ください）';
             resetMsg.style.color = 'red';
             return;
         }
 
-        resetMsg.textContent = 'Sending code... please wait.';
-
+        resetMsg.textContent = '認証コードを送信しています...';
 
         try {
             // Call GAS
-            // Note: fetch to GAS might have CORS issues if not set up correctly (Simple Request).
-            // Usually need Content-Type: application/x-www-form-urlencoded or text/plain
-            const response = await fetch(GAS_OTP_URL, {
+            // Debug: Log the URL we are hitting
+            console.log('Sending to:', targetUrl);
+
+            const response = await fetch(targetUrl, {
                 method: 'POST',
                 body: JSON.stringify({ email: email }),
-                mode: 'no-cors', // Opaque response (can't read success/fail easily) OR cors if supported
+                mode: 'no-cors',
                 headers: {
-                    'Content-Type': 'text/plain' // Avoid preflight
+                    'Content-Type': 'text/plain'
                 }
             });
 
-            // Because of 'no-cors' (likely needed for GAS Web App Simple Trigger depending on deployment),
-            // we might not get a readable response.
-            // Assumption: If it didn't crash network, it worked?
-
-            // Let's assume 'no-cors' for safety and just proceed to Step 2.
+            // Success assumed if no network error
             resetMsg.textContent = '';
             step1.style.display = 'none';
             step2.style.display = 'block';
 
         } catch (err) {
-            resetMsg.textContent = 'Network Error: ' + err.message;
+            console.error('Fetch Error:', err);
+            resetMsg.textContent = '通信エラー: ' + err.message;
             resetMsg.style.color = 'red';
+            alert('Error: 送信に失敗しました。詳細はコンソールを確認してください。\n' + err.message);
         }
     });
 
@@ -135,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const otp = document.getElementById('reset-otp').value;
         const newPass = document.getElementById('new-password').value;
 
-        resetMsg.textContent = 'Verifying...';
+        resetMsg.textContent = '確認中...';
         resetMsg.style.color = 'blue';
 
         // Call Supabase RPC
@@ -146,15 +147,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (error) {
-            resetMsg.textContent = 'Error: ' + error.message;
+            resetMsg.textContent = 'エラー: ' + error.message;
             resetMsg.style.color = 'red';
         } else if (data === 'success') {
-            alert('Password reset successfully! Please login.');
+            alert('パスワードのリセットが完了しました！ログインしてください。');
             resetModal.style.display = 'none';
             step2.style.display = 'none';
             step1.style.display = 'block';
         } else {
-            resetMsg.textContent = 'Failed: ' + data; // 'Invalid OTP' etc
+            resetMsg.textContent = '失敗しました: ' + data; // 'Invalid OTP' etc
             resetMsg.style.color = 'red';
         }
     });

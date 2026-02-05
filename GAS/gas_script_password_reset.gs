@@ -12,7 +12,7 @@
 
 // CONFIGURATION
 const SUPABASE_URL = 'https://qrbayooyblmffolcstgg.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_YOUR_SERVICE_ROLE_KEY_HERE'; // Requires SERVICE_ROLE key to insert into verification_codes if RLS is strict
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFyYmF5b295YmxtZmZvbGNzdGdnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDEwNzU0MCwiZXhwIjoyMDg1NjgzNTQwfQ.pWlUSd8_qsP2M2GD67Ltov_01qqLJqB9rb2X5tT6eys'; // Requires SERVICE_ROLE key to insert into verification_codes if RLS is strict
 
 function doPost(e) {
     try {

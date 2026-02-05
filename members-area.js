@@ -60,10 +60,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             .maybeSingle();
 
         if (data && data.display_name) {
-            displayNameEl.textContent = `Welcome, ${data.display_name}`;
+            displayNameEl.textContent = `ようこそ、 ${data.display_name} さん`;
         } else {
             // Prioritize Display Name but fallback to email if empty
-            displayNameEl.textContent = `Welcome, ${user.email}`;
+            displayNameEl.textContent = `ようこそ、 ${user.email} さん`;
             // If display_name is retrieved but empty, logic holds.
         }
     }
@@ -215,7 +215,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- All Board Logic ---
     async function loadAllPosts() {
-        allFeed.innerHTML = '<p>Loading...</p>';
+        allFeed.innerHTML = '<p>読み込み中...</p>';
         const { data, error } = await supabase
             .from('board_posts')
             .select(`
@@ -227,7 +227,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (error) {
             console.error(error);
-            allFeed.innerHTML = '<p>Error loading posts.</p>';
+            allFeed.innerHTML = '<p>投稿の読み込みに失敗しました。</p>';
             return;
         }
         renderPosts(data, allFeed);
@@ -258,7 +258,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (error) {
             console.error(error);
-            groupsList.innerHTML = '<p>Error loading groups.</p>';
+            groupsList.innerHTML = '<p>グループの読み込みに失敗しました。</p>';
             return;
         }
 
@@ -297,7 +297,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     async function loadGroupPosts(gid) {
-        groupFeed.innerHTML = '<p>Loading...</p>';
+        groupFeed.innerHTML = '<p>読み込み中...</p>';
         const { data, error } = await supabase
             .from('board_posts')
             .select(`

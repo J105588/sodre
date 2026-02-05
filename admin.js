@@ -150,7 +150,7 @@
                 } else {
                     postsEditorArea.style.display = 'block';
                     // Reset Post Editor
-                    editorTitle.innerText = `New Post (${currentTab.toUpperCase()})`;
+                    editorTitle.innerText = `新規投稿 (${currentTab.toUpperCase()})`;
                     postCategoryInput.value = currentTab;
                     loadPosts(currentTab);
                 }
@@ -168,7 +168,7 @@
             });
 
             if (error) {
-                alert('Login failed: ' + error.message);
+                alert('ログインに失敗しました: ' + error.message);
             } else {
                 checkUser(); // Re-check to verify admin
             }
@@ -216,7 +216,7 @@
             const content = quill.root.innerHTML;
 
             // 1. Set Title
-            previewTitle.innerText = title || '(No Title)';
+            previewTitle.innerText = title || '(タイトルなし)';
 
             // 2. Build Images HTML from selectedImages (File objects)
             let imagesHtml = '';
@@ -241,7 +241,7 @@
 
             // Re-render the container
             previewContainer.innerHTML = `
-                <h2 class="post-title">${escapeHtml(title || '(No Title)')}</h2>
+                <h2 class="post-title">${escapeHtml(title || '(タイトルなし)')}</h2>
                 <p class="post-date" style="color:#888; font-size:0.9rem; margin-bottom:1rem;">${new Date().toLocaleDateString()} (Preview)</p>
                 ${imagesHtml}
                 <div class="ql-snow">
@@ -313,9 +313,9 @@
                 .select();
 
             if (error) {
-                alert('Error creating post: ' + error.message);
+                alert('投稿の作成に失敗しました: ' + error.message);
             } else {
-                alert('Post created!');
+                alert('投稿を作成しました！');
                 postForm.reset();
                 quill.setContents([]);
                 imagePreview.innerHTML = '';
@@ -338,9 +338,9 @@
                 .select(); // Fetch created group data
 
             if (error) {
-                alert('Error creating group: ' + error.message);
+                alert('グループの作成に失敗しました: ' + error.message);
             } else {
-                alert('Group created! You can now add members.');
+                alert('グループを作成しました！メンバーを追加できます。');
                 document.getElementById('new-group-name').value = '';
                 document.getElementById('new-group-desc').value = '';
 
@@ -370,7 +370,7 @@
 
             addMemberMsg.textContent = '';
             if (!userId || !currentManagingGroupId) {
-                addMemberMsg.textContent = 'Please select a user.';
+                addMemberMsg.textContent = 'ユーザーを選択してください。';
                 return;
             }
 
@@ -387,7 +387,7 @@
 
             if (addError) {
                 // Unique constraint might trigger if already member
-                addMemberMsg.textContent = 'Error adding member (maybe already added): ' + addError.message;
+                addMemberMsg.textContent = 'メンバー追加エラー（既に追加済みの可能性があります）: ' + addError.message;
             } else {
                 addMemberSelect.value = '';
                 addMemberCanPost.checked = true; // reset
@@ -408,7 +408,7 @@
                 .insert([{ label: label, color: color }]);
 
             if (error) {
-                alert('Error adding type: ' + error.message);
+                alert('種別の追加に失敗しました: ' + error.message);
             } else {
                 document.getElementById('cal-type-label').value = '';
                 loadCalTypes(); // Reload types list
@@ -423,7 +423,7 @@
             const typeId = document.getElementById('cal-event-type-select').value;
 
             if (!typeId) {
-                alert('Please create and select an event type first.');
+                alert('先にイベント種別を作成・選択してください。');
                 loadingOverlay.style.display = 'none';
                 return;
             }
@@ -434,9 +434,9 @@
                 .insert([{ event_date: date, type_id: typeId }]);
 
             if (error) {
-                alert('Error adding event (maybe duplicate?): ' + error.message);
+                alert('イベント追加エラー（重複の可能性があります）: ' + error.message);
             } else {
-                alert('Event added!');
+                alert('イベントを追加しました！');
                 loadCalEvents();
             }
             loadingOverlay.style.display = 'none';
@@ -514,9 +514,9 @@
                 .eq('id', id);
 
             if (error) {
-                alert('Error updating post: ' + error.message);
+                alert('投稿の更新に失敗しました: ' + error.message);
             } else {
-                alert('Post updated!');
+                alert('投稿を更新しました！');
                 hidePostEdit();
                 loadPosts(category);
             }
@@ -542,9 +542,9 @@
                 }]);
 
             if (error) {
-                alert('Error creating user request: ' + error.message);
+                alert('ユーザー作成リクエストに失敗しました: ' + error.message);
             } else {
-                alert('User creation request submitted. Check list for status.');
+                alert('ユーザー作成リクエストを送信しました。リストでステータスを確認してください。');
                 createUserForm.reset();
                 loadAdminUsers();
             }
@@ -599,9 +599,9 @@
             .eq('id', id);
 
         if (error) {
-            alert('Error updating user: ' + error.message);
+            alert('ユーザー更新エラー: ' + error.message);
         } else {
-            alert('User updated!');
+            alert('ユーザーを更新しました！');
             hideUserEdit();
             loadAdminUsers();
             // Optional: If we edited ourselves and removed admin, we might need to reload/logout, but keep it simple
@@ -620,12 +620,12 @@
             .order('created_at', { ascending: false });
 
         if (error) {
-            adminUsersList.innerHTML = '<p>Error loading users.</p>';
+            adminUsersList.innerHTML = '<p>ユーザーの読み込みに失敗しました。</p>';
             return;
         }
 
         if (!profiles || profiles.length === 0) {
-            adminUsersList.innerHTML = '<p>No users found.</p>';
+            adminUsersList.innerHTML = '<p>ユーザーが見つかりません。</p>';
             return;
         }
 
@@ -663,7 +663,7 @@
                 dashboardSection.style.display = 'block';
                 loadPosts(currentTab);
             } else {
-                alert("Access denied. Admin rights required.");
+                alert("アクセス拒否: 管理者権限が必要です。");
                 // Optional: Logout if not admin
                 await supabase.auth.signOut();
                 loginSection.style.display = 'flex';
@@ -686,11 +686,11 @@
             .order('created_at', { ascending: false });
 
         if (error) {
-            postsContainer.innerHTML = '<p>Error loading posts.</p>';
+            postsContainer.innerHTML = '<p>投稿の読み込みに失敗しました。</p>';
             console.error(error);
         } else {
             if (data.length === 0) {
-                postsContainer.innerHTML = '<p>No posts found.</p>';
+                postsContainer.innerHTML = '<p>投稿はありません。</p>';
                 return;
             }
 
@@ -710,7 +710,7 @@
     }
 
     async function deletePost(id) {
-        if (!confirm('Are you sure you want to delete this post?')) return;
+        if (!confirm('本当にこの投稿を削除しますか？')) return;
 
         // Show loader immediately
         postsContainer.innerHTML = '<div class="loader-container"><div class="loader"></div></div>';
@@ -721,7 +721,7 @@
             .eq('id', id);
 
         if (error) {
-            alert('Error deleting post: ' + error.message);
+            alert('投稿の削除に失敗しました: ' + error.message);
         }
         // Always reload to restore list or show updates
         loadPosts(currentTab);
@@ -736,10 +736,10 @@
             .order('created_at', { ascending: false });
 
         if (error) {
-            adminGroupsList.innerHTML = '<p>Error loading groups.</p>';
+            adminGroupsList.innerHTML = '<p>グループの読み込みに失敗しました。</p>';
         } else {
             if (!data || data.length === 0) {
-                adminGroupsList.innerHTML = '<p>No groups found.</p>';
+                adminGroupsList.innerHTML = '<p>グループが見つかりません。</p>';
                 return;
             }
 
@@ -795,7 +795,7 @@
             .order('email');
 
         if (error || !profiles) {
-            addMemberSelect.innerHTML = '<option value="">Error loading users</option>';
+            addMemberSelect.innerHTML = '<option value="">ユーザーの読み込みエラー</option>';
             return;
         }
 
