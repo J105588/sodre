@@ -261,7 +261,7 @@ ul {
     position: fixed;
     /* Smart Sticky */
     width: 100%;
-    z-index: 99999;
+    z-index: 900;
     top: 0;
     left: 0;
     transition: transform 0.4s ease-in-out, background 0.5s ease;

@@ -72,6 +72,31 @@ document.addEventListener('DOMContentLoaded', async () => {
             isAdmin = true;
             console.log('User is Admin');
         }
+
+        setupSessionTimeout(); // Start inactivity timer
+    }
+
+    // --- Session Expiration Logic (60 mins) ---
+    function setupSessionTimeout() {
+        const TIMEOUT_DURATION = 60 * 60 * 1000; // 60 minutes
+        let timeout;
+
+        const resetTimer = () => {
+            clearTimeout(timeout);
+            timeout = setTimeout(async () => {
+                alert('Session expired due to inactivity.');
+                await supabase.auth.signOut();
+                window.location.href = 'login.html';
+            }, TIMEOUT_DURATION);
+        };
+
+        // Listen for activity
+        const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+        events.forEach(event => {
+            document.addEventListener(event, resetTimer);
+        });
+
+        resetTimer(); // Start timer
     }
 
     // --- Logout ---
@@ -391,6 +416,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    window.deleteMemberPost = async (postId) => {
+        if (!confirm('本当にこの投稿を削除しますか？')) return;
+
+        const { error } = await supabase
+            .from('board_posts')
+            .delete()
+            .eq('id', postId);
+
+        if (error) {
+            alert('削除に失敗しました: ' + error.message);
+        } else {
+            if (currentPostContext === 'all') {
+                loadAllPosts();
+            } else {
+                // If we are in group view, reload group posts
+                // currentGroupId must be accessible
+                if (currentGroupId) {
+                    loadGroupPosts(currentGroupId);
+                } else {
+                    // Fallback if context is weird, reload all or what? 
+                    // If context is group_list, actually we shouldn't be seeing posts usually?
+                    // Actually tab switching sets context.
+                    // If in group board view:
+                    loadGroupPosts(currentGroupId);
+                }
+            }
+        }
+    };
+
     // --- Components ---
     function renderPosts(posts, container) {
         if (!posts || posts.length === 0) {
@@ -399,10 +453,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         container.innerHTML = posts.map(post => `
-            <div class="board-post">
-                <div class="bp-header">
+            <div class="board-post" style="position:relative;">
+                <div class="bp-header" style="justify-content:space-between; align-items:center;">
                     <span class="bp-author">${post.profiles?.display_name || 'Unknown'}</span>
-                    <span class="bp-date">${new Date(post.created_at).toLocaleString()}</span>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span class="bp-date">${new Date(post.created_at).toLocaleString()}</span>
+                        ${(post.user_id === user.id || isAdmin) ?
+                `<button onclick="deleteMemberPost('${post.id}')" style="background:none; border:none; color:#ff4d4d; cursor:pointer; font-size:0.8rem; text-decoration:underline;">削除</button>`
+                : ''}
+                    </div>
                 </div>
                 ${post.images && post.images.length > 0 ? `
                     <div style="display:flex; gap:10px; overflow-x:auto; margin-bottom:10px;">

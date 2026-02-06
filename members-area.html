@@ -9,6 +9,7 @@
     <title>Members Area | SoDRé</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="page-guard.js"></script>
     <style>
         .members-dashboard {
             padding-top: 100px;
@@ -159,7 +160,7 @@
 
 <body>
 
-    <header class="header" id="global-header" style="z-index: 900;">
+    <header class="header" id="global-header">
         <div class="container header-container">
             <a href="https://sodre.jp" class="logo"><img src="img/logo.webp" alt="SoDRé"></a>
         </div>
@@ -266,7 +267,7 @@
         </div>
     </footer>
 
-    <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="config.js"></script>
     <script src="members-area.js"></script>
 </body>

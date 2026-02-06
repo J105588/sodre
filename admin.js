@@ -78,6 +78,11 @@
     const calEventTypeSelect = document.getElementById('cal-event-type-select');
     const calEventsList = document.getElementById('cal-events-list');
 
+    // Pages Elements
+    const pagesManagerArea = document.getElementById('pages-manager-area');
+    const adminPagesList = document.getElementById('admin-pages-list');
+    const addPageForm = document.getElementById('add-page-form');
+
 
 
     let quill;
@@ -88,6 +93,29 @@
     let editSelectedImages = [];
     let currentPostImages = [];
     let currentManagingGroupId = null;
+
+    // --- Session Expiration Logic (30 mins) ---
+    function setupSessionTimeout() {
+        const TIMEOUT_DURATION = 30 * 60 * 1000; // 30 minutes
+        let timeout;
+
+        const resetTimer = () => {
+            clearTimeout(timeout);
+            timeout = setTimeout(async () => {
+                alert('Session expired due to inactivity.');
+                await supabase.auth.signOut();
+                window.location.reload();
+            }, TIMEOUT_DURATION);
+        };
+
+        // Listen for activity
+        const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+        events.forEach(event => {
+            document.addEventListener(event, resetTimer);
+        });
+
+        resetTimer(); // Start timer
+    }
 
     document.addEventListener('DOMContentLoaded', () => {
 
@@ -121,6 +149,8 @@
             }
         });
 
+
+
         // Check Session
         checkUser();
 
@@ -137,6 +167,7 @@
                 groupsManagerArea.style.display = 'none';
                 calendarManagerArea.style.display = 'none';
                 usersManagerArea.style.display = 'none';
+                pagesManagerArea.style.display = 'none';
 
                 if (currentTab === 'groups') {
                     groupsManagerArea.style.display = 'block';
@@ -148,6 +179,9 @@
                 } else if (currentTab === 'users') {
                     usersManagerArea.style.display = 'block';
                     loadAdminUsers();
+                } else if (currentTab === 'pages') {
+                    pagesManagerArea.style.display = 'block';
+                    loadAdminPages();
                 } else {
                     postsEditorArea.style.display = 'block';
                     // Reset Post Editor
@@ -665,6 +699,7 @@
                 loginSection.style.display = 'none';
                 dashboardSection.style.display = 'block';
                 loadPosts(currentTab);
+                setupSessionTimeout(); // Start Inactivity Timer
             } else {
                 alert("アクセス拒否: 管理者権限が必要です。");
                 // Optional: Logout if not admin
@@ -780,16 +815,131 @@
         }
     };
 
+    // --- Page Management ---
+    async function loadAdminPages() {
+        adminPagesList.innerHTML = '<div class="loader-container"><div class="loader"></div></div>';
+        const { data, error } = await supabase
+            .from('page_settings')
+            .select('*')
+            .order('page_path', { ascending: true });
+
+        if (error) {
+            adminPagesList.innerHTML = '<p>設定の読み込みに失敗しました。</p>';
+        } else {
+            if (!data || data.length === 0) {
+                adminPagesList.innerHTML = '<p>設定が見つかりません。</p>';
+                return;
+            }
+
+            adminPagesList.innerHTML = data.map(page => `
+                <div class="post-item" style="display:flex; justify-content:space-between; align-items:center;">
+                    <div class="post-info">
+                        <strong>${escapeHtml(page.page_path)}</strong>
+                        <p style="font-size:0.8rem; color:#666;">${escapeHtml(page.description || '')}</p>
+                    </div>
+                    <div class="post-actions" style="display:flex; align-items:center; gap:10px;">
+                        <label class="switch" style="position:relative; display:inline-block; width:50px; height:26px;">
+                            <input type="checkbox" ${page.is_public ? 'checked' : ''} onchange="togglePageVisibility('${page.id}', this.checked)">
+                            <span class="slider round"></span>
+                        </label>
+                        <span style="font-size:0.85rem;">${page.is_public ? 'Public' : 'Private'}</span>
+                    </div>
+                </div>
+            `).join('');
+
+            // Add style for toggle switch if not exists
+            if (!document.getElementById('toggle-style')) {
+                const style = document.createElement('style');
+                style.id = 'toggle-style';
+                style.innerHTML = `
+                    .switch {
+                        position: relative;
+                        display: inline-block;
+                        width: 50px;
+                        height: 26px;
+                    }
+                    .switch input { 
+                        opacity: 0;
+                        width: 0;
+                        height: 0;
+                    }
+                    .slider {
+                        position: absolute;
+                        cursor: pointer;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        background-color: #ccc;
+                        transition: .4s;
+                        border-radius: 34px;
+                        box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+                    }
+                    .slider:before {
+                        position: absolute;
+                        content: "";
+                        height: 20px;
+                        width: 20px;
+                        left: 3px;
+                        bottom: 3px;
+                        background-color: white;
+                        transition: .4s;
+                        border-radius: 50%;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                    }
+                    input:checked + .slider {
+                        background-color: #3c7800; /* Green Accent */
+                    }
+                    input:checked + .slider:before {
+                        transform: translateX(24px);
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+    }
+
+    addPageForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const path = document.getElementById('new-page-path').value.trim();
+        const desc = document.getElementById('new-page-desc').value.trim();
+
+        const { error } = await supabase.from('page_settings').insert([{ page_path: path, description: desc }]);
+        if (error) {
+            alert('追加に失敗しました: ' + error.message);
+        } else {
+            alert('追加しました');
+            addPageForm.reset();
+            loadAdminPages();
+        }
+    });
+
+    window.togglePageVisibility = async (id, isPublic) => {
+        const { error } = await supabase
+            .from('page_settings')
+            .update({ is_public: isPublic })
+            .eq('id', id);
+
+        if (error) {
+            alert('更新に失敗しました: ' + error.message);
+            loadAdminPages(); // Revert UI
+        } else {
+            // alert('Updated'); // Too noisy? maybe just refresh
+            loadAdminPages();
+        }
+    };
+
+
     function renderCurrentImages() {
         const container = document.getElementById('edit-current-images');
         if (!container) return;
         container.innerHTML = currentPostImages.map((url, idx) => `
-                <div style="position:relative; display:inline-block;">
-                    <img src="${url}" style="width:80px; height:80px; object-fit:cover; border-radius:4px;">
-                    <button type="button" onclick="window.removeExistingImage(${idx})" 
-                        style="position:absolute; top:-5px; right:-5px; background:red; color:white; border:none; border-radius:50%; width:20px; height:20px; font-size:12px; cursor:pointer;">&times;</button>
-                </div>
-            `).join('');
+                    <div style="position:relative; display:inline-block;">
+                        <img src="${url}" style="width:80px; height:80px; object-fit:cover; border-radius:4px;">
+                            <button type="button" onclick="window.removeExistingImage(${idx})"
+                                style="position:absolute; top:-5px; right:-5px; background:red; color:white; border:none; border-radius:50%; width:20px; height:20px; font-size:12px; cursor:pointer;">&times;</button>
+                        </div>
+                `).join('');
     }
 
     async function loadAllUsersForSelect() {
@@ -823,10 +973,10 @@
             .from('group_members')
             .select(`
                 id,
-                user_id,
-                can_post,
-                profiles (id, email, display_name, is_admin)
-            `)
+                    user_id,
+                    can_post,
+                    profiles(id, email, display_name, is_admin)
+                        `)
             .eq('group_id', gid);
 
         // 2. Fetch All Global Admins
@@ -888,18 +1038,18 @@
 
             let actions = '';
             if (isGlobalAdmin) {
-                actions = `<span style="color:#666; font-size:0.8rem; background:#eee; padding:3px 8px; border-radius:4px;">Global Admin (Fixed)</span>`;
+                actions = `< span style = "color:#666; font-size:0.8rem; background:#eee; padding:3px 8px; border-radius:4px;" > Global Admin(Fixed)</span > `;
             } else {
                 actions = `
-                    <button onclick="removeMember('${member.id}')" class="btn-delete">Remove</button>
-                    <button onclick="togglePostPermission('${member.id}', ${!member.can_post})">
-                        ${member.can_post ? 'Disable Posting' : 'Enable Posting'}
-                    </button>
+                    < button onclick = "removeMember('${member.id}')" class="btn-delete" > Remove</button >
+                        <button onclick="togglePostPermission('${member.id}', ${!member.can_post})">
+                            ${member.can_post ? 'Disable Posting' : 'Enable Posting'}
+                        </button>
                 `;
             }
 
             return `
-                <div class="post-item">
+                    <div class="post-item">
                     <div class="post-info">
                         <strong>${escapeHtml(member.name)}</strong>
                         <span style="font-size:0.85rem; color:#666;">${escapeHtml(member.email)}</span>
@@ -909,7 +1059,7 @@
                         ${actions}
                     </div>
                 </div>
-            `;
+                    `;
         }).join('');
     }
 
@@ -977,7 +1127,7 @@
         }
 
         calTypesList.innerHTML = data.map(type => `
-            <div class="post-item">
+                    <div class="post-item">
                 <div class="post-info" style="display:flex; align-items:center;">
                     <span style="display:inline-block; width:15px; height:15px; background:${type.color}; margin-right:10px; border-radius:3px;"></span>
                     <strong>${escapeHtml(type.label)}</strong>
@@ -986,7 +1136,7 @@
                     <button onclick="deleteCalType('${type.id}')" class="btn-delete" style="font-size:0.8rem; padding:6px 12px;">Delete</button>
                 </div>
             </div>
-        `).join('');
+                    `).join('');
 
         // Populate Select
         data.forEach(type => {
@@ -1002,10 +1152,10 @@
         const { data, error } = await supabase
             .from('calendar_events')
             .select(`
-    id,
-        event_date,
-        calendar_types(label, color)
-            `)
+                id,
+                    event_date,
+                    calendar_types(label, color)
+                        `)
             .order('event_date', { ascending: false })
             .limit(20);
 
@@ -1020,7 +1170,7 @@
         }
 
         calEventsList.innerHTML = data.map(event => `
-            <div class="post-item">
+                    <div class="post-item">
                 <div class="post-info">
                     <strong>${event.event_date}</strong>
                     <span style="color:${event.calendar_types?.color}; font-size:0.9rem;">${escapeHtml(event.calendar_types?.label)}</span>
@@ -1028,9 +1178,8 @@
                 <div class="post-actions">
                     <button onclick="deleteCalEvent('${event.id}')" class="btn-delete" style="font-size:0.8rem;">Delete</button>
                 </div>
-                </div>
             </div>
-        `).join('');
+                    `).join('');
     }
 
     // Expose helpers globally for onclicks in HTML strings

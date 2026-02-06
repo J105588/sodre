@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 Not Found | SoDRé</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Zen+Kaku+Gothic+New:wght@300;400;500;700&family=Shippori+Mincho:wght@400;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            text-align: center;
+        }
+
+        /* Re-use Aurora Background but make it full screen and subtle */
+        .aurora-bg-404 {
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(from 0deg,
+                    var(--primary-color),
+                    var(--accent-color),
+                    #FFD700,
+                    var(--green-accent),
+                    var(--primary-color));
+            filter: blur(80px);
+            opacity: 0.15;
+            /* Very subtle */
+            animation: rotateAurora 30s linear infinite;
+            z-index: -1;
+        }
+
+        .content-wrapper {
+            z-index: 1;
+            padding: 2rem;
+            animation: fadeInUp 1.5s ease-out;
+        }
+
+        h1 {
+            font-family: var(--font-display);
+            font-size: 8rem;
+            margin: 0;
+            line-height: 1;
+            background: linear-gradient(45deg, var(--primary-color), var(--accent-color));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            opacity: 0.8;
+            margin-bottom: 2rem;
+        }
+
+        p.message {
+            font-family: var(--font-serif);
+            font-size: 1.5rem;
+            margin-bottom: 3rem;
+            letter-spacing: 0.1em;
+            color: #555;
+        }
+
+        p.sub-message {
+            font-family: var(--font-sans);
+            font-size: 0.9rem;
+            color: #888;
+            margin-bottom: 4rem;
+        }
+
+        .btn-home {
+            display: inline-block;
+            padding: 12px 40px;
+            border: 1px solid var(--text-color);
+            color: var(--text-color);
+            font-family: var(--font-serif);
+            text-decoration: none;
+            transition: all 0.5s ease;
+            letter-spacing: 0.1em;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-home:hover {
+            background-color: var(--text-color);
+            color: #fff;
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        @keyframes rotateAurora {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Floating particles effect (simple) */
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--accent-color);
+            border-radius: 50%;
+            opacity: 0.3;
+            animation: float 10s infinite ease-in-out;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0) translateX(0);
+                opacity: 0;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                transform: translateY(-100px) translateX(50px);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="aurora-bg-404"></div>
+
+    <!-- Decorative Particles -->
+    <div class="particle" style="top: 80%; left: 20%; animation-delay: 0s;"></div>
+    <div class="particle" style="top: 60%; left: 80%; animation-delay: 2s;"></div>
+    <div class="particle" style="top: 40%; left: 40%; animation-delay: 4s;"></div>
+    <div class="particle" style="top: 90%; left: 70%; animation-delay: 6s;"></div>
+
+    <div class="content-wrapper">
+        <h1>404</h1>
+        <p class="message">迷い込んだ場所には、<br>まだ何もありません。</p>
+        <p class="sub-message">The page you are looking for does not exist.</p>
+
+        <a href="index.html" class="btn-home">Topに戻る</a>
+    </div>
+
+</body>
+
+</html>
