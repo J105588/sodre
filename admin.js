@@ -833,16 +833,16 @@
 
             adminPagesList.innerHTML = data.map(page => `
                 <div class="post-item" style="display:flex; justify-content:space-between; align-items:center;">
-                    <div class="post-info">
-                        <strong>${escapeHtml(page.page_path)}</strong>
-                        <p style="font-size:0.8rem; color:#666;">${escapeHtml(page.description || '')}</p>
+                    <div class="post-info" style="flex:1; min-width:0; margin-right:15px;">
+                        <strong style="display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(page.page_path)}</strong>
+                        <p style="font-size:0.8rem; color:#666; margin:0; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">${escapeHtml(page.description || '')}</p>
                     </div>
-                    <div class="post-actions" style="display:flex; align-items:center; gap:10px;">
+                    <div class="post-actions" style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
                         <label class="switch" style="position:relative; display:inline-block; width:50px; height:26px;">
                             <input type="checkbox" ${page.is_public ? 'checked' : ''} onchange="togglePageVisibility('${page.id}', this.checked)">
                             <span class="slider round"></span>
                         </label>
-                        <span style="font-size:0.85rem;">${page.is_public ? 'Public' : 'Private'}</span>
+                        <span style="font-size:0.85rem; width:45px; text-align:right;">${page.is_public ? 'Public' : 'Private'}</span>
                     </div>
                 </div>
             `).join('');
@@ -1038,13 +1038,14 @@
 
             let actions = '';
             if (isGlobalAdmin) {
-                actions = `< span style = "color:#666; font-size:0.8rem; background:#eee; padding:3px 8px; border-radius:4px;" > Global Admin(Fixed)</span > `;
+                actions = `<span style="color:#666; font-size:0.8rem; background:#eee; padding:3px 8px; border-radius:4px;">Global Admin(Fixed)</span>`;
             } else {
                 actions = `
-                    < button onclick = "removeMember('${member.id}')" class="btn-delete" > Remove</button >
-                        <button onclick="togglePostPermission('${member.id}', ${!member.can_post})">
-                            ${member.can_post ? 'Disable Posting' : 'Enable Posting'}
-                        </button>
+                    <button onclick="removeMember('${member.id}')" class="btn-delete">Remove</button>
+                    ${member.can_post ?
+                        `<button onclick="togglePostPermission('${member.id}', false)" class="btn-primary" style="background:#f39c12; margin-left:5px;">Disable Posting</button>` :
+                        `<button onclick="togglePostPermission('${member.id}', true)" class="btn-primary" style="background:var(--green-accent); margin-left:5px;">Enable Posting</button>`
+                    }
                 `;
             }
 
