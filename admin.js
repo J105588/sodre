@@ -36,7 +36,8 @@
     const groupsManagerArea = document.getElementById('groups-manager-area');
     const createGroupForm = document.getElementById('create-group-form');
     const adminGroupsList = document.getElementById('admin-groups-list');
-    const groupDetailPanel = document.getElementById('group-detail-panel');
+    // const groupDetailPanel = document.getElementById('group-detail-panel'); // Old inline
+    const groupManageModal = document.getElementById('group-manage-modal'); // New Modal
     const manageGroupTitle = document.getElementById('manage-group-title');
     const closeGroupPanelBtn = document.getElementById('close-group-panel');
     // const addMemberEmailInfo = document.getElementById('add-member-email'); // REMOVED
@@ -351,18 +352,20 @@
                 if (data && data.length > 0) {
                     const newGroup = data[0];
                     manageGroup(newGroup.id, newGroup.name);
-
-                    // Smooth scroll to panel
-                    groupDetailPanel.scrollIntoView({ behavior: 'smooth' });
                 }
             }
             loadingOverlay.style.display = 'none';
         });
 
-        closeGroupPanelBtn.addEventListener('click', () => {
-            groupDetailPanel.style.display = 'none';
-            currentManagingGroupId = null;
-        });
+        const hideGroupModal = () => {
+            groupManageModal.style.opacity = '0';
+            setTimeout(() => {
+                groupManageModal.style.display = 'none';
+                currentManagingGroupId = null;
+            }, 300);
+        };
+
+        closeGroupPanelBtn.addEventListener('click', hideGroupModal);
 
         btnAddMember.addEventListener('click', async () => {
             const userId = addMemberSelect.value;
@@ -760,7 +763,11 @@
     window.manageGroup = (gid, gname) => {
         currentManagingGroupId = gid;
         manageGroupTitle.innerText = `Manage Group: ${gname}`;
-        groupDetailPanel.style.display = 'block';
+
+        // Show Modal
+        groupManageModal.style.display = 'flex';
+        setTimeout(() => groupManageModal.style.opacity = '1', 10);
+
         loadGroupMembers(gid);
         loadAllUsersForSelect(); // Populate select
     };

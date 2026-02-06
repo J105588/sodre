@@ -82,6 +82,7 @@ create table public.board_posts (
   group_id uuid references public.groups(id) on delete cascade, -- NULL for "All Members" board
   user_id uuid references public.profiles(id) not null,
   content text not null,
+  images text[] default '{}', -- Stores array of image URLs
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 

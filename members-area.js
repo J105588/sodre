@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentGroupId = null;
     let currentGroupCanPost = false;
     let selectedImages = []; // Store selected files for upload
+    let isAdmin = false; // New Admin State
 
     // --- Auth Check ---
     const { data: { session } } = await supabase.auth.getSession();
@@ -55,7 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadProfile(uid) {
         const { data, error } = await supabase
             .from('profiles')
-            .select('display_name')
+            .select('display_name, is_admin')
             .eq('id', uid)
             .maybeSingle();
 
@@ -65,6 +66,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Prioritize Display Name but fallback to email if empty
             displayNameEl.textContent = `ようこそ、 ${user.email} さん`;
             // If display_name is retrieved but empty, logic holds.
+        }
+
+        if (data && data.is_admin) {
+            isAdmin = true;
+            console.log('User is Admin');
         }
     }
 
@@ -245,16 +251,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     async function loadMyGroups() {
-        const { data, error } = await supabase
-            .from('group_members')
-            .select(`
-                group_id,
-                can_post,
-                groups (
-                    id, name, description
-                )
-            `)
-            .eq('user_id', user.id);
+        let data = [];
+        let error = null;
+
+        if (isAdmin) {
+            // Admin sees ALL groups
+            const { data: groupsData, error: groupsError } = await supabase
+                .from('groups')
+                .select('id, name, description')
+                .order('created_at', { ascending: false });
+
+            if (groupsData) {
+                // Map to same structure as group_members query for template compatibility
+                data = groupsData.map(g => ({
+                    groups: g,
+                    can_post: true // Admins can always post
+                }));
+            }
+            error = groupsError;
+
+        } else {
+            // Normal user: fetch joined groups
+            const response = await supabase
+                .from('group_members')
+                .select(`
+                    group_id,
+                    can_post,
+                    groups (
+                        id, name, description
+                    )
+                `)
+                .eq('user_id', user.id);
+            data = response.data;
+            error = response.error;
+        }
 
         if (error) {
             console.error(error);
@@ -314,6 +344,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderPosts(data, groupFeed);
     }
 
+    // --- Lightbox Logic ---
+    const lightboxModal = document.getElementById('lightbox-modal');
+    const lightboxImg = document.getElementById('lightbox-img');
+    const lightboxClose = document.getElementById('lightbox-close');
+
+    window.openLightbox = (url) => {
+        lightboxImg.src = url;
+        lightboxModal.style.display = 'flex';
+        setTimeout(() => lightboxModal.style.opacity = '1', 10);
+
+
+    };
+
+    const closeLightbox = () => {
+        lightboxModal.style.opacity = '0';
+        setTimeout(() => {
+            lightboxModal.style.display = 'none';
+            lightboxImg.src = '';
+        }, 300);
+    };
+
+    lightboxClose.addEventListener('click', closeLightbox);
+    lightboxModal.addEventListener('click', (e) => {
+        if (e.target === lightboxModal) {
+            closeLightbox();
+        }
+    });
+
     // --- Components ---
     function renderPosts(posts, container) {
         if (!posts || posts.length === 0) {
@@ -329,7 +387,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
                 ${post.images && post.images.length > 0 ? `
                     <div style="display:flex; gap:10px; overflow-x:auto; margin-bottom:10px;">
-                        ${post.images.map(url => `<img src="${url}" style="height:100px; width:auto; border-radius:4px;">`).join('')}
+                        ${post.images.map(url => `
+                            <img src="${url}" 
+                                onclick="openLightbox('${url}')"
+                                style="height:100px; width:auto; border-radius:4px; cursor:pointer; transition:opacity 0.2s;" 
+                                onmouseover="this.style.opacity=0.8" 
+                                onmouseout="this.style.opacity=1"
+                            >
+                        `).join('')}
                     </div>
                 ` : ''}
                 <div class="bp-content">${escapeHtml(post.content)}</div>

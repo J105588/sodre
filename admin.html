@@ -549,7 +549,8 @@
                         </div>
                     </div>
 
-                    <!-- Group Member Management Panel -->
+                    <!-- Group Member Management Panel (Moved to modal) -->
+                    <!--
                     <div id="group-detail-panel" class="editor-container" style="display:none;">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <h3 id="manage-group-title">グループメンバー管理</h3>
@@ -559,11 +560,9 @@
                         <div style="margin: 1.5rem 0; padding:1.5rem; background:#f9f9f9; border-radius:6px;">
                             <h4 style="margin-top:0;">メンバーを追加</h4>
                             <div style="display:flex; gap:10px;">
-                                <!-- Replaced email input with user select -->
                                 <select id="add-member-select"
                                     style="flex:1; padding: 0.5rem; border-radius: 4px; border: 1px solid #ccc;">
                                     <option value="">ユーザーを選択...</option>
-                                    <!-- Populated via JS -->
                                 </select>
                                 <div style="display:flex; align-items:center; gap:5px; margin: 0 10px;">
                                     <input type="checkbox" id="add-member-can-post" checked>
@@ -578,9 +577,9 @@
                         <h4>参加メンバー一覧</h4>
                         <div id="group-members-list"
                             style="max-height:300px; overflow-y:auto; border:1px solid #eee; border-radius:4px; padding:0.5rem;">
-                            <!-- Members loaded here -->
                         </div>
                     </div>
+                    -->
                 </div>
 
                 <!-- Calendar Management Area -->
@@ -758,6 +757,38 @@
                     <button type="submit" class="btn-primary">保存</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Group Manage Modal (Moved from inline) -->
+    <div id="group-manage-modal" class="modal-overlay" style="display:none; opacity:0;">
+        <div class="modal-content" style="max-width: 700px; width: 90%;">
+            <span id="close-group-panel" class="close-modal">&times;</span>
+            <h3 id="manage-group-title" style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px;">
+                グループメンバー管理</h3>
+
+            <div style="margin: 1.5rem 0; padding:1.5rem; background:#f9f9f9; border-radius:6px;">
+                <h4 style="margin-top:0;">メンバーを追加</h4>
+                <div style="display:flex; gap:10px; flex-wrap: wrap;">
+                    <select id="add-member-select"
+                        style="flex:1; padding: 0.5rem; border-radius: 4px; border: 1px solid #ccc; min-width: 200px;">
+                        <option value="">ユーザーを選択...</option>
+                        <!-- Populated via JS -->
+                    </select>
+                    <div style="display:flex; align-items:center; gap:5px; margin: 0 10px;">
+                        <input type="checkbox" id="add-member-can-post" checked>
+                        <label for="add-member-can-post" style="cursor:pointer; font-size:0.9rem;">投稿権限</label>
+                    </div>
+                    <button id="btn-add-member" class="btn-primary" style="padding: 8px 16px;">追加</button>
+                </div>
+                <p id="add-member-msg" style="color:red; font-size:0.9rem; margin-top:5px;"></p>
+            </div>
+
+            <h4>参加メンバー一覧</h4>
+            <div id="group-members-list"
+                style="max-height:400px; overflow-y:auto; border:1px solid #eee; border-radius:4px; padding:0.5rem;">
+                <!-- Members loaded here -->
+            </div>
         </div>
     </div>
 
