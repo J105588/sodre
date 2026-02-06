@@ -344,6 +344,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderPosts(data, groupFeed);
     }
 
+    // --- Header Scroll Logic ---
+    const header = document.getElementById('global-header');
+    let lastScrollTop = 0;
+
+    if (header) {
+        const headerHeight = header.offsetHeight;
+        window.addEventListener('scroll', () => {
+            let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            if (scrollTop > lastScrollTop && scrollTop > headerHeight) {
+                // Scroll Down -> Hide
+                header.classList.add('hide');
+            } else {
+                // Scroll Up -> Show
+                header.classList.remove('hide');
+            }
+            lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
+        });
+    }
+
     // --- Lightbox Logic ---
     const lightboxModal = document.getElementById('lightbox-modal');
     const lightboxImg = document.getElementById('lightbox-img');
