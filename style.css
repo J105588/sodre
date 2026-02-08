@@ -20,6 +20,10 @@
     --font-sans: 'Zen Kaku Gothic New', sans-serif;
     --font-display: 'Cinzel', serif;
     --transition-speed: 1s;
+
+    /* Mobile Layout Variables */
+    --container-padding-mobile: 1.5rem;
+    --header-height-mobile: 50px;
 }
 
 * {
@@ -62,6 +66,23 @@ ul {
     padding: 0 2rem;
 }
 
+@media (max-width: 768px) {
+    .container {
+        padding: 0 var(--container-padding-mobile);
+        /* Standard padding */
+    }
+
+    html {
+        font-size: 14px;
+        /* Base font size for mobile */
+    }
+
+    body {
+        -webkit-text-size-adjust: 100%;
+        /* Prevent weird iOS scaling */
+    }
+}
+
 /* Opening Animation (Aurora Text) */
 #opening-overlay {
     position: fixed;
@@ -70,8 +91,8 @@ ul {
     width: 100%;
     height: 100%;
     background: #fff;
-    z-index: 200000;
-    /* Highest priority: Above Header (99999) */
+    z-index: 300000;
+    /* Highest priority: Above Hamburger (200005) & Header */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -286,32 +307,57 @@ ul {
     justify-content: space-between;
     align-items: center;
     flex-direction: row;
-    padding: 0 2rem;
+    padding: 0 4rem;
+    /* Increased from 2rem to move logo right */
 }
 
-.header-container {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    /* Center logo vertically */
-}
+/* Removed redundant .header-container styles */
 
 .logo img {
-    height: 40px;
-    /* Compact height */
+    height: 50px;
+    /* Standard height */
     width: auto;
     display: block;
 }
 
+@media (max-width: 768px) {
+    .logo img {
+        height: 40px;
+        /* Smaller on mobile */
+    }
+}
+
 /* Hamburger Button */
 .hamburger {
-    width: 30px;
-    height: 24px;
-    position: relative;
+    position: fixed;
+    top: 25px;
+    /* Desktop position */
+    right: 5%;
+    width: 40px;
+    height: 30px;
     cursor: pointer;
-    z-index: 10001;
-    /* Above overlay */
-    transition: transform 0.3s ease;
+    z-index: 200001;
+    transition: transform 0.3s ease, width 0.3s, height 0.3s;
+}
+
+@media (max-width: 768px) {
+    .hamburger {
+        width: 30px;
+        height: 24px;
+        top: 13px;
+        /* Mobile Only: Calculated Center (50px - 24px)/2 */
+        right: 2rem;
+        /* Visually corrected (moved left) from 1.5rem */
+        z-index: 200005;
+    }
+}
+
+@media (min-width: 1600px) {
+    .hamburger {
+        width: 50px;
+        height: 36px;
+        top: 35px;
+    }
 }
 
 .hamburger span {
@@ -398,7 +444,8 @@ body.menu-open #menu-overlay {
     text-align: left;
     max-width: 900px;
     width: 100%;
-    padding-top: 100px;
+    padding: 2rem;
+    /* Add some padding for safety but remove large top padding */
 }
 
 .menu-container {
@@ -411,11 +458,11 @@ body.menu-open #menu-overlay {
 @media (max-width: 768px) {
     .menu-content {
         padding-top: 0;
-        /* Remove fixed padding to allow full centering */
         height: 100%;
         display: flex;
         flex-direction: column;
         justify-content: center;
+        width: 100%;
     }
 
     .menu-container {
@@ -423,56 +470,100 @@ body.menu-open #menu-overlay {
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        height: 100%;
-        gap: 2vh;
-        /* Responsive gap */
+        /* Center */
+        height: 100dvh;
+        gap: 0;
+        /* REMOVED GAP to fix spacing */
         text-align: center;
-        padding-bottom: 0;
+        /* Center */
+        padding-bottom: 5vh;
+        padding-top: 80px;
+        overflow-y: auto;
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
     }
 
     .menu-main {
         border-right: none;
         padding-right: 0;
         width: 100%;
+        margin-bottom: 0;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        /* Center */
     }
 
-    /* Responsive Font Sizing */
-    .menu-list a {
-        font-size: clamp(1.2rem, 4vh, 2rem);
-        /* Scales with height */
-        padding: 0.5vh 0;
-        display: block;
-    }
-
+    /* Reset margins to let flex handle space or use small gap */
     .menu-list li {
-        margin: 0.5vh 0;
+        margin: 1rem 0;
+        /* Keep consistent margin */
+        width: 100%;
+    }
+
+    /* Remove excessive margin between lists to mimic natural flow */
+    .menu-main .menu-list li:last-child {
+        margin-bottom: 0;
     }
 
     .menu-sub {
-        margin-top: 2vh;
-        border-top: 1px solid rgba(0, 0, 0, 0.05);
-        padding-top: 2vh;
+        margin-top: 0;
+        border-top: none;
+        padding-top: 0;
+        display: flex;
+        flex-direction: column;
         align-items: center;
+        /* Center */
         width: 100%;
-        gap: 1vh;
+        gap: 0;
+        flex-shrink: 0;
+        justify-content: center;
     }
 
+    .menu-sub .menu-list li:first-child {
+        margin-top: 1rem;
+        /* Ensure standard spacing from valid previous item */
+    }
+
+    /* Standard Mobile Menu Styles */
     .menu-sub .btn-menu-cta {
-        margin-top: 1vh;
-        margin-bottom: 0;
-        align-self: center;
-        width: 80%;
+        margin-top: 1.5rem;
+        width: 100%;
+        max-width: 280px;
         text-align: center;
-        padding: 1.5vh 0 !important;
-        font-size: clamp(1rem, 2.5vh, 1.2rem) !important;
-        /* transform: none; Removed to allow animation */
-        /* Simplify animation handling on mobile if needed, or keep provided styles work */
+        padding: 1rem;
+        font-size: 1rem;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
     }
 
-    /* Sub list (News, Topics, etc) smaller */
+    .menu-list a,
+    .menu-list a:visited {
+        font-size: 1.25rem !important;
+        /* Force same size */
+        font-family: var(--font-display);
+        /* Ensure same font */
+        padding: 0.75rem 0;
+        line-height: 1.3;
+        display: block;
+        color: var(--text-color);
+        text-decoration: none;
+        text-align: center;
+        /* Center */
+        padding-left: 0;
+    }
+
     .menu-sub .menu-list.sub-list a {
-        font-size: clamp(1rem, 3vh, 1.5rem);
-        color: #666;
+        font-size: 1.25rem !important;
+        /* Force same size */
+        font-family: var(--font-display);
+        /* Ensure same font */
+        padding: 0.75rem 0;
+        text-align: center;
+        /* Center */
     }
 }
 
@@ -481,7 +572,7 @@ body.menu-open #menu-overlay {
     padding-right: 2rem;
 }
 
-/* Redundant media query removed (merged above) */
+/* Sub-title styles */
 
 .menu-sub-title {
     font-family: var(--font-serif);
@@ -497,6 +588,11 @@ body.menu-open #menu-overlay {
         padding-left: 0;
         display: none;
         /* Hide subtitle on mobile for cleaner look */
+    }
+
+    .menu-main {
+        border-right: none;
+        /* Remove border */
     }
 }
 
@@ -525,7 +621,7 @@ body.menu-open .menu-list li {
     opacity: 1;
 }
 
-/* Staggered animation for menu items */
+/* Staggered animation for menu items (Desktop & Mobile Base) */
 body.menu-open .menu-list li:nth-child(1) {
     transition-delay: 0.1s;
 }
@@ -556,6 +652,57 @@ body.menu-open .menu-list li:nth-child(7) {
 
 body.menu-open .menu-list li:nth-child(8) {
     transition-delay: 0.45s;
+}
+
+body.menu-open .menu-list li:nth-child(9) {
+    transition-delay: 0.5s;
+}
+
+/* Mobile Only: Sequential Animation (Left finishes then Right starts) */
+@media (max-width: 768px) {
+    /* 
+       Left Column (Main Menu) has 7 items approx.
+       Last item (7) starts at 0.4s. Finishes around 0.4s + 0.4s (duration) = 0.8s.
+       
+       Right Column (Sub Menu) items are in .menu-sub .menu-list.
+       We need to target them specifically. 
+       Note: The HTML structure uses .menu-list for both. 
+       We need to be careful with nth-child targeting if they are separate lists.
+       
+       Structure:
+       .menu-main > ul.menu-list (7 items)
+       .menu-sub > ul.menu-list.sub-list (5 items)
+       
+       The global nth-child rules above apply to ALL .menu-list li.
+       So .menu-main li:nth-child(1) gets 0.1s.
+       And .menu-sub li:nth-child(1) ALSO gets 0.1s by default.
+       
+       We need to override the delays for .menu-sub on mobile to start LATER.
+    */
+
+    body.menu-open .menu-sub .menu-list li:nth-child(1) {
+        transition-delay: 0.6s;
+    }
+
+    body.menu-open .menu-sub .menu-list li:nth-child(2) {
+        transition-delay: 0.65s;
+    }
+
+    body.menu-open .menu-sub .menu-list li:nth-child(3) {
+        transition-delay: 0.7s;
+    }
+
+    body.menu-open .menu-sub .menu-list li:nth-child(4) {
+        transition-delay: 0.75s;
+    }
+
+    body.menu-open .menu-sub .menu-list li:nth-child(5) {
+        transition-delay: 0.8s;
+    }
+
+    body.menu-open .menu-sub .menu-list li:nth-child(6) {
+        transition-delay: 0.85s;
+    }
 }
 
 .menu-list a {
@@ -589,34 +736,27 @@ body.menu-open .menu-list li:nth-child(8) {
 
 .btn-menu-cta {
     font-size: 1.2rem !important;
-    /* Emphasize CTA */
     background: var(--primary-color);
     color: var(--white) !important;
     border-radius: 50px;
     padding: 0.8rem 2.5rem !important;
-    margin-top: 3rem;
+    margin-top: 1rem;
     box-shadow: 0 10px 30px rgba(20, 90, 180, 0.3);
-    /* Animation Init */
-    opacity: 0;
-    transform: translateY(20px);
-    transition: transform 0.4s ease, opacity 0.4s ease, background 0.3s, box-shadow 0.3s;
-}
-
-body.menu-open .btn-menu-cta {
-    opacity: 1;
-    transform: translateY(0);
-    transition-delay: 0.5s;
-}
-
-body.menu-open .btn-menu-cta:hover {
-    transform: translateY(-3px);
-    transition-delay: 0s;
+    display: inline-block;
+    transition: transform 0.3s, background 0.3s, box-shadow 0.3s;
 }
 
 .btn-menu-cta:hover {
     background: var(--accent-color);
     transform: translateY(-3px);
+    box-shadow: 0 15px 40px rgba(20, 90, 180, 0.4);
 }
+
+.btn-menu-cta::after {
+    display: none;
+}
+
+
 
 .menu-footer {
     margin-top: 4rem;
@@ -628,11 +768,7 @@ body.menu-open .btn-menu-cta:hover {
 }
 
 /* Hide original Nav elements that were removed/replaced */
-.nav,
-.global-menu,
-.header-top {
-    display: none !important;
-}
+/* Removed unused hidden classes for Nav/Global Menu/Header top */
 
 /* Hero Adjustments */
 .hero-sub {
@@ -736,6 +872,14 @@ body.menu-open .btn-menu-cta:hover {
     gap: 2rem;
 }
 
+@media (max-width: 768px) {
+    .columns-2 {
+        grid-template-columns: 1fr;
+        /* Stack columns on mobile */
+        gap: 1.5rem;
+    }
+}
+
 .col-box {
     background: var(--white);
     padding: 2rem;
@@ -752,6 +896,12 @@ body.menu-open .btn-menu-cta:hover {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 2rem;
+}
+
+@media (max-width: 768px) {
+    .testimonials-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .voice-card {
@@ -886,6 +1036,8 @@ body.menu-open .btn-menu-cta:hover {
 /* Hero Section */
 .hero-section {
     min-height: 100vh;
+    /* Use 100dvh for mobile browsers if supported, fallback to 100vh */
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
     /* Stack slider and content vertically */
@@ -897,6 +1049,33 @@ body.menu-open .btn-menu-cta:hover {
     padding-bottom: 4rem;
     padding-top: 90px;
     /* Match exact header height */
+}
+
+@media (max-width: 768px) {
+    .hero-section {
+        padding-top: 80px;
+        justify-content: flex-start;
+        height: auto;
+        min-height: 100dvh;
+    }
+
+    .hero-content {
+        margin-top: 1rem;
+        padding: 0 1.25rem;
+        width: 100%;
+    }
+
+    .logo-reveal {
+        font-size: 3rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.25rem;
+    }
+
+    .fade-text {
+        font-size: 1rem;
+        letter-spacing: 0.15em;
+        margin-top: 0.5rem;
+    }
 }
 
 /* Background adjustment (if needed behind text) */
@@ -1123,6 +1302,18 @@ body.menu-open .btn-menu-cta:hover {
     gap: 4rem;
 }
 
+@media (max-width: 768px) {
+    .about-content {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+
+    .concept-box,
+    .definition-box {
+        padding: 1.5rem;
+    }
+}
+
 .concept-box,
 .definition-box {
     padding: 2rem;
@@ -1150,6 +1341,15 @@ body.menu-open .btn-menu-cta:hover {
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 3rem;
     padding: 1rem;
+}
+
+@media (max-width: 768px) {
+    .members-grid {
+        grid-template-columns: 1fr;
+        /* Stack members */
+        gap: 2rem;
+        padding: 0;
+    }
 }
 
 .member-card {
@@ -1273,6 +1473,13 @@ body.menu-open .btn-menu-cta:hover {
     gap: 2rem;
 }
 
+@media (max-width: 768px) {
+    .plans-grid {
+        grid-template-columns: 1fr;
+        /* Stack plans */
+    }
+}
+
 .plan-card {
     background: var(--white);
     padding: 2rem;
@@ -1368,6 +1575,13 @@ h4 {
 /* Sections */
 .section {
     padding: 6rem 0;
+}
+
+@media (max-width: 768px) {
+    .section {
+        padding: 4rem 0;
+        /* Reduced vertical padding on mobile */
+    }
 }
 
 .section.alt-bg {
@@ -1517,6 +1731,27 @@ footer {
     gap: 3rem;
 }
 
+@media (max-width: 768px) {
+    .footer-grid {
+        grid-template-columns: 1fr;
+        gap: 2.5rem;
+        text-align: left;
+        /* Left Align */
+    }
+
+    .footer-col h3 {
+        margin-bottom: 1rem;
+    }
+
+    .footer-col .btn-primary {
+        width: 100%;
+        max-width: 280px;
+        margin: 0;
+        /* Left align button */
+        display: block;
+    }
+}
+
 .footer-col h3 {
     font-family: var(--font-display);
     margin-bottom: 1.5rem;
@@ -1648,6 +1883,14 @@ footer {
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 2rem;
     margin-top: 2rem;
+}
+
+@media (max-width: 768px) {
+    .posts-grid {
+        grid-template-columns: 1fr;
+        /* Single column for posts */
+        gap: 1.5rem;
+    }
 }
 
 .post-card {
@@ -1918,15 +2161,7 @@ footer {
     }
 }
 
-@keyframes spin {
-    0% {
-        transform: rotate(0deg);
-    }
 
-    100% {
-        transform: rotate(360deg);
-    }
-}
 
 /* --- Quill Editor Overrides --- */
 /* Remove default padding/border for read-only display */

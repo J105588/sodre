@@ -51,7 +51,6 @@ document.addEventListener('DOMContentLoaded', () => {
     scrollElements.forEach(el => observer.observe(el));
 
 
-    // --- Header Scroll Effect ---
     // --- Header Scroll Effect (Smart Sticky) ---
     const header = document.querySelector('.header');
     let lastScrollTop = 0;
