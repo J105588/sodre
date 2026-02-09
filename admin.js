@@ -154,6 +154,26 @@
         // Check Session
         checkUser();
 
+        // --- Mobile Menu Collapse Logic ---
+        const mainContent = document.querySelector('.main-content');
+        const sidebar = document.querySelector('.sidebar');
+
+        if (mainContent && sidebar) {
+            mainContent.addEventListener('scroll', () => {
+                // Only activate on mobile when sidebar layout changes
+                if (window.innerWidth <= 900) {
+                    if (mainContent.scrollTop > 50) {
+                        sidebar.classList.add('scrolled');
+                    } else {
+                        sidebar.classList.remove('scrolled');
+                    }
+                } else {
+                    // Reset on desktop
+                    sidebar.classList.remove('scrolled');
+                }
+            });
+        }
+
         // Tabs Logic
         const tabs = document.querySelectorAll('.tab-btn');
         tabs.forEach(tab => {
@@ -1036,27 +1056,38 @@
         groupMembersList.innerHTML = displayList.map(member => {
             const isGlobalAdmin = member.is_global_admin;
 
+            let statusBadge = '';
+            if (member.can_post) {
+                statusBadge = `<span style="background:#e8f5e9; color:#2e7d32; font-size:0.75rem; padding:2px 8px; border-radius:12px; border:1px solid #c8e6c9; margin-left:8px;">投稿可能</span>`;
+            } else {
+                statusBadge = `<span style="background:#ffebee; color:#c62828; font-size:0.75rem; padding:2px 8px; border-radius:12px; border:1px solid #ffcdd2; margin-left:8px;">投稿禁止</span>`;
+            }
+
             let actions = '';
             if (isGlobalAdmin) {
                 actions = `<span style="color:#666; font-size:0.8rem; background:#eee; padding:3px 8px; border-radius:4px;">Global Admin(Fixed)</span>`;
             } else {
+                // If can_post is true -> Button should say "Disable" (Ban)
+                // If can_post is false -> Button should say "Enable" (Allow)
+                const toggleBtn = member.can_post ?
+                    `<button onclick="togglePostPermission('${member.id}', true)" class="btn-primary" style="background:#f39c12; margin-left:5px; font-size:0.8rem; padding:6px 12px;">投稿を禁止にする</button>` :
+                    `<button onclick="togglePostPermission('${member.id}', false)" class="btn-primary" style="background:var(--green-accent); margin-left:5px; font-size:0.8rem; padding:6px 12px;">投稿を許可する</button>`;
+
                 actions = `
-                    <button onclick="removeMember('${member.id}')" class="btn-delete">Remove</button>
-                    ${member.can_post ?
-                        `<button onclick="togglePostPermission('${member.id}', false)" class="btn-primary" style="background:#f39c12; margin-left:5px;">Disable Posting</button>` :
-                        `<button onclick="togglePostPermission('${member.id}', true)" class="btn-primary" style="background:var(--green-accent); margin-left:5px;">Enable Posting</button>`
-                    }
+                    <button onclick="removeMember('${member.id}')" class="btn-delete" style="font-size:0.8rem; padding:6px 12px;">削除</button>
+                    ${toggleBtn}
                 `;
             }
 
             return `
                     <div class="post-item">
-                    <div class="post-info">
+                    <div class="post-info" style="display:flex; align-items:center; flex-wrap:wrap; gap:5px;">
                         <strong>${escapeHtml(member.name)}</strong>
                         <span style="font-size:0.85rem; color:#666;">${escapeHtml(member.email)}</span>
-                        ${isGlobalAdmin ? '<span style="background:purple; color:white; font-size:0.7rem; padding:2px 5px; border-radius:3px; margin-left:5px;">Admin</span>' : ''}
+                        ${isGlobalAdmin ? '<span style="background:purple; color:white; font-size:0.7rem; padding:2px 5px; border-radius:3px;">Admin</span>' : ''}
+                        ${!isGlobalAdmin ? statusBadge : ''}
                     </div>
-                    <div class="post-actions">
+                    <div class="post-actions" style="margin-top:5px;">
                         ${actions}
                     </div>
                 </div>

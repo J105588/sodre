@@ -379,6 +379,39 @@
                 width: 100%;
                 height: auto;
                 box-shadow: none;
+                transition: all 0.3s ease;
+            }
+
+            .sidebar-header {
+                transition: all 0.3s ease;
+                overflow: hidden;
+                padding: 1rem;
+                display: flex;
+                align-items: center;
+                height: 60px;
+            }
+
+            .sidebar-header h2 {
+                transition: all 0.3s ease;
+                margin: 0;
+                font-size: 1.2rem;
+                white-space: nowrap;
+            }
+
+            /* Collapsed State */
+            .sidebar.scrolled .sidebar-header {
+                height: 50px;
+                padding: 0.5rem 1rem;
+                opacity: 1;
+                background: rgba(0, 0, 0, 0.1);
+            }
+
+            .sidebar.scrolled .sidebar-header h2 {
+                font-size: 0.9rem;
+            }
+
+            .sidebar.scrolled {
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             }
 
             .sidebar-nav {
@@ -403,11 +436,83 @@
 
             .nav-item:hover {
                 padding-left: 1rem;
-                /* Reset hover effect */
+                background: rgba(255, 255, 255, 0.1);
+            }
+
+            .nav-item.active {
+                background: linear-gradient(to top, rgba(250, 180, 60, 0.1), transparent);
+                border-left: 4px solid transparent;
+                border-bottom: 3px solid var(--accent-color);
+                color: var(--accent-color);
             }
 
             .main-content {
                 padding: 1.5rem;
+            }
+
+            /* --- Mobile Optimizations (Logout & Collapse) --- */
+            .sidebar-footer {
+                position: absolute;
+                top: 0;
+                right: 20px;
+                height: 60px;
+                display: flex;
+                align-items: center;
+                padding-right: 10px;
+                background: transparent;
+                z-index: 100;
+                /* Increase z-index to be sure */
+                pointer-events: auto;
+                /* Allow clicks */
+            }
+
+            #logout-btn {
+                width: 44px;
+                height: 44px;
+                padding: 0;
+                border-radius: 50%;
+                background: transparent;
+                color: rgba(255, 255, 255, 0.8);
+                border: none;
+                box-shadow: none;
+                font-size: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s ease;
+            }
+
+            #logout-btn:hover,
+            #logout-btn:active {
+                color: #fff;
+                transform: scale(1.1);
+                background: transparent;
+            }
+
+            #logout-btn i {
+                font-size: 1.1rem;
+                margin: 0;
+                display: block;
+            }
+
+            /* Collapsed State: Icon Only Menu */
+            .sidebar.scrolled .nav-item {
+                font-size: 0;
+                padding: 0.8rem 0.5rem;
+                flex-direction: column;
+            }
+
+            .sidebar.scrolled .nav-item i {
+                font-size: 1.4rem;
+                margin: 0;
+            }
+
+            /* Hide text specifically if it's a text node, but font-size:0 handles it mostly. 
+               Ensure icons are centered */
+            .sidebar.scrolled .sidebar-nav {
+                justify-content: flex-start;
+                gap: 1.5rem;
+                padding-left: 1rem;
             }
         }
 
