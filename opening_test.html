@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Opening Animation Test - SoDRé</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Shippori+Mincho:wght@400;600&family=Zen+Kaku+Gothic+New:wght@300;400;500;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="style.css?v=2.0">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        /* Force overlay to show */
+        #opening-overlay {
+            display: flex !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Test Mode Flag -->
+    <script>
+        window.isOpeningTest = true;
+    </script>
+
+    <!-- Opening Overlay -->
+    <div id="opening-overlay">
+        <div class="aurora-bg"></div>
+        <div id="webgl-opening"></div>
+        <div class="opening-content">
+            <h1 class="logo-reveal">
+                <span style="--i:1">S</span><span style="--i:2">o</span><span style="--i:3">D</span><span
+                    style="--i:4">R</span><span style="--i:5">é</span>
+            </h1>
+            <p class="fade-text">対話的内省の暇</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="opening.js"></script>
+
+</body>
+
+</html>

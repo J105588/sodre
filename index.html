@@ -22,9 +22,22 @@
 
 <body>
 
+    <!-- Hamburger Button (Moved to Body for Z-index) -->
+    <div class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+
     <!-- Opening Animation Overlay (Aurora Text Style) -->
+    <!-- Opening Animation Overlay (Aurora + WebGL + Text) -->
     <div id="opening-overlay">
         <div class="aurora-bg"></div>
+
+        <!-- WebGL Layer (Artistic Staff/Notes) -->
+        <div id="webgl-opening"></div>
+
+        <!-- Text Layer (Original CSS Animation) -->
         <div class="opening-content">
             <h1 class="logo-reveal">
                 <span style="--i:1">S</span><span style="--i:2">o</span><span style="--i:3">D</span><span
@@ -34,10 +47,15 @@
         </div>
     </div>
 
-    <div class="hamburger" id="hamburger-btn">
-        <span></span>
-        <span></span>
-        <span></span>
+    <script>
+        // Inline check to prevent flash
+        if (sessionStorage.getItem('hasTakenIntro')) {
+            document.getElementById('opening-overlay').style.display = 'none';
+        }
+    </script>
+    <span></span>
+    <span></span>
+    <span></span>
     </div>
 
     <!-- Header / Global Navigation -->
@@ -187,6 +205,10 @@
     <script src="config.js"></script>
     <script src="script.js"></script>
     <script src="posts.js"></script>
+
+    <!-- WebGL Opening Scripts (Load last) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="opening.js"></script>
 </body>
 
 </html>

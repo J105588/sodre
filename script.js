@@ -1,35 +1,37 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-    // --- Opening Animation (CSS Based) ---
-    const overlay = document.getElementById('opening-overlay');
-
-    if (overlay) {
-        // Check if already visited
-        if (sessionStorage.getItem('hasTakenIntro')) {
-            overlay.style.display = 'none';
-            triggerHeroAnimations();
-        } else {
-            document.body.style.overflow = 'hidden';
-
-            // Wait for CSS animations to complete (approx 3.5s)
-            setTimeout(() => {
-                overlay.style.opacity = '0';
-                overlay.style.visibility = 'hidden';
-                document.body.style.overflow = 'auto';
+    // --- Opening Animation (CSS / WebGL Handled) ---
+    // If WebGL opening is present, it will handle the trigger.
+    if (!document.getElementById('webgl-opening')) {
+        const overlay = document.getElementById('opening-overlay');
+        if (overlay) {
+            // Old CSS fallback
+            if (sessionStorage.getItem('hasTakenIntro')) {
+                overlay.style.display = 'none';
                 triggerHeroAnimations();
-                sessionStorage.setItem('hasTakenIntro', 'true');
-            }, 3500);
+            } else {
+                document.body.style.overflow = 'hidden';
+                setTimeout(() => {
+                    overlay.style.opacity = '0';
+                    overlay.style.visibility = 'hidden';
+                    document.body.style.overflow = 'auto';
+                    triggerHeroAnimations();
+                    sessionStorage.setItem('hasTakenIntro', 'true');
+                }, 3500);
+            }
+        } else {
+            // No opening overlay found, trigger immediately
+            // But wait... if WebGL is running, we don't want this.
+            // Actually, if webgl-opening is there, we do NOTHING here.
+            triggerHeroAnimations();
         }
-    } else {
-        triggerHeroAnimations();
     }
-
 
     // --- Hero Animations ---
-    function triggerHeroAnimations() {
+    window.triggerHeroAnimations = function () {
         const reveals = document.querySelectorAll('.reveal-text');
         reveals.forEach(el => el.classList.add('active'));
-    }
+    };
 
 
     // --- Scroll Animations (Intersection Observer) ---
@@ -83,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Hamburger Menu Toggle ---
-    const hamburger = document.getElementById('hamburger-btn');
+    const hamburger = document.querySelector('.hamburger'); // Changed from getElementById('hamburger-btn')
     const body = document.body;
     const menuLinks = document.querySelectorAll('.menu-list a');
 
@@ -101,3 +103,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 });
+
+// --- Hero Animations (Global) ---
+window.triggerHeroAnimations = function () {
+    const reveals = document.querySelectorAll('.reveal-text');
+    reveals.forEach(el => el.classList.add('active'));
+};

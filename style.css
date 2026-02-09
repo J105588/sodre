@@ -83,7 +83,21 @@ ul {
     }
 }
 
-/* Opening Animation (Aurora Text) */
+/* --- WebGL Opening --- */
+/* --- WebGL Opening (Layer 2) --- */
+#webgl-opening {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    z-index: 5;
+    /* Above aurora, below text */
+    pointer-events: none;
+}
+
+/* Opening Animation Container */
 #opening-overlay {
     position: fixed;
     top: 0;
@@ -92,7 +106,6 @@ ul {
     height: 100%;
     background: #fff;
     z-index: 300000;
-    /* Highest priority: Above Hamburger (200005) & Header */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -100,7 +113,7 @@ ul {
     transition: opacity 1.5s ease-in-out, visibility 1.5s;
 }
 
-/* Aurora Background */
+/* Aurora Background (Layer 1) */
 .aurora-bg {
     position: absolute;
     top: -50%;
@@ -116,6 +129,7 @@ ul {
     filter: blur(80px);
     opacity: 0.3;
     animation: rotateAurora 20s linear infinite;
+    z-index: 1;
 }
 
 @keyframes rotateAurora {
@@ -128,36 +142,81 @@ ul {
     }
 }
 
+/* Text Content (Layer 3) */
 .opening-content {
     position: relative;
     z-index: 10;
     text-align: center;
+    opacity: 0;
+    /* transition: opacity 1s ease; */
+    /* Removed to fix start delay */
+}
+
+.opening-content.active {
+    opacity: 1;
 }
 
 /* Cinematic Text Reveal (Fly-In) */
 .logo-reveal {
     font-family: var(--font-serif);
-    font-size: 6rem;
-    font-weight: 400;
-    letter-spacing: 0.1em;
+    font-size: min(18vh, 13vw);
+    /* Fit between notes (User Request) */
+    font-weight: 700;
+    text-shadow: 3px 5px 10px rgba(0, 0, 0, 0.15);
+    /* Pop */
+    /* Thicker */
+    letter-spacing: 0.02em;
+    /* Narrower (User Request) */
     color: var(--text-color);
     margin-bottom: 0.5rem;
     display: flex;
     /* keep letters together */
-    gap: 0.1em;
+    gap: 0;
+    /* No gap (User Request) */
     justify-content: center;
 }
 
-.logo-reveal span {
+/* Only animate when active class is added to parent */
+.opening-content.active .logo-reveal span {
     display: inline-block;
     opacity: 0;
     transform: translateY(-200%) scale(1);
-    /* Start high */
     filter: blur(5px);
     animation: animalBounce 1.2s forwards;
-    /* Fast, energetic timing */
     animation-delay: calc(0.5s + var(--i) * 0.1s);
 }
+
+/* Default state (hidden before active) */
+.logo-reveal span {
+    opacity: 0;
+}
+
+/* Logo Letter Colors (matching logo.webp) */
+.logo-reveal span:nth-child(1) {
+    color: #fab43c;
+}
+
+/* S = Orange */
+.logo-reveal span:nth-child(2) {
+    color: #1a4a7c;
+}
+
+/* o = Dark Blue */
+.logo-reveal span:nth-child(3) {
+    color: #145ab4;
+}
+
+/* D = Brand Blue */
+.logo-reveal span:nth-child(4) {
+    color: #3c7800;
+}
+
+/* R = Green */
+.logo-reveal span:nth-child(5) {
+    color: #1a4a7c;
+}
+
+/* é = Dark Blue */
 
 .fade-text {
     font-family: var(--font-serif);
