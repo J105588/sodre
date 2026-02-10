@@ -666,6 +666,23 @@
         loadingOverlay.style.display = 'none';
     });
 
+    // --- Delete User Logic ---
+    window.deleteUser = async (userId) => {
+        if (!confirm('本当にこのユーザーを削除しますか？\nこの操作は取り消せません。')) return;
+
+        loadingOverlay.style.display = 'flex';
+
+        const { error } = await supabase.rpc('delete_user_by_admin', { target_user_id: userId });
+
+        if (error) {
+            alert('ユーザー削除エラー: ' + error.message);
+        } else {
+            alert('ユーザーを削除しました。');
+            loadAdminUsers();
+        }
+        loadingOverlay.style.display = 'none';
+    };
+
     // --- Functions ---
     async function loadAdminUsers() {
         adminUsersList.innerHTML = '<div class="loader-container"><div class="loader"></div></div>';
@@ -699,7 +716,9 @@
                         data-name="${escapeHtml(user.display_name || '')}" 
                         data-is-admin="${user.is_admin}"
                         style="font-size:0.8rem; padding:6px 12px; margin-right:5px;">Edit</button>
-                    <!-- Delete user is complex (requires auth.users delete), maybe just show info for now -->
+                    <button class="btn-delete btn-delete-user" 
+                        onclick="deleteUser('${user.id}')"
+                        style="font-size:0.8rem; padding:6px 12px;">Delete</button>
                 </div>
             </div>
         `).join('');
