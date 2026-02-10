@@ -42,10 +42,51 @@ document.addEventListener('DOMContentLoaded', () => {
             errorMsg.textContent = 'ログインに失敗しました: ' + error.message;
             errorMsg.style.display = 'block';
         } else {
-            // Success - Redirect to Members Area
-            window.location.href = 'members-area.html';
+            // Check if First Login
+            try {
+                const user = data.user;
+                const { data: profile, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('is_first_login')
+                    .eq('id', user.id)
+                    .single();
+
+                if (profileError) {
+                    console.error('Profile fetch error:', profileError);
+                    // Fallback: Proceed to member area if we can't check
+                    window.location.href = 'members-area.html';
+                    return;
+                }
+
+                if (profile && profile.is_first_login) {
+                    // Force Password Change
+                    document.getElementById('first-login-modal').style.display = 'flex';
+                    // Pre-fill email for the reset flow
+                    document.getElementById('reset-email').value = email;
+                } else {
+                    // Success - Redirect to Members Area
+                    window.location.href = 'members-area.html';
+                }
+            } catch (err) {
+                console.error('Unexpected error checking first login:', err);
+                window.location.href = 'members-area.html';
+            }
         }
     });
+
+    // --- First Login Flow ---
+    const startFirstLoginFlowBtn = document.getElementById('start-first-login-flow-btn');
+    if (startFirstLoginFlowBtn) {
+        startFirstLoginFlowBtn.addEventListener('click', () => {
+            document.getElementById('first-login-modal').style.display = 'none';
+            // Trigger "Forgot Password" flow automatically
+            resetModal.style.display = 'flex';
+            step1.style.display = 'block';
+            step2.style.display = 'none';
+            resetMsg.textContent = '';
+            // document.getElementById('reset-email').value is already set in login success
+        });
+    }
 
     // --- Password Reset Logic ---
     forgotLink.addEventListener('click', (e) => {
