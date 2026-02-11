@@ -47,16 +47,6 @@
             background: #fff;
         }
 
-        /* Ripple canvas — sits on top of aurora background */
-        #ripple-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 2;
-        }
-
         /* Aurora Background (matching current opening) */
         .aurora-bg {
             position: absolute;
@@ -204,6 +194,16 @@
                 transform: translateY(0);
             }
         }
+
+        /* Three.js canvas container */
+        #three-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+        }
     </style>
 </head>
 
@@ -213,8 +213,8 @@
         <!-- Aurora Background -->
         <div class="aurora-bg"></div>
 
-        <!-- Ripple effect canvas -->
-        <canvas id="ripple-canvas"></canvas>
+        <!-- Three.js container -->
+        <div id="three-container"></div>
 
         <!-- Text Layer -->
         <div id="text-layer">
@@ -226,7 +226,9 @@
         </div>
     </div>
 
-    <script src="opening-test.js"></script>
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="opening-test2.js"></script>
 
 </body>
 

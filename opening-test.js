@@ -1,11 +1,14 @@
 /**
- * SoDRé Experimental Water Opening Animation
+ * SoDRé Experimental Water Opening Animation — 2D Ripple Effect
  * 
- * Three.js + Custom GLSL shaders
- * - 3D water surface with physics-based wave simulation
- * - Falling water droplet with splash
- * - SoDRé text reflection on rippling water
- * - Aurora background (white + conic-gradient, matching current opening)
+ * Pure WebGL fragment shader for 2D ripple distortion
+ * overlaid on the existing aurora CSS background.
+ * 
+ * - No 3D water surface or droplet
+ * - Auto-triggered ripples from multiple points
+ * - Mouse/touch interaction creates additional ripples
+ * - Ripples distort refraction + add highlight rings
+ * - Edge reflections via mirror sources
  */
 (function () {
     'use strict';
@@ -13,603 +16,330 @@
     // =========================================================================
     // CONFIGURATION
     // =========================================================================
-    const WATER_Y = -0.2;           // Water plane Y position
-    const WATER_SIZE = 50;           // Water mesh size
-    const WATER_SEGMENTS = 256;      // Mesh resolution
-    const CAM_HEIGHT = 3.5;
-    const CAM_DIST = 5.5;
-    const CAM_LOOK_Y = -0.5;
+    const MAX_RIPPLES = 16;
+    const BOUNDARY = 0.9; // Normalized boundary for edge reflections (0-1 range)
+    const REFL_COEFF = 0.4; // Reflection strength
+    const TEXT_DELAY = 1.5; // Seconds before text appears
+    const SUBTITLE_DELAY = 3.5; // Seconds before subtitle appears
 
-    const TIMELINE = {
-        DROP_START: 1.0,
-        DROP_DURATION: 1.2,
-        DROP_IMPACT: 2.2,
-        TEXT_START: 2.3,
-        SUBTITLE_START: 4.3,
-        END: 10.0,
-    };
+    // Auto-trigger ripple schedule: [time, x (0-1), y (0-1)]
+    // Randomize positions on each load within constrained zones
+    const AUTO_RIPPLES = [];
 
-    // =========================================================================
-    // THREE.JS SETUP — transparent so aurora background shows through
-    // =========================================================================
-    const container = document.getElementById('three-container');
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setClearColor(0x000000, 0); // Transparent
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.4;
-    container.appendChild(renderer.domElement);
+    // 1. Top-Left zone (x: 0.1-0.3, y: 0.15-0.35)
+    AUTO_RIPPLES.push([
+        0.4,
+        0.1 + Math.random() * 0.2,
+        0.15 + Math.random() * 0.2
+    ]);
 
-    const scene = new THREE.Scene();
-    // No scene.background — let CSS aurora show through
+    // 2. Top-Right zone (x: 0.7-0.9, y: 0.15-0.35)
+    AUTO_RIPPLES.push([
+        0.6,
+        0.7 + Math.random() * 0.2,
+        0.15 + Math.random() * 0.2
+    ]);
 
-    // Camera angled down to see more water surface
-    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
-    camera.position.set(0, CAM_HEIGHT, CAM_DIST);
-    camera.lookAt(0, CAM_LOOK_Y, 0);
+    // 3. Bottom-Center zone (x: 0.3-0.7, y: 0.75-0.95)
+    AUTO_RIPPLES.push([
+        0.5,
+        0.3 + Math.random() * 0.4,
+        0.75 + Math.random() * 0.2
+    ]);
 
     // =========================================================================
-    // LIGHTING — brighter for light background
+    // CANVAS + WebGL SETUP
     // =========================================================================
-    const ambientLight = new THREE.AmbientLight(0x88aacc, 0.8);
-    scene.add(ambientLight);
+    const canvas = document.getElementById('ripple-canvas');
+    const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: false });
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    dirLight.position.set(3, 8, 5);
-    scene.add(dirLight);
-
-    const dirLight2 = new THREE.DirectionalLight(0x88bbff, 0.5);
-    dirLight2.position.set(-5, 4, -3);
-    scene.add(dirLight2);
-
-    const pointLight1 = new THREE.PointLight(0x145ab4, 1.8, 25);
-    pointLight1.position.set(-3, 2, 2);
-    scene.add(pointLight1);
-
-    const pointLight2 = new THREE.PointLight(0xfab43c, 1.0, 20);
-    pointLight2.position.set(4, 1.5, -1);
-    scene.add(pointLight2);
-
-    const pointLight3 = new THREE.PointLight(0x3c7800, 0.8, 15);
-    pointLight3.position.set(0, 1, -4);
-    scene.add(pointLight3);
-
-    // =========================================================================
-    // TEXT REFLECTION TEXTURE
-    // =========================================================================
-    let textTexture = null;
-
-    function createTextReflectionTexture() {
-        const w = 1024;
-        const h = 512;
-        const offCanvas = document.createElement('canvas');
-        offCanvas.width = w;
-        offCanvas.height = h;
-        const ctx = offCanvas.getContext('2d');
-        ctx.clearRect(0, 0, w, h);
-
-        const fontSize = Math.min(w * 0.15, h * 0.6);
-        const letters = ['S', 'o', 'D', 'R', 'é'];
-        const colors = ['#fab43c', '#1a4a7c', '#145ab4', '#3c7800', '#1a4a7c'];
-
-        ctx.font = `700 ${fontSize}px "Shippori Mincho", serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        let totalWidth = 0;
-        const widths = letters.map(l => {
-            const m = ctx.measureText(l);
-            totalWidth += m.width;
-            return m.width;
-        });
-
-        let x = (w - totalWidth) / 2;
-        const y = h / 2;
-
-        letters.forEach((letter, i) => {
-            ctx.shadowColor = colors[i];
-            ctx.shadowBlur = 25;
-            ctx.fillStyle = colors[i];
-            ctx.fillText(letter, x + widths[i] / 2, y);
-            x += widths[i];
-        });
-        ctx.shadowBlur = 0;
-
-        if (!textTexture) {
-            textTexture = new THREE.CanvasTexture(offCanvas);
-            textTexture.wrapS = THREE.ClampToEdgeWrapping;
-            textTexture.wrapT = THREE.ClampToEdgeWrapping;
-        } else {
-            textTexture.image = offCanvas;
-        }
-        textTexture.needsUpdate = true;
+    function resize() {
+        canvas.width = window.innerWidth * Math.min(window.devicePixelRatio, 2);
+        canvas.height = window.innerHeight * Math.min(window.devicePixelRatio, 2);
+        canvas.style.width = window.innerWidth + 'px';
+        canvas.style.height = window.innerHeight + 'px';
+        gl.viewport(0, 0, canvas.width, canvas.height);
     }
+    resize();
+    window.addEventListener('resize', resize);
 
     // =========================================================================
-    // WATER SHADER MATERIAL
+    // SHADERS
     // =========================================================================
-    const waterVertexShader = `
-        uniform float u_time;
-        uniform vec3 u_ripples[8];
-        uniform int u_rippleCount;
+    const vertSrc = `
+        attribute vec2 a_position;
+        varying vec2 v_uv;
+        void main() {
+            v_uv = a_position * 0.5 + 0.5;
+            gl_Position = vec4(a_position, 0.0, 1.0);
+        }
+    `;
 
-        varying vec3 v_worldPos;
-        varying vec3 v_normal;
+    const fragSrc = `
+        precision highp float;
         varying vec2 v_uv;
 
-        // Simplex-style noise
-        vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-        vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-        vec3 permute(vec3 x) { return mod289(((x * 34.0) + 1.0) * x); }
+        uniform float u_time;
+        uniform vec2 u_resolution;
+        uniform vec4 u_ripples[${MAX_RIPPLES}];  // x, y, birthTime, strength
+        uniform int u_rippleCount;
 
-        float snoise(vec2 v) {
-            const vec4 C = vec4(0.211324865405187, 0.366025403784439,
-                              -0.577350269189626, 0.024390243902439);
-            vec2 i = floor(v + dot(v, C.yy));
-            vec2 x0 = v - i + dot(i, C.xx);
-            vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
-            vec4 x12 = x0.xyxy + C.xxzz;
-            x12.xy -= i1;
-            i = mod289(i);
-            vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
-            vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
-            m = m * m;
-            m = m * m;
-            vec3 x_ = 2.0 * fract(p * C.www) - 1.0;
-            vec3 h = abs(x_) - 0.5;
-            vec3 ox = floor(x_ + 0.5);
-            vec3 a0 = x_ - ox;
-            m *= 1.79284291400159 - 0.85373472095314 * (a0*a0 + h*h);
-            vec3 g;
-            g.x = a0.x * x0.x + h.x * x0.y;
-            g.yz = a0.yz * x12.xz + h.yz * x12.yw;
-            return 130.0 * dot(m, g);
+        // Compute ripple height at a point from a single source
+        // uv and src are in aspect-corrected coordinates (x scaled by aspect)
+        float rippleFrom(vec2 uv, vec2 src, float age, float strength) {
+            float dist = length(uv - src);
+            float speed = 0.30;
+            float waveR = age * speed;
+            float ringDist = abs(dist - waveR);
+            
+            // Reduced amplitude slightly and increased distance decay
+            float amp = 0.015 * strength 
+                      * exp(-age * 0.05)      
+                      * exp(-ringDist * 10.0) 
+                      * exp(-dist * 0.15);
+            return amp * sin(dist * 25.0 - age * 7.5);
         }
 
-        float getWaveHeight(vec3 pos) {
-            float t = u_time;
+        // Get total ripple height including boundary reflections
+        float getHeight(vec2 uv, float aspect) {
             float h = 0.0;
+            float reflCoeff = 0.4; // Stronger reflections again (0.3 -> 0.4)
 
-            // Wave activation mask: waves only exist where the ripple has reached
-            // Impact at (0,0) at t=2.2s. Speed approx 2.5 units/s.
-            float impactT = 2.2;
-            float waveSpeed = 2.5;
-            float distFromCenter = length(pos.xz);
-            float waveFront = max(0.0, (t - impactT) * waveSpeed);
-            
-            // Smooth transition at the wavefront
-            float calm = smoothstep(waveFront + 1.0, waveFront - 2.0, distFromCenter);
-            // Ensure zero movement before impact anywhere
-            if (t < impactT) calm = 0.0;
+            // Boundaries in aspect-corrected space
+            float left = 0.0;
+            float right = aspect;
+            float top = 1.0;
+            float bottom = 0.0;
 
-            // Large slow swells
-            h += sin(pos.x * 0.35 + t * 0.5) * 0.12 * calm;
-            h += sin(pos.z * 0.25 + t * 0.35 + 1.0) * 0.10 * calm;
-            h += sin(pos.x * 0.15 - pos.z * 0.25 + t * 0.4) * 0.08 * calm;
-
-            // Medium waves
-            h += sin(pos.x * 1.0 + t * 1.1) * 0.04 * calm;
-            h += sin(pos.z * 1.3 - t * 0.9 + pos.x * 0.3) * 0.03 * calm;
-            h += sin(pos.x * 0.6 + pos.z * 0.9 + t * 1.3) * 0.025 * calm;
-
-            // Detailed surface ripples
-            h += snoise(pos.xz * 1.2 + t * 0.4) * 0.04 * calm;
-            h += snoise(pos.xz * 2.5 - t * 0.6) * 0.02 * calm;
-            h += snoise(pos.xz * 5.0 + t * 0.8) * 0.008 * calm;
-
-            // Ripple contributions from impacts
-            for (int i = 0; i < 8; i++) {
+            for (int i = 0; i < ${MAX_RIPPLES}; i++) {
                 if (i >= u_rippleCount) break;
-                float rtime = u_ripples[i].z;
-                float age = t - rtime;
-                if (age < 0.0 || age > 10.0) continue;
 
-                vec2 rpos = u_ripples[i].xy;
-                float dist = length(pos.xz - rpos);
-                float speed = 2.5;
-                float waveR = age * speed;
-                float ringDist = abs(dist - waveR);
+                // Scale source x by aspect to match uv space
+                vec2 src = u_ripples[i].xy;
+                src.x *= aspect;
 
-                float amp = 0.27 * exp(-age * 0.28) * exp(-ringDist * 1.8) * exp(-dist * 0.08);
-                h += amp * sin(dist * 4.0 - age * 10.0);
+                float birthTime = u_ripples[i].z;
+                float strength = u_ripples[i].w;
+                float age = u_time - birthTime;
+                if (age < 0.0 || age > 30.0) continue;
+
+                // Direct wave
+                h += rippleFrom(uv, src, age, strength);
+
+                // Boundary reflections (mirror sources)
+                float rs = strength * reflCoeff;
+                h += rippleFrom(uv, vec2(2.0 * right - src.x, src.y), age, rs);  // Right wall reflection
+                h += rippleFrom(uv, vec2(2.0 * left - src.x, src.y), age, rs);   // Left wall reflection
+                h += rippleFrom(uv, vec2(src.x, 2.0 * top - src.y), age, rs);    // Top wall reflection
+                h += rippleFrom(uv, vec2(src.x, 2.0 * bottom - src.y), age, rs); // Bottom wall reflection
             }
-
             return h;
         }
 
         void main() {
-            v_uv = uv;
-            vec3 pos = position;
-            pos.y += getWaveHeight(pos);
+            vec2 uv = v_uv;
+            float aspect = u_resolution.x / u_resolution.y;
 
-            // Compute normal
-            float eps = 0.1;
-            vec3 posR = vec3(position.x + eps, position.y, position.z);
-            posR.y += getWaveHeight(posR);
-            vec3 posF = vec3(position.x, position.y, position.z + eps);
-            posF.y += getWaveHeight(posF);
+            // Aspect-corrected UV for ripple calculation
+            vec2 ruv = vec2(uv.x * aspect, uv.y);
 
-            vec3 tangent = normalize(posR - pos);
-            vec3 bitangent = normalize(posF - pos);
-            v_normal = normalize(cross(bitangent, tangent));
+            // Sample heights for gradient (normal approximation)
+            float eps = 0.002;
+            float hC = getHeight(ruv, aspect);
+            float hR = getHeight(vec2(ruv.x + eps, ruv.y), aspect);
+            float hU = getHeight(vec2(ruv.x, ruv.y + eps), aspect);
 
-            v_worldPos = pos;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
-        }
-    `;
+            // ... (rest of main) ...
 
-    const waterFragmentShader = `
-        precision highp float;
+            // Gradient (surface normal in 2D)
+            float dx = (hR - hC) / eps;
+            float dy = (hU - hC) / eps;
 
-        uniform float u_time;
-        uniform vec3 u_cameraPos;
-        uniform sampler2D u_textTexture;
-        uniform float u_hasText;
-        uniform float u_textOpacity;
+            // Refraction distortion strength
+            float distortStr = 8.0;
 
-        varying vec3 v_worldPos;
-        varying vec3 v_normal;
-        varying vec2 v_uv;
+            // Ring highlight: bright where the ripple ring passes
+            float highlight = abs(hC) * 120.0;
+            highlight = pow(min(highlight, 1.0), 1.5);
 
-        float fresnel(vec3 viewDir, vec3 normal, float power) {
-            return pow(1.0 - max(dot(viewDir, normal), 0.0), power);
-        }
+            // Subtle refraction lines (caustic-like)
+            float caustic = pow(abs(dx * dy) * 500.0, 0.8);
+            caustic = min(caustic, 0.3);
 
-        void main() {
-            vec3 normal = normalize(v_normal);
-            vec3 viewDir = normalize(u_cameraPos - v_worldPos);
+            // Final color: mostly transparent with highlight and slight tint
+            float alpha = highlight * 0.35 + caustic * 0.2;
 
-            float fres = fresnel(viewDir, normal, 3.5);
-
-            // Water body color — vibrant blue, visible on light background
-            vec3 shallowColor = vec3(0.15, 0.50, 0.80);  // Vivid blue
-            vec3 deepColor = vec3(0.05, 0.20, 0.50);      // Deep blue 
-            vec3 surfaceColor = vec3(0.25, 0.60, 0.90);    // Bright surface
-
-            float depth = clamp(length(v_worldPos.xz) * 0.04, 0.0, 1.0);
-            vec3 bodyColor = mix(shallowColor, deepColor, depth);
-
-            // Reflection direction
-            vec3 reflDir = reflect(-viewDir, normal);
-
-            // Sky reflection — pick up the aurora tones
-            float skyGrad = max(reflDir.y, 0.0);
-            vec3 skyColor = mix(
-                vec3(0.85, 0.90, 0.95),  // Near-white
-                vec3(0.95, 0.95, 1.0),   // White
-                skyGrad
+            // Ripple ring color — subtle blue-white
+            vec3 ringColor = mix(
+                vec3(0.7, 0.85, 1.0),   // Light blue
+                vec3(1.0, 1.0, 1.0),     // White
+                highlight
             );
-            // Add aurora color tints to reflection
-            skyColor += vec3(0.05, 0.08, 0.15) * sin(u_time * 0.3 + reflDir.x * 2.0);
-            skyColor += vec3(0.1, 0.06, 0.0) * sin(u_time * 0.2 + reflDir.z * 3.0 + 1.5);
 
-            // Text reflection
-            vec3 reflColor = skyColor;
-            if (u_hasText > 0.5) {
-                float textPlaneY = 3.5;
-                if (reflDir.y > 0.01) {
-                    float t = (textPlaneY - v_worldPos.y) / reflDir.y;
-                    vec3 hitPoint = v_worldPos + reflDir * t;
+            // Add slight distortion effect via color shift
+            float distortion = length(vec2(dx, dy)) * distortStr;
+            ringColor += vec3(0.1, 0.15, 0.25) * distortion;
 
-                    float texU = hitPoint.x / 8.0 + 0.5;
-                    float texV = hitPoint.z / 4.0 + 0.5;
-
-                    // Wave distortion on reflection (subtle for clarity)
-                    texU += normal.x * 0.03;
-                    texV += normal.z * 0.03;
-
-                    if (texU > 0.0 && texU < 1.0 && texV > 0.0 && texV < 1.0) {
-                        vec4 texSample = texture2D(u_textTexture, vec2(texU, texV));
-                        if (texSample.a > 0.01) {
-                            float textAlpha = texSample.a * u_textOpacity * 0.95;
-                            reflColor = mix(reflColor, texSample.rgb * 1.8, textAlpha);
-                        }
-                    }
-                }
-            }
-
-            // Combine body + reflection with Fresnel
-            vec3 color = mix(bodyColor, reflColor, fres * 0.75 + 0.2);
-
-            // Strong specular highlights — make water sparkle
-            vec3 lightDir1 = normalize(vec3(3.0, 8.0, 5.0));
-            vec3 halfVec1 = normalize(lightDir1 + viewDir);
-            float spec1 = pow(max(dot(normal, halfVec1), 0.0), 256.0);
-            color += vec3(1.0, 0.98, 0.9) * spec1 * 0.8;
-
-            vec3 lightDir2 = normalize(vec3(-4.0, 6.0, -2.0));
-            vec3 halfVec2 = normalize(lightDir2 + viewDir);
-            float spec2 = pow(max(dot(normal, halfVec2), 0.0), 128.0);
-            color += vec3(0.9, 0.85, 0.7) * spec2 * 0.35;
-
-            // Broader diffuse-like specular for overall brightness
-            vec3 lightDir3 = normalize(vec3(0.0, 5.0, 3.0));
-            vec3 halfVec3 = normalize(lightDir3 + viewDir);
-            float spec3 = pow(max(dot(normal, halfVec3), 0.0), 16.0);
-            color += vec3(0.15, 0.25, 0.4) * spec3 * 0.3;
-
-            // Sub-surface scattering — blue-green glow at glancing angles
-            float sss = pow(max(dot(viewDir, -normal), 0.0), 2.5);
-            color += vec3(0.05, 0.15, 0.25) * sss * 0.5;
-
-            // Caustic shimmer (suppressed when calm)
-            float impactT = 2.2;
-            float calm = smoothstep(0.0, 2.5, u_time - impactT);
-            
-            float shimmer = sin(v_worldPos.x * 10.0 + u_time * 2.0)
-                          * sin(v_worldPos.z * 8.0 - u_time * 1.5) * 0.5 + 0.5;
-            shimmer = pow(shimmer, 3.0);
-            color += vec3(0.08, 0.12, 0.18) * shimmer * 0.25 * calm;
-
-            // Edge transparency — water fades at distant edges
-            float edgeFade = 1.0 - smoothstep(8.0, 18.0, length(v_worldPos.xz));
-            float alpha = mix(0.6, 0.92, fres) * edgeFade;
-
-            gl_FragColor = vec4(color, alpha);
+            gl_FragColor = vec4(ringColor, alpha);
         }
     `;
 
-    // Create water mesh
-    const waterGeom = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, WATER_SEGMENTS, WATER_SEGMENTS);
-    waterGeom.rotateX(-Math.PI / 2);
-
-    const waterUniforms = {
-        u_time: { value: 0 },
-        u_cameraPos: { value: camera.position.clone() },
-        u_ripples: { value: new Array(8).fill(null).map(() => new THREE.Vector3(0, 0, -100)) },
-        u_rippleCount: { value: 0 },
-        u_textTexture: { value: null },
-        u_hasText: { value: 0 },
-        u_textOpacity: { value: 0 },
-    };
-
-    const waterMaterial = new THREE.ShaderMaterial({
-        vertexShader: waterVertexShader,
-        fragmentShader: waterFragmentShader,
-        uniforms: waterUniforms,
-        transparent: true,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-    });
-
-    const waterMesh = new THREE.Mesh(waterGeom, waterMaterial);
-    waterMesh.position.y = WATER_Y;
-    scene.add(waterMesh);
-
     // =========================================================================
-    // WATER DROPLET
+    // COMPILE SHADERS & LINK PROGRAM
     // =========================================================================
-    const dropletGroup = new THREE.Group();
-    dropletGroup.visible = false;
-
-    const dropGeom = new THREE.SphereGeometry(0.1, 32, 32);
-    const dropMat = new THREE.MeshPhongMaterial({
-        color: 0x4499dd,
-        specular: 0xffffff,
-        shininess: 200,
-        transparent: true,
-        opacity: 0.8,
-    });
-    const dropMesh = new THREE.Mesh(dropGeom, dropMat);
-    dropletGroup.add(dropMesh);
-
-    // Teardrop tail
-    const tailGeom = new THREE.SphereGeometry(0.05, 16, 16);
-    tailGeom.scale(1, 3.5, 1);
-    const tailMat = dropMat.clone();
-    tailMat.opacity = 0.4;
-    const tailMesh = new THREE.Mesh(tailGeom, tailMat);
-    tailMesh.position.y = 0.25;
-    dropletGroup.add(tailMesh);
-
-    scene.add(dropletGroup);
-
-    // =========================================================================
-    // SPLASH PARTICLES
-    // =========================================================================
-    const splashParticles = [];
-    const splashGeom = new THREE.SphereGeometry(0.03, 8, 8);
-    const splashBaseMat = new THREE.MeshPhongMaterial({
-        color: 0x88ccee,
-        specular: 0xffffff,
-        shininess: 150,
-        transparent: true,
-        opacity: 0.75,
-    });
-
-    function createSplash(x, z, time) {
-        for (let i = 0; i < 25; i++) {
-            const mesh = new THREE.Mesh(splashGeom, splashBaseMat.clone());
-            const angle = (i / 25) * Math.PI * 2 + Math.random() * 0.4;
-            const speed = 1.2 + Math.random() * 3.5;
-            const upSpeed = 3.0 + Math.random() * 4.5;
-            mesh.position.set(x, WATER_Y + 0.15, z);
-            scene.add(mesh);
-            splashParticles.push({
-                mesh,
-                vx: Math.cos(angle) * speed,
-                vy: upSpeed,
-                vz: Math.sin(angle) * speed,
-                birthTime: time,
-                life: 1.4 + Math.random() * 0.8,
-            });
+    function compileShader(src, type) {
+        const s = gl.createShader(type);
+        gl.shaderSource(s, src);
+        gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+            console.error('Shader error:', gl.getShaderInfoLog(s));
+            return null;
         }
+        return s;
+    }
+
+    const vs = compileShader(vertSrc, gl.VERTEX_SHADER);
+    const fs = compileShader(fragSrc, gl.FRAGMENT_SHADER);
+    const program = gl.createProgram();
+    gl.attachShader(program, vs);
+    gl.attachShader(program, fs);
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        console.error('Program link error:', gl.getProgramInfoLog(program));
+    }
+    gl.useProgram(program);
+
+    // Fullscreen quad
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+        -1, -1, 1, -1, -1, 1, 1, 1
+    ]), gl.STATIC_DRAW);
+    const aPos = gl.getAttribLocation(program, 'a_position');
+    gl.enableVertexAttribArray(aPos);
+    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+    // Uniforms
+    const uTime = gl.getUniformLocation(program, 'u_time');
+    const uRes = gl.getUniformLocation(program, 'u_resolution');
+    const uRippleCount = gl.getUniformLocation(program, 'u_rippleCount');
+    const uRipples = [];
+    for (let i = 0; i < MAX_RIPPLES; i++) {
+        uRipples.push(gl.getUniformLocation(program, `u_ripples[${i}]`));
+    }
+
+    // Enable blending for transparency
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    // =========================================================================
+    // RIPPLE STATE
+    // =========================================================================
+    const ripples = []; // { x, y, time, strength }
+
+    function addRipple(x, y, time, strength) {
+        ripples.push({ x, y, time, strength: strength || 1.0 });
+        if (ripples.length > MAX_RIPPLES) ripples.shift();
     }
 
     // =========================================================================
-    // RIPPLE SYSTEM
+    // MOUSE / TOUCH INTERACTION
     // =========================================================================
-    const ripples = [];
-
-    function addRipple(x, z, t) {
-        ripples.push(new THREE.Vector3(x, z, t));
-        if (ripples.length > 8) ripples.shift();
-        for (let i = 0; i < 8; i++) {
-            if (i < ripples.length) {
-                waterUniforms.u_ripples.value[i].copy(ripples[i]);
-            } else {
-                waterUniforms.u_ripples.value[i].set(0, 0, -100);
-            }
-        }
-        waterUniforms.u_rippleCount.value = ripples.length;
-    }
-
-    // =========================================================================
-    // ANIMATION STATE
-    // =========================================================================
-    let startTime = null;
-    let dropletPhase = 0;
-    let textTriggered = false;
-
-    // =========================================================================
-    // RESIZE
-    // =========================================================================
-    function onResize() {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-    window.addEventListener('resize', onResize);
-
-    // =========================================================================
-    // MOUSE / TOUCH INTERACTION — ripples follow cursor on water surface
-    // =========================================================================
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-    const waterPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -WATER_Y);
-    let lastMouseRippleTime = 0;
-    const MOUSE_RIPPLE_INTERVAL = 200; // ms between mouse ripples
+    let lastMouseTime = 0;
+    const MOUSE_INTERVAL = 250;
 
     function onPointerMove(e) {
         const now = performance.now();
-        if (now - lastMouseRippleTime < MOUSE_RIPPLE_INTERVAL) return;
-        if (startTime === null) return;
+        if (now - lastMouseTime < MOUSE_INTERVAL) return;
+        if (!startTime) return;
 
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
-        mouse.x = (clientX / window.innerWidth) * 2 - 1;
-        mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+        // Normalize to 0-1 range (y inverted for WebGL)
+        const nx = clientX / window.innerWidth;
+        const ny = 1.0 - clientY / window.innerHeight;
 
-        raycaster.setFromCamera(mouse, camera);
-        const hitPoint = new THREE.Vector3();
-        const hit = raycaster.ray.intersectPlane(waterPlane, hitPoint);
-
-        if (hit) {
-            const elapsed = (now - startTime) / 1000;
-            addRipple(hitPoint.x, hitPoint.z, elapsed);
-            lastMouseRippleTime = now;
-        }
+        const elapsed = (now - startTime) / 1000;
+        addRipple(nx, ny, elapsed, 0.8);
+        lastMouseTime = now;
     }
 
     window.addEventListener('mousemove', onPointerMove);
     window.addEventListener('touchmove', onPointerMove, { passive: true });
 
+    // Click/tap creates a stronger ripple
+    function onPointerDown(e) {
+        if (!startTime) return;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const nx = clientX / window.innerWidth;
+        const ny = 1.0 - clientY / window.innerHeight;
+        const elapsed = (performance.now() - startTime) / 1000;
+        addRipple(nx, ny, elapsed, 1.2);
+    }
+
+    window.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('touchstart', onPointerDown, { passive: true });
+
     // =========================================================================
-    // MAIN ANIMATION LOOP
+    // TEXT TRIGGERS
     // =========================================================================
+    let textTriggered = false;
+    let subtitleTriggered = false;
+
+    // =========================================================================
+    // ANIMATION LOOP
+    // =========================================================================
+    let startTime = null;
+    let autoRippleIndex = 0;
+
     function animate(now) {
-        if (startTime === null) startTime = now;
+        if (!startTime) startTime = now;
         const elapsed = (now - startTime) / 1000;
 
-        waterUniforms.u_time.value = elapsed;
-        waterUniforms.u_cameraPos.value.copy(camera.position);
-
-        // Subtle camera sway
-        camera.position.x = Math.sin(elapsed * 0.15) * 0.4;
-        camera.position.y = CAM_HEIGHT + Math.sin(elapsed * 0.2) * 0.15;
-        camera.lookAt(0, CAM_LOOK_Y, 0);
-
-        // --- Droplet ---
-        if (elapsed >= TIMELINE.DROP_START && dropletPhase === 0) {
-            dropletPhase = 1;
-            dropletGroup.visible = true;
+        // Auto-trigger ripples based on schedule
+        while (autoRippleIndex < AUTO_RIPPLES.length && elapsed >= AUTO_RIPPLES[autoRippleIndex][0]) {
+            const [t, x, y] = AUTO_RIPPLES[autoRippleIndex];
+            addRipple(x, y, t, 1.0);
+            autoRippleIndex++;
         }
 
-        if (dropletPhase === 1) {
-            const dropProgress = (elapsed - TIMELINE.DROP_START) / TIMELINE.DROP_DURATION;
-            if (dropProgress >= 1.0) {
-                dropletPhase = 2;
-                dropletGroup.visible = false;
-
-                addRipple(0, 0, elapsed);
-                setTimeout(() => addRipple(0.8, 0.5, (performance.now() - startTime) / 1000), 150);
-                setTimeout(() => addRipple(-0.7, -0.4, (performance.now() - startTime) / 1000), 280);
-                setTimeout(() => addRipple(0.4, -0.8, (performance.now() - startTime) / 1000), 400);
-                setTimeout(() => addRipple(-0.5, 0.7, (performance.now() - startTime) / 1000), 520);
-                setTimeout(() => addRipple(0.1, -0.3, (performance.now() - startTime) / 1000), 630);
-
-                createSplash(0, 0, elapsed);
-            } else {
-                const easeIn = dropProgress * dropProgress;
-                const startY = 5.0;
-                const endY = WATER_Y + 0.15;
-                dropletGroup.position.set(0, startY - easeIn * (startY - endY), 0);
-                tailMesh.scale.y = 1.0 + dropProgress * 2.5;
-                tailMesh.position.y = 0.12 + dropProgress * 0.35;
-            }
-        }
-
-        // --- Splash ---
-        for (let i = splashParticles.length - 1; i >= 0; i--) {
-            const p = splashParticles[i];
-            const age = elapsed - p.birthTime;
-            if (age > p.life) {
-                scene.remove(p.mesh);
-                splashParticles.splice(i, 1);
-                continue;
-            }
-            const dt = 0.016;
-            p.vy -= 9.8 * dt;
-            p.mesh.position.x += p.vx * dt;
-            p.mesh.position.y += p.vy * dt;
-            p.mesh.position.z += p.vz * dt;
-            p.mesh.material.opacity = 0.75 * (1.0 - age / p.life);
-
-            if (p.mesh.position.y < WATER_Y - 0.3) {
-                scene.remove(p.mesh);
-                splashParticles.splice(i, 1);
-            }
-        }
-
-        // --- Text ---
-        if (!textTriggered && elapsed >= TIMELINE.TEXT_START) {
+        // Text trigger
+        if (!textTriggered && elapsed >= TEXT_DELAY) {
             textTriggered = true;
             const logoEl = document.getElementById('logo-text');
             if (logoEl) logoEl.classList.add('active');
-
-            setTimeout(() => {
-                createTextReflectionTexture();
-                waterUniforms.u_textTexture.value = textTexture;
-                waterUniforms.u_hasText.value = 1.0;
-            }, 300);
-
-            setTimeout(() => {
-                const fadeEl = document.getElementById('fade-text');
-                if (fadeEl) fadeEl.classList.add('active');
-            }, (TIMELINE.SUBTITLE_START - TIMELINE.TEXT_START) * 1000);
         }
 
-        // Text reflection fade-in
-        if (waterUniforms.u_hasText.value > 0.5) {
-            const textAge = elapsed - TIMELINE.TEXT_START - 0.3;
-            waterUniforms.u_textOpacity.value = Math.min(Math.max(textAge / 0.8, 0), 1.0);
+        if (!subtitleTriggered && elapsed >= SUBTITLE_DELAY) {
+            subtitleTriggered = true;
+            const fadeEl = document.getElementById('fade-text');
+            if (fadeEl) fadeEl.classList.add('active');
         }
 
-        // Animate lights
-        pointLight1.position.x = -3 + Math.sin(elapsed * 0.3) * 2.0;
-        pointLight1.position.z = 2 + Math.cos(elapsed * 0.2) * 1.5;
-        pointLight2.position.x = 4 + Math.cos(elapsed * 0.25) * 1.5;
-        pointLight3.position.z = -4 + Math.sin(elapsed * 0.15) * 2.0;
+        // Clear with transparent
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
 
-        renderer.render(scene, camera);
+        // Update uniforms
+        gl.uniform1f(uTime, elapsed);
+        gl.uniform2f(uRes, canvas.width, canvas.height);
+        gl.uniform1i(uRippleCount, ripples.length);
 
-        if (elapsed >= TIMELINE.END) {
-            setTimeout(() => location.reload(), 1500);
-        } else {
-            requestAnimationFrame(animate);
+        for (let i = 0; i < MAX_RIPPLES; i++) {
+            if (i < ripples.length) {
+                const r = ripples[i];
+                gl.uniform4f(uRipples[i], r.x, r.y, r.time, r.strength);
+            } else {
+                gl.uniform4f(uRipples[i], 0, 0, -100, 0);
+            }
         }
+
+        // Draw
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+        requestAnimationFrame(animate);
     }
 
     requestAnimationFrame(animate);
