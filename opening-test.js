@@ -78,12 +78,23 @@
     const canvas = document.getElementById('ripple-canvas');
     const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: false });
 
+    // Adaptive highlight intensity for mobile
+    let highlightFactor = 120.0;
+
     function resize() {
-        canvas.width = window.innerWidth * Math.min(window.devicePixelRatio, 2);
-        canvas.height = window.innerHeight * Math.min(window.devicePixelRatio, 2);
+        const dpr = Math.min(window.devicePixelRatio, 2);
+        canvas.width = window.innerWidth * dpr;
+        canvas.height = window.innerHeight * dpr;
         canvas.style.width = window.innerWidth + 'px';
         canvas.style.height = window.innerHeight + 'px';
         gl.viewport(0, 0, canvas.width, canvas.height);
+
+        // Reduce intensity on mobile (< 768px approx)
+        if (window.innerWidth < 768) {
+            highlightFactor = 50.0; // Much lower for small screens
+        } else {
+            highlightFactor = 120.0;
+        }
     }
     resize();
     window.addEventListener('resize', resize);
@@ -106,6 +117,7 @@
 
         uniform float u_time;
         uniform vec2 u_resolution;
+        uniform float u_intensity; // New uniform for highlight strength
         uniform vec4 u_ripples[${MAX_RIPPLES}];  // x, y, birthTime, strength
         uniform int u_rippleCount;
 
@@ -184,11 +196,11 @@
             float distortStr = 8.0;
 
             // Ring highlight: bright where the ripple ring passes
-            float highlight = abs(hC) * 120.0;
+            float highlight = abs(hC) * u_intensity;
             highlight = pow(min(highlight, 1.0), 1.5);
 
             // Subtle refraction lines (caustic-like)
-            float caustic = pow(abs(dx * dy) * 500.0, 0.8);
+            float caustic = pow(abs(dx * dy) * u_intensity * 4.0, 0.8);
             caustic = min(caustic, 0.3);
 
             // Final color: mostly transparent with highlight and slight tint
@@ -247,6 +259,7 @@
     // Uniforms
     const uTime = gl.getUniformLocation(program, 'u_time');
     const uRes = gl.getUniformLocation(program, 'u_resolution');
+    const uIntensity = gl.getUniformLocation(program, 'u_intensity');
     const uRippleCount = gl.getUniformLocation(program, 'u_rippleCount');
     const uRipples = [];
     for (let i = 0; i < MAX_RIPPLES; i++) {
@@ -350,6 +363,7 @@
         // Update uniforms
         gl.uniform1f(uTime, elapsed);
         gl.uniform2f(uRes, canvas.width, canvas.height);
+        gl.uniform1f(uIntensity, highlightFactor);
         gl.uniform1i(uRippleCount, ripples.length);
 
         for (let i = 0; i < MAX_RIPPLES; i++) {

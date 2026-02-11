@@ -475,7 +475,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         `).join('')}
                     </div>
                 ` : ''}
-                <div class="bp-content">${escapeHtml(post.content)}</div>
+                <div class="bp-content">${formatContent(post.content)}</div>
             </div>
         `).join('');
     }
@@ -489,4 +489,58 @@ document.addEventListener('DOMContentLoaded', async () => {
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
     }
+
+    function formatContent(text) {
+        if (!text) return '';
+        // 1. Escape HTML first to prevent XSS
+        let escaped = escapeHtml(text);
+
+        // 2. Linkify URLs
+        // Simple regex to catch http/https URLs
+        // Note: We do this AFTER escaping so we don't break our own <a> tags, 
+        // and because user content won't have HTML tags anymore.
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+
+        return escaped.replace(urlRegex, function (url) {
+            // Removed target="_blank" to handle via JS
+            return `<a href="${url}" class="external-link" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
+        });
+    }
+
+    // --- External Link Warning Logic ---
+    const extModal = document.getElementById('external-link-modal');
+    const extUrlDisplay = document.getElementById('external-link-url');
+    const extCancelBtn = document.getElementById('external-link-cancel');
+    const extProceedBtn = document.getElementById('external-link-proceed');
+    let targetExternalUrl = '';
+
+    // Delegate click event for dynamically added links
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('external-link')) {
+            e.preventDefault();
+            targetExternalUrl = e.target.href;
+            extUrlDisplay.textContent = targetExternalUrl;
+            extModal.classList.add('show');
+        }
+    });
+
+    extCancelBtn.addEventListener('click', () => {
+        extModal.classList.remove('show');
+        targetExternalUrl = '';
+    });
+
+    extProceedBtn.addEventListener('click', () => {
+        if (targetExternalUrl) {
+            window.open(targetExternalUrl, '_blank', 'noopener,noreferrer');
+            extModal.classList.remove('show');
+            targetExternalUrl = '';
+        }
+    });
+
+    // Close on outside click
+    extModal.addEventListener('click', (e) => {
+        if (e.target === extModal) {
+            extModal.classList.remove('show');
+        }
+    });
 });
