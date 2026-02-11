@@ -156,6 +156,77 @@
             border-color: var(--primary-color);
         }
 
+        /* Comment Styles */
+        .comments-section {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px dashed #eee;
+            display: none;
+            /* Hidden by default */
+        }
+
+        .comment-item {
+            background: #fff;
+            padding: 0.8rem;
+            border-radius: 6px;
+            margin-bottom: 0.8rem;
+            border: 1px solid #f0f0f0;
+            font-size: 0.9rem;
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.3rem;
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .comment-author {
+            font-weight: bold;
+            color: var(--text-color);
+        }
+
+        .comment-actions button {
+            background: none;
+            border: none;
+            color: #999;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+        }
+
+        .comment-actions button:hover {
+            color: #d9534f;
+        }
+
+        .comment-form {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .comment-input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+
+        .btn-comment-submit {
+            background: var(--secondary-bg);
+            border: 1px solid #ccc;
+            padding: 5px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-comment-submit:hover {
+            background: #e0e0e0;
+        }
+
         /* Modal Styles */
         .modal {
             display: none;
@@ -273,6 +344,12 @@
 
             <textarea id="modal-post-content" class="modal-textarea" placeholder="メッセージを入力..."
                 style="width: 100%; height: 150px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; resize: vertical; font-family: inherit; margin-bottom: 1rem;"></textarea>
+
+            <div style="margin-bottom: 1rem; display: flex; align-items: center;">
+                <input type="checkbox" id="modal-allow-comments" checked
+                    style="width: auto; margin-right: 0.5rem; cursor: pointer;">
+                <label for="modal-allow-comments" style="cursor: pointer; user-select: none;">コメントを許可する</label>
+            </div>
 
             <div style="margin-bottom: 1rem;">
                 <label for="modal-post-image" style="display:block; font-size:0.9rem; margin-bottom:0.5rem;"><i

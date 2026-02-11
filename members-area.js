@@ -148,6 +148,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         selectedImages = [];
         document.getElementById('modal-post-image').value = '';
         document.getElementById('modal-image-preview').innerHTML = '';
+        document.getElementById('modal-allow-comments').checked = true; // Default to true
 
         postModal.classList.add('show'); // .show for standard modal
         setTimeout(() => { modalPostContent.focus(); }, 100);
@@ -190,9 +191,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const content = modalPostContent.value.trim();
         if (!content) return;
 
+        const allowComments = document.getElementById('modal-allow-comments').checked;
+
         let insertData = {
             user_id: user.id,
-            content: content
+            content: content,
+            allow_comments: allowComments
         };
 
         if (currentPostContext === 'all') {
@@ -476,9 +480,124 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 ` : ''}
                 <div class="bp-content">${formatContent(post.content)}</div>
+                
+                <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
+                    ${post.allow_comments ?
+                `<button onclick="toggleComments('${post.id}')" style="background:none; border:none; color:#666; cursor:pointer; font-size:0.9rem;">
+                            <i class="far fa-comment"></i> コメント
+                        </button>`
+                : '<span style="color:#999; font-size:0.8rem;">コメント無効</span>'}
+                </div>
+
+                <!-- Comments Section -->
+                <div id="comments-${post.id}" class="comments-section">
+                    <div id="comments-list-${post.id}">
+                        <!-- Comments loaded here -->
+                        <p style="font-size:0.8rem; color:#999;">読み込み中...</p>
+                    </div>
+                    
+                    ${post.allow_comments ? `
+                        <div class="comment-form">
+                            <input type="text" id="comment-input-${post.id}" class="comment-input" placeholder="コメントを書く...">
+                            <button onclick="submitComment('${post.id}')" class="btn-comment-submit">送信</button>
+                        </div>
+                    ` : ''}
+                </div>
             </div>
         `).join('');
     }
+
+    // --- Comment Logic ---
+    window.toggleComments = async (postId) => {
+        const section = document.getElementById(`comments-${postId}`);
+        if (section.style.display === 'block') {
+            section.style.display = 'none';
+        } else {
+            section.style.display = 'block';
+            await loadComments(postId);
+        }
+    };
+
+    window.loadComments = async (postId) => {
+        const listEl = document.getElementById(`comments-list-${postId}`);
+
+        const { data, error } = await supabase
+            .from('board_comments')
+            .select(`
+                *,
+                profiles(display_name)
+            `)
+            .eq('post_id', postId)
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            console.error(error);
+            listEl.innerHTML = '<p style="color:red;">コメントの読み込みに失敗しました。</p>';
+            return;
+        }
+
+        renderComments(postId, data);
+    };
+
+    function renderComments(postId, comments) {
+        const listEl = document.getElementById(`comments-list-${postId}`);
+        if (!comments || comments.length === 0) {
+            listEl.innerHTML = '<p style="font-size:0.8rem; color:#999;">まだコメントはありません。</p>';
+            return;
+        }
+
+        listEl.innerHTML = comments.map(comment => `
+            <div class="comment-item">
+                <div class="comment-header">
+                    <span class="comment-author">${comment.profiles?.display_name || 'Unknown'}</span>
+                    <div class="comment-actions">
+                        <span>${new Date(comment.created_at).toLocaleString()}</span>
+                        ${(comment.user_id === user.id || isAdmin) ?
+                `<button onclick="deleteComment('${comment.id}', '${postId}')" title="削除"><i class="fas fa-trash"></i></button>`
+                : ''}
+                    </div>
+                </div>
+                <div>${escapeHtml(comment.content)}</div>
+            </div>
+        `).join('');
+    }
+
+    window.submitComment = async (postId) => {
+        const inputEl = document.getElementById(`comment-input-${postId}`);
+        const content = inputEl.value.trim();
+
+        if (!content) return;
+
+        const { error } = await supabase
+            .from('board_comments')
+            .insert([{
+                post_id: postId,
+                user_id: user.id,
+                content: content
+            }]);
+
+        if (error) {
+            alert('コメントの送信に失敗しました: ' + error.message);
+        } else {
+            inputEl.value = '';
+            await loadComments(postId); // Reload comments
+        }
+    };
+
+    window.deleteComment = async (commentId, postId) => {
+        if (!confirm('本当に削除しますか？')) return;
+
+        const { error } = await supabase
+            .from('board_comments')
+            .delete()
+            .eq('id', commentId);
+
+        if (error) {
+            alert('削除に失敗しました: ' + error.message);
+        } else {
+            await loadComments(postId); // Reload
+        }
+    };
 
     function escapeHtml(text) {
         if (!text) return '';
