@@ -171,9 +171,17 @@
             float t = u_time;
             float h = 0.0;
 
-            // Calm factor: very quiet before impact (2.2s), then ramps up
+            // Wave activation mask: waves only exist where the ripple has reached
+            // Impact at (0,0) at t=2.2s. Speed approx 2.5 units/s.
             float impactT = 2.2;
-            float calm = smoothstep(0.0, 3.0, t - impactT) * 0.85 + 0.15;
+            float waveSpeed = 2.5;
+            float distFromCenter = length(pos.xz);
+            float waveFront = max(0.0, (t - impactT) * waveSpeed);
+            
+            // Smooth transition at the wavefront
+            float calm = smoothstep(waveFront + 1.0, waveFront - 2.0, distFromCenter);
+            // Ensure zero movement before impact anywhere
+            if (t < impactT) calm = 0.0;
 
             // Large slow swells
             h += sin(pos.x * 0.35 + t * 0.5) * 0.12 * calm;
@@ -325,11 +333,14 @@
             float sss = pow(max(dot(viewDir, -normal), 0.0), 2.5);
             color += vec3(0.05, 0.15, 0.25) * sss * 0.5;
 
-            // Caustic shimmer
+            // Caustic shimmer (suppressed when calm)
+            float impactT = 2.2;
+            float calm = smoothstep(0.0, 2.5, u_time - impactT);
+            
             float shimmer = sin(v_worldPos.x * 10.0 + u_time * 2.0)
                           * sin(v_worldPos.z * 8.0 - u_time * 1.5) * 0.5 + 0.5;
             shimmer = pow(shimmer, 3.0);
-            color += vec3(0.08, 0.12, 0.18) * shimmer * 0.25;
+            color += vec3(0.08, 0.12, 0.18) * shimmer * 0.25 * calm;
 
             // Edge transparency — water fades at distant edges
             float edgeFade = 1.0 - smoothstep(8.0, 18.0, length(v_worldPos.xz));
