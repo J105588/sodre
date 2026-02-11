@@ -23,29 +23,54 @@
     const SUBTITLE_DELAY = 3.5; // Seconds before subtitle appears
 
     // Auto-trigger ripple schedule: [time, x (0-1), y (0-1)]
-    // Randomize positions on each load within constrained zones
+    // Randomize positions on each load based on aspect ratio
     const AUTO_RIPPLES = [];
 
-    // 1. Top-Left zone (x: 0.1-0.3, y: 0.15-0.35)
-    AUTO_RIPPLES.push([
-        0.4,
-        0.1 + Math.random() * 0.2,
-        0.15 + Math.random() * 0.2
-    ]);
+    (function initLayout() {
+        const isPortrait = window.innerHeight > window.innerWidth;
 
-    // 2. Top-Right zone (x: 0.7-0.9, y: 0.15-0.35)
-    AUTO_RIPPLES.push([
-        0.6,
-        0.7 + Math.random() * 0.2,
-        0.15 + Math.random() * 0.2
-    ]);
-
-    // 3. Bottom-Center zone (x: 0.3-0.7, y: 0.75-0.95)
-    AUTO_RIPPLES.push([
-        0.5,
-        0.3 + Math.random() * 0.4,
-        0.75 + Math.random() * 0.2
-    ]);
+        if (isPortrait) {
+            // PORTRAIT: Vertical distribution
+            // 1. Top zone
+            AUTO_RIPPLES.push([
+                0.4,
+                0.3 + Math.random() * 0.4,
+                0.15 + Math.random() * 0.1
+            ]);
+            // 2. Middle zone
+            AUTO_RIPPLES.push([
+                0.6,
+                0.2 + Math.random() * 0.6,
+                0.5 + (Math.random() - 0.5) * 0.1
+            ]);
+            // 3. Bottom zone
+            AUTO_RIPPLES.push([
+                0.5,
+                0.3 + Math.random() * 0.4,
+                0.8 + Math.random() * 0.1
+            ]);
+        } else {
+            // LANDSCAPE: Triangular distribution
+            // 1. Top-Left zone
+            AUTO_RIPPLES.push([
+                0.4,
+                0.1 + Math.random() * 0.2,
+                0.15 + Math.random() * 0.2
+            ]);
+            // 2. Top-Right zone
+            AUTO_RIPPLES.push([
+                0.6,
+                0.7 + Math.random() * 0.2,
+                0.15 + Math.random() * 0.2
+            ]);
+            // 3. Bottom-Center zone
+            AUTO_RIPPLES.push([
+                0.5,
+                0.3 + Math.random() * 0.4,
+                0.75 + Math.random() * 0.2
+            ]);
+        }
+    })();
 
     // =========================================================================
     // CANVAS + WebGL SETUP
