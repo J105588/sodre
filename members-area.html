@@ -133,6 +133,7 @@
         .bp-content {
             line-height: 1.6;
             white-space: pre-wrap;
+            color: #333;
         }
 
         /* Groups List */
@@ -334,32 +335,62 @@
     </button>
 
     <!-- Post Modal -->
+    <!-- Post Modal (Redesigned) -->
     <div id="post-modal" class="modal">
-        <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-content post-modal-content">
             <span id="modal-close" class="close-modal">&times;</span>
-            <div class="modal-header"
-                style="margin-bottom: 1rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem;">
-                <h3 id="modal-title" style="margin:0;">投稿する</h3>
+            <div class="modal-header-new">
+                <h3 id="modal-title">投稿を作成</h3>
             </div>
 
-            <textarea id="modal-post-content" class="modal-textarea" placeholder="メッセージを入力..."
-                style="width: 100%; height: 150px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; resize: vertical; font-family: inherit; margin-bottom: 1rem;"></textarea>
+            <div class="post-creation-area">
+                <textarea id="modal-post-content" class="modal-textarea-modern" placeholder="メッセージを入力..."
+                    rows="5"></textarea>
 
-            <div style="margin-bottom: 1rem; display: flex; align-items: center;">
-                <input type="checkbox" id="modal-allow-comments" checked
-                    style="width: auto; margin-right: 0.5rem; cursor: pointer;">
-                <label for="modal-allow-comments" style="cursor: pointer; user-select: none;">コメントを許可する</label>
+                <!-- Media Preview -->
+                <div id="modal-image-preview" class="media-preview-container"></div>
             </div>
 
-            <div style="margin-bottom: 1rem;">
-                <label for="modal-post-image" style="display:block; font-size:0.9rem; margin-bottom:0.5rem;"><i
-                        class="fas fa-image"></i> 画像を追加</label>
-                <input type="file" id="modal-post-image" multiple accept="image/*" style="width:100%;">
-                <div id="modal-image-preview" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;"></div>
+            <!-- Toolbar -->
+            <div class="post-toolbar">
+                <div class="toolbar-left">
+                    <label for="modal-post-image" class="toolbar-btn" title="画像を追加">
+                        <i class="far fa-image"></i>
+                    </label>
+                    <input type="file" id="modal-post-image" multiple accept="image/*" style="display:none;">
+
+                    <div class="toolbar-separator"></div>
+
+                    <div class="toggle-switch-container" title="予約投稿">
+                        <input type="checkbox" id="schedule-toggle" class="toggle-checkbox">
+                        <label for="schedule-toggle" class="toggle-label">
+                            <i class="far fa-clock"></i> 予約
+                        </label>
+                    </div>
+                </div>
+
+                <div class="toolbar-right">
+                    <div class="comment-permission">
+                        <input type="checkbox" id="modal-allow-comments" checked>
+                        <label for="modal-allow-comments">コメント許可</label>
+                    </div>
+                </div>
             </div>
 
-            <div class="modal-actions" style="text-align: right;">
-                <button id="modal-submit-btn" class="btn-post">送信</button>
+            <!-- Schedule Options (Hidden by default) -->
+            <div id="schedule-options" class="schedule-options-panel">
+                <p class="schedule-info">指定した日時に投稿されます</p>
+                <div class="schedule-inputs">
+                    <input type="date" id="schedule-date" class="modern-input">
+                    <input type="time" id="schedule-time" class="modern-input">
+                </div>
+            </div>
+
+            <div class="modal-footer-new">
+                <button id="modal-submit-btn" class="btn-post-modern">
+                    <span>投稿する</span>
+                    <i class="fas fa-paper-plane"></i>
+                </button>
             </div>
         </div>
     </div>

@@ -3308,11 +3308,278 @@ footer {
     border: none;
 }
 
-.close-modal:hover,
 .close-modal:focus,
 .modal-close:hover,
 .modal-close:focus {
     color: black;
     text-decoration: none;
     cursor: pointer;
+}
+
+/* --- New Post Modal Styles --- */
+.post-modal-content {
+    padding: 0;
+    max-width: 600px;
+    width: 95%;
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header-new {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modal-header-new h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--text-color);
+}
+
+.post-creation-area {
+    padding: 1.5rem;
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+.modal-textarea-modern {
+    width: 100%;
+    border: none;
+    font-size: 1.1rem;
+    font-family: inherit;
+    resize: none;
+    outline: none;
+    min-height: 120px;
+    color: #333;
+}
+
+.modal-textarea-modern::placeholder {
+    color: #bbb;
+}
+
+.media-preview-container {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+
+.media-preview-container img {
+    border-radius: 8px;
+    object-fit: cover;
+    width: 80px;
+    height: 80px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Toolbar */
+.post-toolbar {
+    padding: 0.8rem 1.5rem;
+    border-top: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fafafa;
+}
+
+.toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.toolbar-btn {
+    font-size: 1.2rem;
+    color: var(--primary-color);
+    cursor: pointer;
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+.toolbar-btn:hover {
+    color: var(--accent-color);
+}
+
+.toolbar-separator {
+    width: 1px;
+    height: 20px;
+    background: #ddd;
+}
+
+/* Toggle Switch */
+.toggle-switch-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+.toggle-checkbox {
+    display: none;
+}
+
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.9rem;
+    color: #333;
+    cursor: pointer;
+    transition: color 0.2s;
+    user-select: none;
+}
+
+.toggle-checkbox:checked+.toggle-label {
+    color: var(--primary-color);
+    font-weight: bold;
+}
+
+.toolbar-right {
+    display: flex;
+    align-items: center;
+}
+
+.comment-permission {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.85rem;
+    color: #333;
+}
+
+/* Schedule Panel */
+.schedule-options-panel {
+    background: #f0f8ff;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #e0efff;
+    display: none;
+    /* Hidden by default */
+    animation: slideDown 0.3s ease;
+}
+
+.schedule-options-panel.active {
+    display: block;
+}
+
+.schedule-options-panel.show {
+    display: block !important;
+}
+
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.schedule-info {
+    font-size: 0.85rem;
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+}
+
+.schedule-inputs {
+    display: flex;
+    gap: 1rem;
+}
+
+.modern-input {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 8px;
+    font-family: inherit;
+    color: #333;
+    outline: none;
+}
+
+.modern-input:focus {
+    border-color: var(--primary-color);
+}
+
+/* Footer */
+.modal-footer-new {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.btn-post-modern {
+    background: linear-gradient(135deg, var(--primary-color), #2980b9);
+    color: white;
+    border: none;
+    padding: 10px 25px;
+    border-radius: 50px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(20, 90, 180, 0.3);
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-post-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(20, 90, 180, 0.4);
+}
+
+.btn-post-modern:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+@media (max-width: 480px) {
+    .schedule-inputs {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
+
+/* --- Scheduled Post Styles --- */
+.scheduled-post-container {
+    background: #fffdf5;
+    /* Light yellow tint */
+    border: 1px dashed var(--accent-color);
+    position: relative;
+    overflow: hidden;
+    padding-left: 1.5rem;
+    /* Ensure space for the line */
+}
+
+.scheduled-post-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 6px;
+    height: 100%;
+    background-color: #f1c40f;
+    /* Yellow line */
+}
+
+.scheduled-badge {
+    display: inline-block;
+    background: var(--accent-color);
+    color: white;
+    font-size: 0.8rem;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
 }

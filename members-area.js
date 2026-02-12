@@ -36,6 +36,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const modalPostContent = document.getElementById('modal-post-content');
     const modalSubmitBtn = document.getElementById('modal-submit-btn');
 
+    // New Schedule Elements
+    const scheduleToggle = document.getElementById('schedule-toggle');
+    const scheduleOptions = document.getElementById('schedule-options');
+    const scheduleDateInput = document.getElementById('schedule-date');
+    const scheduleTimeInput = document.getElementById('schedule-time');
+
     // --- State ---
     let currentPostContext = 'all'; // 'all' or 'group'
     let currentGroupId = null;
@@ -150,12 +156,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('modal-image-preview').innerHTML = '';
         document.getElementById('modal-allow-comments').checked = true; // Default to true
 
+        // Reset Schedule
+        scheduleToggle.checked = false;
+        scheduleOptions.classList.remove('active');
+        scheduleDateInput.value = '';
+        scheduleTimeInput.value = '';
+
         postModal.classList.add('show'); // .show for standard modal
         setTimeout(() => { modalPostContent.focus(); }, 100);
     });
 
     modalClose.addEventListener('click', () => {
         postModal.classList.remove('show');
+    });
+
+    // Schedule Toggle Logic
+    scheduleToggle.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            scheduleOptions.classList.add('active');
+            // Set default date/time to now + 1 hour approx if empty
+            if (!scheduleDateInput.value) {
+                const now = new Date();
+                scheduleDateInput.valueAsDate = now;
+            }
+        } else {
+            scheduleOptions.classList.remove('active');
+        }
     });
 
     // Image Selection
@@ -192,11 +218,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!content) return;
 
         const allowComments = document.getElementById('modal-allow-comments').checked;
+        const isScheduled = scheduleToggle.checked;
+        let scheduledAt = new Date().toISOString(); // Default to now
+
+        if (isScheduled) {
+            const dateVal = scheduleDateInput.value;
+            const timeVal = scheduleTimeInput.value;
+            if (!dateVal || !timeVal) {
+                alert('予約日時を設定してください。');
+                return;
+            }
+            scheduledAt = new Date(`${dateVal}T${timeVal}`).toISOString();
+
+            // Validate future date
+            if (new Date(scheduledAt) <= new Date()) {
+                alert('予約日時は現在より未来の日時を指定してください。');
+                return;
+            }
+        }
 
         let insertData = {
             user_id: user.id,
             content: content,
-            allow_comments: allowComments
+            allow_comments: allowComments,
+            scheduled_at: scheduledAt
         };
 
         if (currentPostContext === 'all') {
@@ -249,15 +294,39 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
     // --- All Board Logic ---
-    async function loadAllPosts() {
-        allFeed.innerHTML = '<p>読み込み中...</p>';
+    async function loadAllPosts(isSilent = false) {
+        if (!isSilent) allFeed.innerHTML = '<p>読み込み中...</p>';
         const { data, error } = await supabase
             .from('board_posts')
             .select(`
                 *,
-                profiles(display_name)
+                profiles(display_name),
+                board_comments(count)
             `)
             .is('group_id', null)
+            .is('group_id', null)
+            // Show posts that are (published AND <= now) OR (my future posts)
+            // Note: OR filter syntax in JS client: .or('condition1,condition2')
+            // condition1: scheduled_at.lte.NOW
+            // condition2: user_id.eq.MY_ID  <-- Actually this logic is tricky with single .or() because it might show ALL my posts regardless of time (which is fine)
+            // Let's try: (scheduled_at <= NOW) OR (user_id == ME)
+            // But we only want filtering on time.
+            // Actually, for a simple board:
+            // "Show all posts where scheduled_at <= NOW"
+            // UNION
+            // "Show my posts where scheduled_at > NOW"
+
+            // Supabase .or() with filters on different columns:
+            // .or(`scheduled_at.lte.${new Date().toISOString()},and(user_id.eq.${user.id},scheduled_at.gt.${new Date().toISOString()})`)
+            // This complex query string might be fragile. 
+
+            // Simpler approach: Fetch ALL and filter in JS? No, pagination/performance.
+            // Let's use the .or syntax carefully.
+            // .or('scheduled_at.lte.NOW, user_id.eq.ME') means "Time is past OR User is Me".
+            // If User is Me, I see all my posts (past and future). CORRECT.
+            // If Time is Past, I see everyone's posts. CORRECT.
+            .or(`scheduled_at.lte.${new Date().toISOString()},user_id.eq.${user.id}`)
+            .order('scheduled_at', { ascending: false })
             .order('created_at', { ascending: false });
 
         if (error) {
@@ -355,15 +424,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadGroupPosts(gid);
     };
 
-    async function loadGroupPosts(gid) {
-        groupFeed.innerHTML = '<p>読み込み中...</p>';
+    async function loadGroupPosts(gid, isSilent = false) {
+        if (!isSilent) groupFeed.innerHTML = '<p>読み込み中...</p>';
         const { data, error } = await supabase
             .from('board_posts')
             .select(`
                 *,
-                profiles(display_name)
+                profiles(display_name),
+                board_comments(count)
             `)
             .eq('group_id', gid)
+            .or(`scheduled_at.lte.${new Date().toISOString()},user_id.eq.${user.id}`)
+            .order('scheduled_at', { ascending: false })
             .order('created_at', { ascending: false });
 
         if (error) {
@@ -456,15 +528,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        container.innerHTML = posts.map(post => `
-            <div class="board-post" style="position:relative;">
+        const now = new Date();
+
+        container.innerHTML = posts.map(post => {
+            const scheduledDate = new Date(post.scheduled_at);
+            const isScheduledFuture = scheduledDate > now;
+            const isMyPost = post.user_id === user.id;
+
+            // If it's a future post but NOT mine (shouldn't happen via API but safety), hide it
+            if (isScheduledFuture && !isMyPost && !isAdmin) return '';
+
+            return `
+            <div class="board-post ${isScheduledFuture ? 'scheduled-post-container' : ''}" style="position:relative;">
+                ${isScheduledFuture ?
+                    `<div class="scheduled-badge"><i class="far fa-clock"></i> 予約投稿: ${scheduledDate.toLocaleString()}</div>`
+                    : ''}
                 <div class="bp-header" style="justify-content:space-between; align-items:center;">
                     <span class="bp-author">${post.profiles?.display_name || 'Unknown'}</span>
                     <div style="display:flex; align-items:center; gap:10px;">
-                        <span class="bp-date">${new Date(post.created_at).toLocaleString()}</span>
-                        ${(post.user_id === user.id || isAdmin) ?
-                `<button onclick="deleteMemberPost('${post.id}')" style="background:none; border:none; color:#ff4d4d; cursor:pointer; font-size:0.8rem; text-decoration:underline;">削除</button>`
-                : ''}
+                        <span class="bp-date">${scheduledDate.toLocaleString()}</span>
+                        ${(isMyPost || isAdmin) ?
+                    `<button onclick="deleteMemberPost('${post.id}')" style="background:none; border:none; color:#ff4d4d; cursor:pointer; font-size:0.8rem; text-decoration:underline;">削除</button>`
+                    : ''}
                     </div>
                 </div>
                 ${post.images && post.images.length > 0 ? `
@@ -482,11 +567,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="bp-content">${formatContent(post.content)}</div>
                 
                 <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
-                    ${post.allow_comments ?
-                `<button onclick="toggleComments('${post.id}')" style="background:none; border:none; color:#666; cursor:pointer; font-size:0.9rem;">
-                            <i class="far fa-comment"></i> コメント
-                        </button>`
-                : '<span style="color:#999; font-size:0.8rem;">コメント無効</span>'}
+                    ${post.allow_comments ? (() => {
+                    const commentCount = post.board_comments && post.board_comments[0] ? post.board_comments[0].count : 0;
+                    const btnStyle = commentCount > 0 ? "color:var(--primary-color); font-weight:bold;" : "color:#666;";
+                    const iconClass = commentCount > 0 ? "fas fa-comment" : "far fa-comment";
+                    return `<button onclick="toggleComments('${post.id}')" style="background:none; border:none; cursor:pointer; font-size:0.9rem; ${btnStyle}">
+                            <i class="${iconClass}"></i> コメント ${commentCount > 0 ? `(${commentCount})` : ''}
+                        </button>`;
+                })() : '<span style="color:#999; font-size:0.8rem;">コメント無効</span>'}
                 </div>
 
                 <!-- Comments Section -->
@@ -504,7 +592,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     ` : ''}
                 </div>
             </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
     // --- Comment Logic ---
@@ -656,10 +745,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // Close on outside click
-    extModal.addEventListener('click', (e) => {
-        if (e.target === extModal) {
-            extModal.classList.remove('show');
-        }
-    });
+    // --- Realtime Subscription ---
+    const channel = supabase
+        .channel('board_posts_changes')
+        .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'board_posts' },
+            (payload) => {
+                const eventType = payload.eventType; // INSERT, UPDATE, DELETE
+                const newPost = payload.new;
+
+                // Logic to decide whether to reload
+                if (eventType === 'INSERT') {
+                    // Check if the new post is relevant to current view
+                    if (currentPostContext === 'all') {
+                        if (!newPost.group_id) {
+                            loadAllPosts(true);
+                        }
+                    } else if (currentPostContext === 'group') {
+                        if (newPost.group_id === currentGroupId) {
+                            loadGroupPosts(currentGroupId, true);
+                        }
+                    }
+                } else {
+                    // UPDATE or DELETE - safer to just reload
+                    if (currentPostContext === 'all') loadAllPosts(true);
+                    else if (currentPostContext === 'group' && currentGroupId) loadGroupPosts(currentGroupId, true);
+                }
+            }
+        )
+        .subscribe();
 });
