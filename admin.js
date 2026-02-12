@@ -936,11 +936,12 @@
             adminGroupsList.innerHTML = data.map(group => `
                 <div class="post-item">
                     <div class="post-info">
-                        <strong>${escapeHtml(group.name)}</strong>
+                        <strong id="group-name-display-${group.id}">${escapeHtml(group.name)}</strong>
                         <p style="font-size:0.8rem; color:#666;">${escapeHtml(group.description || '')}</p>
                     </div>
-                    <div class="post-actions">
-                        <button onclick="manageGroup('${group.id}', '${escapeHtml(group.name)}')" class="btn-primary" style="background:var(--primary-color);">Manage Members</button>
+                    <div class="post-actions" style="display:flex; gap:5px;">
+                        <button onclick="renameGroup('${group.id}', '${escapeHtml(group.name).replace(/'/g, "\\'")}')" class="btn-primary" style="background:var(--accent-color); font-size:0.8rem; padding:6px 12px;">Edit Name</button>
+                        <button onclick="manageGroup('${group.id}', '${escapeHtml(group.name).replace(/'/g, "\\'")}')" class="btn-primary" style="background:var(--primary-color); font-size:0.8rem; padding:6px 12px;">Manage Members</button>
                     </div>
                 </div>
             `).join('');
@@ -958,6 +959,48 @@
         loadGroupMembers(gid);
         loadAllUsersForSelect(); // Populate select
     };
+
+    window.renameGroup = async (gid, currentName) => {
+        document.getElementById('rename-group-id').value = gid;
+        document.getElementById('rename-group-name').value = currentName;
+        const modal = document.getElementById('group-rename-modal');
+        modal.style.display = 'flex';
+        setTimeout(() => modal.style.opacity = '1', 10);
+    };
+
+    // --- Group Rename Modal Logic ---
+    const groupRenameModal = document.getElementById('group-rename-modal');
+    const groupRenameForm = document.getElementById('group-rename-form');
+
+    const hideGroupRenameModal = () => {
+        groupRenameModal.style.opacity = '0';
+        setTimeout(() => groupRenameModal.style.display = 'none', 300);
+    };
+
+    document.getElementById('close-group-rename').addEventListener('click', hideGroupRenameModal);
+    document.getElementById('cancel-group-rename').addEventListener('click', hideGroupRenameModal);
+
+    groupRenameForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const gid = document.getElementById('rename-group-id').value;
+        const newName = document.getElementById('rename-group-name').value.trim();
+        if (!newName) return;
+
+        loadingOverlay.style.display = 'flex';
+        const { error } = await supabase
+            .from('groups')
+            .update({ name: newName })
+            .eq('id', gid);
+
+        if (error) {
+            alert('グループ名の更新に失敗しました: ' + error.message);
+        } else {
+            alert('グループ名を更新しました！');
+            hideGroupRenameModal();
+            loadAdminGroups();
+        }
+        loadingOverlay.style.display = 'none';
+    });
 
     // Remove Existing Image
     window.removeExistingImage = (index) => {
