@@ -252,6 +252,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } else {
             scheduleOptions.classList.remove('active');
+            // Clear inputs when toggled off to be explicit
+            scheduleDateInput.value = '';
+            scheduleTimeInput.value = '';
         }
     });
 
@@ -735,21 +738,60 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        listEl.innerHTML = comments.map(comment => `
-            <div class="comment-item">
+        listEl.innerHTML = comments.map(comment => {
+            const canEditComment = (comment.user_id === user.id || isSuperAdmin);
+            const canDeleteComment = (comment.user_id === user.id || isAdmin);
+            return `
+            <div class="comment-item" id="comment-item-${comment.id}">
                 <div class="comment-header">
                     <span class="comment-author">${comment.profiles?.display_name || 'Unknown'}</span>
                     <div class="comment-actions">
                         <span>${new Date(comment.created_at).toLocaleString()}</span>
-                        ${(comment.user_id === user.id || isAdmin) ?
-                `<button onclick="deleteComment('${comment.id}', '${postId}')" title="削除"><i class="fas fa-trash"></i></button>`
-                : ''}
+                        ${canEditComment ? `<button onclick="editComment('${comment.id}', '${postId}')" title="編集" style="background:none;border:none;cursor:pointer;color:var(--primary-color);"><i class="fas fa-edit"></i></button>` : ''}
+                        ${canDeleteComment ?
+                    `<button onclick="deleteComment('${comment.id}', '${postId}')" title="削除"><i class="fas fa-trash"></i></button>`
+                    : ''}
                     </div>
                 </div>
-                <div>${formatCommentContent(comment.content)}</div>
+                <div id="comment-content-${comment.id}">${formatCommentContent(comment.content)}</div>
+                <div id="comment-edit-form-${comment.id}" style="display:none; margin-top:8px;">
+                    <textarea id="comment-edit-input-${comment.id}" class="comment-input" rows="2" style="resize:vertical; width:100%;">${escapeHtml(comment.content)}</textarea>
+                    <div style="display:flex; gap:8px; margin-top:5px;">
+                        <button onclick="saveCommentEdit('${comment.id}', '${postId}')" class="btn-comment-submit">保存</button>
+                        <button onclick="cancelCommentEdit('${comment.id}')" style="background:none; border:1px solid #ccc; border-radius:4px; padding:4px 12px; cursor:pointer; color:#666;">キャンセル</button>
+                    </div>
+                </div>
             </div>
-        `).join('');
+        `}).join('');
     }
+
+    // --- Comment Edit Functions ---
+    window.editComment = (commentId, postId) => {
+        document.getElementById(`comment-content-${commentId}`).style.display = 'none';
+        document.getElementById(`comment-edit-form-${commentId}`).style.display = 'block';
+    };
+
+    window.cancelCommentEdit = (commentId) => {
+        document.getElementById(`comment-content-${commentId}`).style.display = 'block';
+        document.getElementById(`comment-edit-form-${commentId}`).style.display = 'none';
+    };
+
+    window.saveCommentEdit = async (commentId, postId) => {
+        const inputEl = document.getElementById(`comment-edit-input-${commentId}`);
+        const content = inputEl.value.trim();
+        if (!content) return;
+
+        const { error } = await supabase
+            .from('board_comments')
+            .update({ content: content })
+            .eq('id', commentId);
+
+        if (error) {
+            alert('コメントの更新に失敗しました: ' + error.message);
+        } else {
+            await loadComments(postId);
+        }
+    };
 
     window.submitComment = async (postId) => {
         const inputEl = document.getElementById(`comment-input-${postId}`);
