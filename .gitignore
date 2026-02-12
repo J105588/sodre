@@ -1,1 +1,4 @@
 GAS/
+api/.env.php
+api/cleanup.log
+uploads/

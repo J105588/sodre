@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentPostContext = 'all'; // 'all' or 'group'
     let currentGroupId = null;
     let currentGroupCanPost = false;
-    let selectedImages = []; // Store selected files for upload
+    let selectedFiles = []; // Store selected files for upload
     let isAdmin = false; // Admin State
     let isSuperAdmin = false; // Superadmin State
     let isEditingPostId = null; // Track if we are editing a post
@@ -156,7 +156,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function openPostModal(postToEdit = null) {
         // Reset State
-        selectedImages = [];
+        selectedFiles = [];
         document.getElementById('modal-post-image').value = '';
         document.getElementById('modal-image-preview').innerHTML = '';
 
@@ -192,20 +192,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (postToEdit.images && postToEdit.images.length > 0) {
                 const previewArea = document.getElementById('modal-image-preview');
                 postToEdit.images.forEach(url => {
-                    const imgContainer = document.createElement('div');
-                    imgContainer.style.position = 'relative';
-                    imgContainer.style.display = 'inline-block';
-                    imgContainer.style.marginRight = '5px';
+                    const container = document.createElement('div');
+                    container.style.position = 'relative';
+                    container.style.display = 'inline-block';
+                    container.style.marginRight = '5px';
 
-                    const img = document.createElement('img');
-                    img.src = url;
-                    img.style.width = '80px';
-                    img.style.height = '80px';
-                    img.style.objectFit = 'cover';
-                    img.style.borderRadius = '4px';
+                    if (isImageUrl(url)) {
+                        const img = document.createElement('img');
+                        img.src = url;
+                        img.style.width = '80px';
+                        img.style.height = '80px';
+                        img.style.objectFit = 'cover';
+                        img.style.borderRadius = '4px';
+                        container.appendChild(img);
+                    } else {
+                        container.innerHTML = createFilePreviewHTML(url);
+                    }
 
-                    imgContainer.appendChild(img);
-                    previewArea.appendChild(imgContainer);
+                    previewArea.appendChild(container);
                 });
             }
             modalSubmitBtn.textContent = '更新する';
@@ -256,24 +260,38 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // Image Selection
+    // File Selection
     document.getElementById('modal-post-image').addEventListener('change', (e) => {
         const files = Array.from(e.target.files);
         if (files.length > 0) {
             const previewArea = document.getElementById('modal-image-preview');
             files.forEach(file => {
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    const img = document.createElement('img');
-                    img.src = ev.target.result;
-                    img.style.width = '80px';
-                    img.style.height = '80px';
-                    img.style.objectFit = 'cover';
-                    img.style.borderRadius = '4px';
-                    previewArea.appendChild(img);
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        const img = document.createElement('img');
+                        img.src = ev.target.result;
+                        img.style.width = '80px';
+                        img.style.height = '80px';
+                        img.style.objectFit = 'cover';
+                        img.style.borderRadius = '4px';
+                        previewArea.appendChild(img);
+                    }
+                    reader.readAsDataURL(file);
+                } else {
+                    const filePreview = document.createElement('div');
+                    filePreview.style.display = 'inline-flex';
+                    filePreview.style.alignItems = 'center';
+                    filePreview.style.gap = '5px';
+                    filePreview.style.padding = '8px 12px';
+                    filePreview.style.background = '#f5f5f5';
+                    filePreview.style.borderRadius = '6px';
+                    filePreview.style.fontSize = '0.85rem';
+                    filePreview.style.marginRight = '5px';
+                    filePreview.innerHTML = `<i class="${getFileIcon(file.name)}" style="color:var(--primary-color);"></i> ${file.name}`;
+                    previewArea.appendChild(filePreview);
                 }
-                reader.readAsDataURL(file);
-                selectedImages.push(file);
+                selectedFiles.push(file);
             });
         }
     });
@@ -312,18 +330,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         modalSubmitBtn.disabled = true;
         modalSubmitBtn.textContent = '送信中...';
 
-        // Upload Images
+        // Upload Files via PHP API
         let imageUrls = [];
-        if (selectedImages.length > 0) {
-            for (const file of selectedImages) {
-                const fileExt = file.name.split('.').pop();
-                const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
-                const filePath = `${fileName}`;
-                const { data, error } = await supabase.storage.from('images').upload(filePath, file);
-                if (!error) {
-                    const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(filePath);
-                    imageUrls.push(publicUrl);
+        if (selectedFiles.length > 0) {
+            const formData = new FormData();
+            for (const file of selectedFiles) {
+                formData.append('files[]', file);
+            }
+            try {
+                const uploadRes = await fetch(window.UPLOAD_API_URL, {
+                    method: 'POST',
+                    headers: { 'X-API-KEY': window.UPLOAD_API_KEY },
+                    body: formData
+                });
+                const uploadData = await uploadRes.json();
+                if (uploadData.success && uploadData.urls) {
+                    imageUrls = uploadData.urls;
+                } else {
+                    console.error('Upload error:', uploadData.error);
+                    alert('ファイルのアップロードに失敗しました: ' + (uploadData.error || '不明なエラー'));
+                    modalSubmitBtn.disabled = false;
+                    modalSubmitBtn.textContent = isUpdate ? '更新する' : '投稿する';
+                    return; // Abort post creation
                 }
+            } catch (uploadErr) {
+                console.error('Upload fetch error:', uploadErr);
+                alert('ファイルのアップロードに失敗しました。');
+                modalSubmitBtn.disabled = false;
+                modalSubmitBtn.textContent = isUpdate ? '更新する' : '投稿する';
+                return; // Abort post creation
             }
         }
 
@@ -410,6 +445,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             `)
             .is('group_id', null)
             .or(`scheduled_at.lte.${new Date().toISOString()},user_id.eq.${user.id}`)
+            .order('is_pinned', { ascending: false })
             .order('scheduled_at', { ascending: false })
             .order('created_at', { ascending: false });
 
@@ -519,6 +555,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             `)
             .eq('group_id', gid)
             .or(`scheduled_at.lte.${new Date().toISOString()},user_id.eq.${user.id}`)
+            .order('is_pinned', { ascending: false })
             .order('scheduled_at', { ascending: false })
             .order('created_at', { ascending: false });
 
@@ -575,25 +612,63 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     window.deleteMemberPost = async (postId) => {
-        if (!confirm('本当にこの投稿を削除しますか？')) return;
+        if (!confirm('この投稿を削除しますか？')) return;
 
-        const { error } = await supabase
-            .from('board_posts')
-            .delete()
-            .eq('id', postId);
+        try {
+            // 1. Get post data to find images
+            const { data: post, error: fetchError } = await supabase
+                .from('board_posts')
+                .select('images')
+                .eq('id', postId)
+                .single();
 
-        if (error) {
-            alert('削除に失敗しました: ' + error.message);
-        } else {
-            if (currentPostContext === 'all') {
-                loadAllPosts();
-            } else {
-                if (currentGroupId) {
-                    loadGroupPosts(currentGroupId);
-                } else {
-                    loadGroupPosts(currentGroupId);
+            if (fetchError) {
+                console.error('Error fetching post for deletion:', fetchError);
+                // Continue to delete from DB even if fetch fails, to avoid zombie posts
+            } else if (post && post.images && post.images.length > 0) {
+                // 2. Delete files from X-server
+                try {
+                    await fetch('https://data.sodre.jp/api/delete.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-KEY': window.UPLOAD_API_KEY
+                        },
+                        body: JSON.stringify({ urls: post.images })
+                    });
+                } catch (deleteErr) {
+                    console.error('Physical file delete error:', deleteErr);
+                    // Continue to delete from DB
                 }
             }
+
+            // 3. Delete from DB
+            const { error } = await supabase
+                .from('board_posts')
+                .delete()
+                .eq('id', postId);
+
+            if (error) {
+                alert('削除に失敗しました: ' + error.message);
+            } else {
+                if (currentPostContext === 'all') loadAllPosts(true);
+                else if (currentPostContext === 'group' && currentGroupId) loadGroupPosts(currentGroupId, true);
+            }
+        } catch (err) {
+            console.error('Delete error:', err);
+            alert('削除中にエラーが発生しました。');
+        }
+    };
+
+    window.togglePin = async (postId, currentPinState) => {
+        const newState = !currentPinState;
+        const { error } = await supabase.rpc('toggle_post_pin', { post_id: postId, pin_state: newState });
+
+        if (error) {
+            alert('ピン留めの変更に失敗しました: ' + error.message);
+        } else {
+            if (currentPostContext === 'all') loadAllPosts(true);
+            else if (currentPostContext === 'group' && currentGroupId) loadGroupPosts(currentGroupId, true);
         }
     };
 
@@ -644,6 +719,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div style="display:flex; align-items:center; gap:10px;">
                         <span class="bp-date">${scheduledDate.toLocaleString()}</span>
                         
+                        ${post.is_pinned ? `<i class="fas fa-thumbtack" style="color:var(--primary-color); margin-right:5px;" title="固定された投稿"></i>` : ''}
+
+                        ${isAdmin ?
+                    `<button onclick="togglePin('${post.id}', ${post.is_pinned})" style="background:none; border:none; color:${post.is_pinned ? '#666' : 'var(--primary-color)'}; cursor:pointer; font-size:0.8rem; text-decoration:underline;">
+                                ${post.is_pinned ? '固定解除' : '固定する'}
+                            </button>`
+                    : ''}
+
                         ${canEdit ?
                     `<button onclick="editMemberPost('${post.id}')" style="background:none; border:none; color:var(--primary-color); cursor:pointer; font-size:0.8rem; text-decoration:underline;">編集</button>`
                     : ''}
@@ -654,15 +737,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 </div>
                 ${post.images && post.images.length > 0 ? `
-                    <div style="display:flex; gap:10px; overflow-x:auto; margin-bottom:10px;">
-                        ${post.images.map(url => `
-                            <img src="${url}" 
-                                onclick="openLightbox('${url}')"
-                                style="height:100px; width:auto; border-radius:4px; cursor:pointer; transition:opacity 0.2s;" 
-                                onmouseover="this.style.opacity=0.8" 
-                                onmouseout="this.style.opacity=1"
-                            >
-                        `).join('')}
+                    <div style="display:flex; gap:10px; overflow-x:auto; margin-bottom:10px; flex-wrap:wrap;">
+                        ${post.images.map(url => {
+                        if (isImageUrl(url)) {
+                            return `<img src="${url}" 
+                                    onclick="openLightbox('${url}')"
+                                    style="height:100px; width:auto; border-radius:4px; cursor:pointer; transition:opacity 0.2s;" 
+                                    onmouseover="this.style.opacity=0.8" 
+                                    onmouseout="this.style.opacity=1"
+                                >`;
+                        } else {
+                            const fname = url.split('/').pop();
+                            return `<a href="${url}" target="_blank" download 
+                                    style="display:inline-flex; align-items:center; gap:6px; padding:8px 14px; background:#f5f5f5; border-radius:6px; text-decoration:none; color:#333; font-size:0.85rem; transition:background 0.2s;"
+                                    onmouseover="this.style.background='#eee'" onmouseout="this.style.background='#f5f5f5'">
+                                    <i class="${getFileIconFromUrl(url)}" style="color:var(--primary-color); font-size:1.1rem;"></i>
+                                    <span>${decodeURIComponent(fname)}</span>
+                                    <i class="fas fa-download" style="color:#999; font-size:0.8rem;"></i>
+                                </a>`;
+                        }
+                    }).join('')}
                     </div>
                 ` : ''}
                 <div class="bp-content">${formatContent(post.content)}</div>
@@ -827,6 +921,39 @@ document.addEventListener('DOMContentLoaded', async () => {
             await loadComments(postId); // Reload
         }
     };
+
+    // --- File Type Helpers ---
+    function isImageUrl(url) {
+        const ext = url.split('.').pop().split('?')[0].toLowerCase();
+        return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext);
+    }
+
+    function getFileIcon(filename) {
+        const ext = filename.split('.').pop().toLowerCase();
+        const iconMap = {
+            'pdf': 'fas fa-file-pdf',
+            'doc': 'fas fa-file-word', 'docx': 'fas fa-file-word',
+            'xls': 'fas fa-file-excel', 'xlsx': 'fas fa-file-excel', 'csv': 'fas fa-file-excel',
+            'ppt': 'fas fa-file-powerpoint', 'pptx': 'fas fa-file-powerpoint',
+            'txt': 'fas fa-file-alt',
+            'zip': 'fas fa-file-archive', 'rar': 'fas fa-file-archive',
+            'mp3': 'fas fa-file-audio', 'wav': 'fas fa-file-audio', 'ogg': 'fas fa-file-audio',
+            'mp4': 'fas fa-file-video', 'mov': 'fas fa-file-video', 'avi': 'fas fa-file-video', 'webm': 'fas fa-file-video',
+        };
+        return iconMap[ext] || 'fas fa-file';
+    }
+
+    function getFileIconFromUrl(url) {
+        const filename = url.split('/').pop();
+        return getFileIcon(filename);
+    }
+
+    function createFilePreviewHTML(url) {
+        const fname = decodeURIComponent(url.split('/').pop());
+        return `<div style="display:inline-flex; align-items:center; gap:5px; padding:8px 12px; background:#f5f5f5; border-radius:6px; font-size:0.85rem;">
+            <i class="${getFileIconFromUrl(url)}" style="color:var(--primary-color);"></i> ${fname}
+        </div>`;
+    }
 
     function escapeHtml(text) {
         if (!text) return '';

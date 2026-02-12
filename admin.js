@@ -346,23 +346,28 @@
             // Upload Images if any
             let uploadedImageUrls = [];
             if (selectedImages.length > 0) {
+                const formData = new FormData();
                 for (const file of selectedImages) {
-                    const fileExt = file.name.split('.').pop();
-                    const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
-                    const filePath = `${fileName}`;
-
-                    const { data, error } = await supabase.storage
-                        .from('images')
-                        .upload(filePath, file);
-
-                    if (error) {
-                        console.error('Upload error', error);
+                    formData.append('files[]', file);
+                }
+                try {
+                    const uploadRes = await fetch(window.UPLOAD_API_URL, {
+                        method: 'POST',
+                        headers: { 'X-API-KEY': window.UPLOAD_API_KEY },
+                        body: formData
+                    });
+                    const uploadData = await uploadRes.json();
+                    if (uploadData.success && uploadData.urls) {
+                        uploadedImageUrls = uploadData.urls;
                     } else {
-                        const { data: { publicUrl } } = supabase.storage
-                            .from('images')
-                            .getPublicUrl(filePath);
-                        uploadedImageUrls.push(publicUrl);
+                        console.error('Upload error', uploadData.error);
+                        alert('画像のアップロードに失敗しました: ' + (uploadData.error || ''));
+                        return; // Abort post creation
                     }
+                } catch (uploadErr) {
+                    console.error('Upload error', uploadErr);
+                    alert('画像のアップロードに失敗しました。');
+                    return; // Abort post creation
                 }
             }
 
@@ -598,15 +603,28 @@
             // Upload New Images
             let newImageUrls = [];
             if (editSelectedImages.length > 0) {
+                const formData = new FormData();
                 for (const file of editSelectedImages) {
-                    const fileExt = file.name.split('.').pop();
-                    const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
-                    const filePath = `${fileName}`;
-                    const { data, error } = await supabase.storage.from('images').upload(filePath, file);
-                    if (!error) {
-                        const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(filePath);
-                        newImageUrls.push(publicUrl);
+                    formData.append('files[]', file);
+                }
+                try {
+                    const uploadRes = await fetch(window.UPLOAD_API_URL, {
+                        method: 'POST',
+                        headers: { 'X-API-KEY': window.UPLOAD_API_KEY },
+                        body: formData
+                    });
+                    const uploadData = await uploadRes.json();
+                    if (uploadData.success && uploadData.urls) {
+                        newImageUrls = uploadData.urls;
+                    } else {
+                        console.error('Upload error', uploadData.error);
+                        alert('画像のアップロードに失敗しました: ' + (uploadData.error || ''));
+                        return; // Abort post update
                     }
+                } catch (uploadErr) {
+                    console.error('Upload error', uploadErr);
+                    alert('画像のアップロードに失敗しました。');
+                    return; // Abort post update
                 }
             }
 
@@ -905,16 +923,48 @@
         // Show loader immediately
         postsContainer.innerHTML = '<div class="loader-container"><div class="loader"></div></div>';
 
-        const { error } = await supabase
-            .from('posts')
-            .delete()
-            .eq('id', id);
+        try {
+            // 1. Get post data to find images
+            const { data: post, error: fetchError } = await supabase
+                .from('posts')
+                .select('images')
+                .eq('id', id)
+                .single();
 
-        if (error) {
-            alert('投稿の削除に失敗しました: ' + error.message);
+            if (fetchError) {
+                console.error('Error fetching post for deletion:', fetchError);
+            } else if (post && post.images && post.images.length > 0) {
+                // 2. Delete files from X-server (files attached to public posts)
+                try {
+                    await fetch('https://data.sodre.jp/api/delete.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-KEY': window.UPLOAD_API_KEY
+                        },
+                        body: JSON.stringify({ urls: post.images })
+                    });
+                } catch (deleteErr) {
+                    console.error('Physical file delete error:', deleteErr);
+                }
+            }
+
+            // 3. Delete from DB
+            const { error } = await supabase
+                .from('posts')
+                .delete()
+                .eq('id', id);
+
+            if (error) {
+                alert('投稿の削除に失敗しました: ' + error.message);
+            }
+            // Always reload to restore list or show updates
+            loadPosts(currentTab);
+        } catch (err) {
+            console.error('Delete error:', err);
+            alert('削除中にエラーが発生しました。');
+            loadPosts(currentTab);
         }
-        // Always reload to restore list or show updates
-        loadPosts(currentTab);
     }
 
     // Group Functions

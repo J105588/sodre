@@ -4,6 +4,9 @@ const SUPABASE_URL = 'https://qrbayooyblmffolcstgg.supabase.co';
 const SUPABASE_KEY = 'sb_publishable__CTkIkbeJ5gDbfJJ17Ll6w_U2NcITAJ';
 // REPLACE THIS WITH YOUR GAS WEB APP URL
 const GAS_OTP_URL = 'https://script.google.com/macros/s/AKfycbzpwAlodnnKDN0VTQI5nzoOXsdOnN7I962ll6o_6hOlE3WdPFaQNvdXpQJt776ThF8/exec';
+// Upload API (X-server disk storage)
+const UPLOAD_API_URL = 'https://data.sodre.jp/api/upload.php';
+const UPLOAD_API_KEY = 'dJDnv9-8eykjd-KHBVlkb'; // api/.env.php と同じ値にすること
 
 // Initialize Supabase Client globally if SDK is available
 const supabaseProvider = window.supabase || window.Supabase;
@@ -12,6 +15,8 @@ const supabaseProvider = window.supabase || window.Supabase;
 window.SUPABASE_URL = SUPABASE_URL;
 window.SUPABASE_KEY = SUPABASE_KEY;
 window.GAS_OTP_URL = GAS_OTP_URL;
+window.UPLOAD_API_URL = UPLOAD_API_URL;
+window.UPLOAD_API_KEY = UPLOAD_API_KEY;
 
 if (supabaseProvider && supabaseProvider.createClient) {
     window.supabaseClient = supabaseProvider.createClient(SUPABASE_URL, SUPABASE_KEY);
