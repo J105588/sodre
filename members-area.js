@@ -167,8 +167,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             modalPostContent.value = postToEdit.content;
             document.getElementById('modal-allow-comments').checked = postToEdit.allow_comments;
 
-            // Handle Schedule
-            if (postToEdit.scheduled_at) {
+            // Handle Schedule - only enable toggle if actually scheduled in future
+            if (postToEdit.scheduled_at && new Date(postToEdit.scheduled_at) > new Date()) {
                 const d = new Date(postToEdit.scheduled_at);
                 const yyyy = d.getFullYear();
                 const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -176,8 +176,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const hh = String(d.getHours()).padStart(2, '0');
                 const min = String(d.getMinutes()).padStart(2, '0');
 
-                // If the post is already past, the date value might be in past.
-                // The date input allows past dates if not restricted by min attribute (which isn't set dynamically here yet).
                 scheduleDateInput.value = `${yyyy}-${mm}-${dd}`;
                 scheduleTimeInput.value = `${hh}:${min}`;
 
