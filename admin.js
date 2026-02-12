@@ -611,10 +611,20 @@
     });
 
     // --- User Edit Logic ---
-    window.editUser = (id, currentName, isAdmin) => {
+    window.editUser = (id, currentName, isAdmin, isSuperadmin) => {
         editUserIdInput.value = id;
         editUserNameInput.value = currentName;
         editUserIsAdminInput.checked = isAdmin;
+
+        // If superadmin, disable admin checkbox to prevent resizing (though trigger protects it too)
+        if (isSuperadmin) {
+            editUserIsAdminInput.disabled = true;
+            // Also maybe disable the name input or save button if we want strict "Direct DB Edit Only" policy?
+            // User said "Deleting/Demotion" is the concern. 
+            // Let's just disable the admin checkbox.
+        } else {
+            editUserIsAdminInput.disabled = false;
+        }
 
         userEditModal.style.display = 'flex';
         setTimeout(() => userEditModal.style.opacity = '1', 10);
@@ -627,7 +637,15 @@
             const id = btn.dataset.id;
             const name = btn.dataset.name;
             const isAdmin = btn.dataset.isAdmin === 'true'; // dataset values are strings
-            window.editUser(id, name, isAdmin);
+            const isSuper = btn.dataset.isSuperadmin === 'true';
+
+            // If superadmin, verification
+            if (isSuper) {
+                // For now, allow editing name? Or simple alert?
+                // The loadAdminUsers disables the button entirely, so this code might not be reached via UI,
+                // but good to have safeguards.
+            }
+            window.editUser(id, name, isAdmin, isSuper);
         }
     });
 
@@ -690,7 +708,7 @@
         // We can fetch from profiles to see existing users
         const { data: profiles, error } = await supabase
             .from('profiles')
-            .select('*')
+            .select('*, is_superadmin') // Explicitly select is_superadmin
             .order('created_at', { ascending: false });
 
         if (error) {
@@ -703,30 +721,45 @@
             return;
         }
 
-        adminUsersList.innerHTML = profiles.map(user => `
-            <div class="post-item">
+        adminUsersList.innerHTML = profiles.map(user => {
+            const isSuper = user.is_superadmin;
+            const isSelf = user.id === currentUserId;
+            // Edit: Enabled if NOT superadmin OR (IS superadmin AND IS self)
+            const canEdit = !isSuper || (isSuper && isSelf);
+            // Delete: Always disabled for superadmin
+
+            return `
+            <div class="post-item" style="${isSuper ? 'background:#fff8e1; border-color:#f1c40f;' : ''}">
                 <div class="post-info">
                     <strong>${escapeHtml(user.display_name)}</strong>
                     <span style="font-size:0.8rem; color:#666; margin-left:10px;">${escapeHtml(user.email)}</span>
                     ${user.is_admin ? '<span style="background:purple; color:white; font-size:0.7rem; padding:2px 5px; border-radius:3px;">Admin</span>' : ''}
+                    ${isSuper ? '<span style="background:#f1c40f; color:#000; font-weight:bold; font-size:0.7rem; padding:2px 5px; border-radius:3px; margin-left:5px;">SUPERADMIN</span>' : ''}
                 </div>
                 <div class="post-actions">
                     <button class="btn-primary btn-edit-user" 
                         data-id="${user.id}" 
                         data-name="${escapeHtml(user.display_name || '')}" 
                         data-is-admin="${user.is_admin}"
-                        style="font-size:0.8rem; padding:6px 12px; margin-right:5px;">Edit</button>
+                        data-is-superadmin="${isSuper}"
+                        style="font-size:0.8rem; padding:6px 12px; margin-right:5px;"
+                        ${canEdit ? '' : 'disabled style="opacity:0.5; cursor:not-allowed;"'}>Edit</button>
                     <button class="btn-delete btn-delete-user" 
-                        onclick="deleteUser('${user.id}')"
-                        style="font-size:0.8rem; padding:6px 12px;">Delete</button>
+                        onclick="${!isSuper ? `deleteUser('${user.id}')` : ''}"
+                        style="font-size:0.8rem; padding:6px 12px; ${isSuper ? 'opacity:0.5; cursor:not-allowed;' : ''}"
+                        ${isSuper ? 'disabled' : ''}>Delete</button>
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
     }
+
+    let currentUserId = null; // Add at top level scope if possible, or inside IIFE
 
     async function checkUser() {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
+            currentUserId = session.user.id; // Store ID
             // Check if admin
             const { data: profile } = await supabase
                 .from('profiles')
