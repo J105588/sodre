@@ -47,7 +47,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentGroupId = null;
     let currentGroupCanPost = false;
     let selectedImages = []; // Store selected files for upload
-    let isAdmin = false; // New Admin State
+    let isAdmin = false; // Admin State
+    let isSuperAdmin = false; // Superadmin State
+    let isEditingPostId = null; // Track if we are editing a post
 
     // --- Auth Check ---
     const { data: { session } } = await supabase.auth.getSession();
@@ -62,7 +64,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadProfile(uid) {
         const { data, error } = await supabase
             .from('profiles')
-            .select('display_name, is_admin')
+            .select('display_name, is_admin, is_superadmin')
             .eq('id', uid)
             .maybeSingle();
 
@@ -74,9 +76,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             // If display_name is retrieved but empty, logic holds.
         }
 
-        if (data && data.is_admin) {
-            isAdmin = true;
-            console.log('User is Admin');
+        if (data) {
+            if (data.is_admin) {
+                isAdmin = true;
+                console.log('User is Admin');
+            }
+            if (data.is_superadmin) {
+                isSuperAdmin = true;
+                console.log('User is Superadmin');
+            }
         }
 
         setupSessionTimeout(); // Start inactivity timer
@@ -143,28 +151,91 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Modal / FAB Logic ---
     fabPost.addEventListener('click', () => {
-        modalPostContent.value = '';
-        if (currentPostContext === 'all') {
-            modalTitle.textContent = '全体掲示板に投稿';
-        } else if (currentPostContext === 'group') {
-            modalTitle.textContent = `${currentGroupName.innerText} に投稿`;
-        }
+        openPostModal();
+    });
 
-        // Reset Images
+    function openPostModal(postToEdit = null) {
+        // Reset State
         selectedImages = [];
         document.getElementById('modal-post-image').value = '';
         document.getElementById('modal-image-preview').innerHTML = '';
-        document.getElementById('modal-allow-comments').checked = true; // Default to true
 
-        // Reset Schedule
-        scheduleToggle.checked = false;
-        scheduleOptions.classList.remove('active');
-        scheduleDateInput.value = '';
-        scheduleTimeInput.value = '';
+        if (postToEdit) {
+            // Edit Mode
+            isEditingPostId = postToEdit.id;
+            modalTitle.textContent = '投稿を編集';
+            modalPostContent.value = postToEdit.content;
+            document.getElementById('modal-allow-comments').checked = postToEdit.allow_comments;
+
+            // Handle Schedule
+            if (postToEdit.scheduled_at) {
+                const d = new Date(postToEdit.scheduled_at);
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const hh = String(d.getHours()).padStart(2, '0');
+                const min = String(d.getMinutes()).padStart(2, '0');
+
+                // If the post is already past, the date value might be in past.
+                // The date input allows past dates if not restricted by min attribute (which isn't set dynamically here yet).
+                scheduleDateInput.value = `${yyyy}-${mm}-${dd}`;
+                scheduleTimeInput.value = `${hh}:${min}`;
+
+                scheduleToggle.checked = true;
+                scheduleOptions.classList.add('active');
+            } else {
+                scheduleToggle.checked = false;
+                scheduleOptions.classList.remove('active');
+                scheduleDateInput.value = '';
+                scheduleTimeInput.value = '';
+            }
+
+            // Existing images
+            if (postToEdit.images && postToEdit.images.length > 0) {
+                const previewArea = document.getElementById('modal-image-preview');
+                postToEdit.images.forEach(url => {
+                    const imgContainer = document.createElement('div');
+                    imgContainer.style.position = 'relative';
+                    imgContainer.style.display = 'inline-block';
+                    imgContainer.style.marginRight = '5px';
+
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.style.width = '80px';
+                    img.style.height = '80px';
+                    img.style.objectFit = 'cover';
+                    img.style.borderRadius = '4px';
+
+                    imgContainer.appendChild(img);
+                    previewArea.appendChild(imgContainer);
+                });
+            }
+            modalSubmitBtn.textContent = '更新する';
+
+        } else {
+            // New Post Mode
+            isEditingPostId = null;
+            modalPostContent.value = '';
+            if (currentPostContext === 'all') {
+                modalTitle.textContent = '全体掲示板に投稿';
+            } else if (currentPostContext === 'group') {
+                modalTitle.textContent = `${currentGroupName.innerText} に投稿`;
+            }
+
+            document.getElementById('modal-allow-comments').checked = true; // Default to true
+
+            // Reset Schedule
+            scheduleToggle.checked = false;
+            scheduleOptions.classList.remove('active');
+            scheduleDateInput.value = '';
+            scheduleTimeInput.value = '';
+
+            modalSubmitBtn.textContent = '投稿する';
+        }
 
         postModal.classList.add('show'); // .show for standard modal
         setTimeout(() => { modalPostContent.focus(); }, 100);
-    });
+    }
 
     modalClose.addEventListener('click', () => {
         postModal.classList.remove('show');
@@ -230,27 +301,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             scheduledAt = new Date(`${dateVal}T${timeVal}`).toISOString();
 
-            // Validate future date
-            if (new Date(scheduledAt) <= new Date()) {
+            // Validate future date ONLY for NEW posts
+            if (!isEditingPostId && new Date(scheduledAt) <= new Date()) {
                 alert('予約日時は現在より未来の日時を指定してください。');
                 return;
             }
-        }
-
-        let insertData = {
-            user_id: user.id,
-            content: content,
-            allow_comments: allowComments,
-            scheduled_at: scheduledAt
-        };
-
-        if (currentPostContext === 'all') {
-            insertData.group_id = null;
-        } else if (currentPostContext === 'group') {
-            if (!currentGroupId) return;
-            insertData.group_id = currentGroupId;
-        } else {
-            return; // Should not happen
         }
 
         modalSubmitBtn.disabled = true;
@@ -270,24 +325,73 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
         }
-        insertData.images = imageUrls;
 
+        if (isEditingPostId) {
+            // UPDATE
+            let updateData = {
+                content: content,
+                allow_comments: allowComments,
+                scheduled_at: scheduledAt
+            };
 
-        const { error } = await supabase
-            .from('board_posts')
-            .insert([insertData]);
+            if (imageUrls.length > 0) {
+                const { data: currentPost } = await supabase.from('board_posts').select('images').eq('id', isEditingPostId).single();
+                const currentImages = currentPost?.images || [];
+                updateData.images = [...currentImages, ...imageUrls];
+            }
 
-        modalSubmitBtn.disabled = false;
-        modalSubmitBtn.textContent = '送信';
+            const { error } = await supabase
+                .from('board_posts')
+                .update(updateData)
+                .eq('id', isEditingPostId);
 
-        if (error) {
-            alert('投稿に失敗しました: ' + error.message);
-        } else {
-            postModal.classList.remove('show');
-            if (currentPostContext === 'all') {
-                loadAllPosts();
+            modalSubmitBtn.disabled = false;
+            modalSubmitBtn.textContent = '送信';
+
+            if (error) {
+                alert('更新に失敗しました: ' + error.message);
             } else {
-                loadGroupPosts(currentGroupId);
+                postModal.classList.remove('show');
+                if (currentPostContext === 'all') loadAllPosts();
+                else loadGroupPosts(currentGroupId);
+            }
+
+        } else {
+            // INSERT
+            let insertData = {
+                user_id: user.id,
+                content: content,
+                allow_comments: allowComments,
+                scheduled_at: scheduledAt
+            };
+
+            if (currentPostContext === 'all') {
+                insertData.group_id = null;
+            } else if (currentPostContext === 'group') {
+                if (!currentGroupId) return;
+                insertData.group_id = currentGroupId;
+            } else {
+                return; // Should not happen
+            }
+
+            insertData.images = imageUrls;
+
+            const { error } = await supabase
+                .from('board_posts')
+                .insert([insertData]);
+
+            modalSubmitBtn.disabled = false;
+            modalSubmitBtn.textContent = '送信';
+
+            if (error) {
+                alert('投稿に失敗しました: ' + error.message);
+            } else {
+                postModal.classList.remove('show');
+                if (currentPostContext === 'all') {
+                    loadAllPosts();
+                } else {
+                    loadGroupPosts(currentGroupId);
+                }
             }
         }
     });
@@ -304,27 +408,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 board_comments(count)
             `)
             .is('group_id', null)
-            .is('group_id', null)
-            // Show posts that are (published AND <= now) OR (my future posts)
-            // Note: OR filter syntax in JS client: .or('condition1,condition2')
-            // condition1: scheduled_at.lte.NOW
-            // condition2: user_id.eq.MY_ID  <-- Actually this logic is tricky with single .or() because it might show ALL my posts regardless of time (which is fine)
-            // Let's try: (scheduled_at <= NOW) OR (user_id == ME)
-            // But we only want filtering on time.
-            // Actually, for a simple board:
-            // "Show all posts where scheduled_at <= NOW"
-            // UNION
-            // "Show my posts where scheduled_at > NOW"
-
-            // Supabase .or() with filters on different columns:
-            // .or(`scheduled_at.lte.${new Date().toISOString()},and(user_id.eq.${user.id},scheduled_at.gt.${new Date().toISOString()})`)
-            // This complex query string might be fragile. 
-
-            // Simpler approach: Fetch ALL and filter in JS? No, pagination/performance.
-            // Let's use the .or syntax carefully.
-            // .or('scheduled_at.lte.NOW, user_id.eq.ME') means "Time is past OR User is Me".
-            // If User is Me, I see all my posts (past and future). CORRECT.
-            // If Time is Past, I see everyone's posts. CORRECT.
             .or(`scheduled_at.lte.${new Date().toISOString()},user_id.eq.${user.id}`)
             .order('scheduled_at', { ascending: false })
             .order('created_at', { ascending: false });
@@ -473,8 +556,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         lightboxImg.src = url;
         lightboxModal.style.display = 'flex';
         setTimeout(() => lightboxModal.style.opacity = '1', 10);
-
-
     };
 
     const closeLightbox = () => {
@@ -506,19 +587,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (currentPostContext === 'all') {
                 loadAllPosts();
             } else {
-                // If we are in group view, reload group posts
-                // currentGroupId must be accessible
                 if (currentGroupId) {
                     loadGroupPosts(currentGroupId);
                 } else {
-                    // Fallback if context is weird, reload all or what? 
-                    // If context is group_list, actually we shouldn't be seeing posts usually?
-                    // Actually tab switching sets context.
-                    // If in group board view:
                     loadGroupPosts(currentGroupId);
                 }
             }
         }
+    };
+
+    // Edit function attached to window
+    window.editMemberPost = async (postId) => {
+        // Fetch full post details to populate modal
+        const { data, error } = await supabase
+            .from('board_posts')
+            .select('*')
+            .eq('id', postId)
+            .single();
+
+        if (error || !data) {
+            alert('投稿情報の取得に失敗しました。');
+            return;
+        }
+        openPostModal(data);
     };
 
     // --- Components ---
@@ -538,6 +629,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             // If it's a future post but NOT mine (shouldn't happen via API but safety), hide it
             if (isScheduledFuture && !isMyPost && !isAdmin) return '';
 
+            // Edit Permission: Own post OR Superadmin
+            const canEdit = isMyPost || isSuperAdmin;
+            const canDelete = isMyPost || isAdmin; // Admin can delete any post (existing logic)
+
             return `
             <div class="board-post ${isScheduledFuture ? 'scheduled-post-container' : ''}" style="position:relative;">
                 ${isScheduledFuture ?
@@ -547,7 +642,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <span class="bp-author">${post.profiles?.display_name || 'Unknown'}</span>
                     <div style="display:flex; align-items:center; gap:10px;">
                         <span class="bp-date">${scheduledDate.toLocaleString()}</span>
-                        ${(isMyPost || isAdmin) ?
+                        
+                        ${canEdit ?
+                    `<button onclick="editMemberPost('${post.id}')" style="background:none; border:none; color:var(--primary-color); cursor:pointer; font-size:0.8rem; text-decoration:underline;">編集</button>`
+                    : ''}
+                        
+                        ${canDelete ?
                     `<button onclick="deleteMemberPost('${post.id}')" style="background:none; border:none; color:#ff4d4d; cursor:pointer; font-size:0.8rem; text-decoration:underline;">削除</button>`
                     : ''}
                     </div>
@@ -586,7 +686,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     
                     ${post.allow_comments ? `
                         <div class="comment-form">
-                            <input type="text" id="comment-input-${post.id}" class="comment-input" placeholder="コメントを書く...">
+                            <textarea id="comment-input-${post.id}" class="comment-input" placeholder="コメントを書く..." rows="2" style="resize:vertical;"></textarea>
                             <button onclick="submitComment('${post.id}')" class="btn-comment-submit">送信</button>
                         </div>
                     ` : ''}
@@ -646,7 +746,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 : ''}
                     </div>
                 </div>
-                <div>${escapeHtml(comment.content)}</div>
+                <div>${formatCommentContent(comment.content)}</div>
             </div>
         `).join('');
     }
@@ -704,15 +804,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         let escaped = escapeHtml(text);
 
         // 2. Linkify URLs
-        // Simple regex to catch http/https URLs
-        // Note: We do this AFTER escaping so we don't break our own <a> tags, 
-        // and because user content won't have HTML tags anymore.
         const urlRegex = /(https?:\/\/[^\s]+)/g;
-
-        return escaped.replace(urlRegex, function (url) {
-            // Removed target="_blank" to handle via JS
+        let linked = escaped.replace(urlRegex, function (url) {
             return `<a href="${url}" class="external-link" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
         });
+
+        return linked;
+    }
+
+    function formatCommentContent(text) {
+        if (!text) return '';
+        let escaped = escapeHtml(text);
+
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        let linked = escaped.replace(urlRegex, function (url) {
+            return `<a href="${url}" class="external-link" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
+        });
+
+        // Explicitly replace newlines with <br> for comments
+        return linked.replace(/\n/g, '<br>');
     }
 
     // --- External Link Warning Logic ---

@@ -208,8 +208,6 @@
                     loadAdminUsers();
                 } else if (currentTab === 'pages') {
                     pagesManagerArea.style.display = 'block';
-                } else if (currentTab === 'pages') {
-                    pagesManagerArea.style.display = 'block';
                     loadAdminPages();
                 } else if (currentTab === 'system') {
                     systemManagerArea.style.display = 'block';
