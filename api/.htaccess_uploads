@@ -1,0 +1,17 @@
+# ディレクトリリスティングの禁止
+Options -Indexes
+
+# PHPなどのスクリプト実行を禁止
+<FilesMatch "\.(php|php5|php7|bg|pl|py|cgi|sh)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# 特定の拡張子のみアクセス許可（ホワイトリスト方式も検討可だが、ユーザーが多様なファイルをアップロードするため非推奨）
+# ここではスクリプト実行禁止と隠しファイルアクセスの禁止を優先
+
+# .htaccess などの隠しファイルへのアクセス禁止
+<FilesMatch "^\.">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>

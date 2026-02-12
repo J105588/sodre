@@ -747,8 +747,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     onmouseout="this.style.opacity=1"
                                 >`;
                         } else {
-                            const fname = url.split('/').pop();
-                            return `<a href="${url}" target="_blank" download 
+                            // Extract original name from query param if available
+                            let fname = url.split('/').pop();
+                            try {
+                                const urlObj = new URL(url);
+                                const originalName = urlObj.searchParams.get('name');
+                                if (originalName) {
+                                    fname = originalName;
+                                } else {
+                                    // Fallback: strip query string from physical filename
+                                    fname = fname.split('?')[0];
+                                }
+                            } catch (e) {
+                                fname = fname.split('?')[0];
+                            }
+
+                            return `<a href="${url}" target="_blank" download="${fname}" 
                                     style="display:inline-flex; align-items:center; gap:6px; padding:8px 14px; background:#f5f5f5; border-radius:6px; text-decoration:none; color:#333; font-size:0.85rem; transition:background 0.2s;"
                                     onmouseover="this.style.background='#eee'" onmouseout="this.style.background='#f5f5f5'">
                                     <i class="${getFileIconFromUrl(url)}" style="color:var(--primary-color); font-size:1.1rem;"></i>
@@ -944,12 +958,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function getFileIconFromUrl(url) {
-        const filename = url.split('/').pop();
+        const filename = url.split('/').pop().split('?')[0];
         return getFileIcon(filename);
     }
 
     function createFilePreviewHTML(url) {
-        const fname = decodeURIComponent(url.split('/').pop());
+        let fname = decodeURIComponent(url.split('/').pop());
+        try {
+            const urlObj = new URL(url);
+            const originalName = urlObj.searchParams.get('name');
+            if (originalName) {
+                fname = originalName;
+            } else {
+                fname = fname.split('?')[0];
+            }
+        } catch (e) {
+            fname = fname.split('?')[0];
+        }
+
         return `<div style="display:inline-flex; align-items:center; gap:5px; padding:8px 12px; background:#f5f5f5; border-radius:6px; font-size:0.85rem;">
             <i class="${getFileIconFromUrl(url)}" style="color:var(--primary-color);"></i> ${fname}
         </div>`;

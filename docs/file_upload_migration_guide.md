@@ -35,12 +35,25 @@ mkdir -p /home/ユーザー名/data.sodre.jp/public_html/uploads
 chmod 755 /home/ユーザー名/data.sodre.jp/public_html/uploads
 ```
 
-### 1.3 uploads ディレクトリの保護（任意）
+### 1.3 uploads ディレクトリの保護（**必須**）
 
-`uploads/.htaccess` を作成してPHP実行を禁止：
+`uploads/.htaccess` を作成して、PHPプログラムの実行とディレクトリ一覧表示を禁止します。
+リポジトリ内の `api/.htaccess_uploads` ファイルを、サーバー上の `uploads/.htaccess` として保存してください。
 
+**`.htaccess` の内容:**
 ```apache
-<FilesMatch "\.php$">
+# ディレクトリリスティングの禁止
+Options -Indexes
+
+# PHPなどのスクリプト実行を禁止
+<FilesMatch "\.(php|php5|php7|bg|pl|py|cgi|sh)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# .htaccess などの隠しファイルへのアクセス禁止
+<FilesMatch "^\.">
+    Order Allow,Deny
     Deny from all
 </FilesMatch>
 ```
@@ -88,6 +101,7 @@ const UPLOAD_API_KEY = 'ここに同じキーを入力';
 | `api/upload.php` | アップロードAPI |
 | `api/delete.php` | ファイル削除API（投稿削除時に物理削除） |
 | `api/cleanup.php` | 自動整理スクリプト |
+| `api/.htaccess_uploads` | uploadsディレクトリ保護用（サーバー上で `uploads/.htaccess` にリネーム） |
 | `api/.env.php` | 環境設定（APIキー設定済み） |
 | `config.js` | フロントエンド設定（APIキー設定済み） |
 | `members-area.html` | メンバーズエリアHTML |
