@@ -1,0 +1,7 @@
+feat: implement DB-backed maintenance whitelist and remove debug logs
+
+- Add `maintenance_whitelist` setting to `system_settings` table via migration.
+- Update `config.js` to fetch whitelist from DB, removing all hardcoded defaults.
+- Add whitelist management UI (textarea) to the Admin dashboard (`admin.html`, `admin.js`).
+- Remove all `console.log` and `console.error` statements from `config.js` for cleaner output.
+- Ensure realtime updates for whitelist changes.

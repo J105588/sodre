@@ -83,6 +83,13 @@
     const adminPagesList = document.getElementById('admin-pages-list');
     const addPageForm = document.getElementById('add-page-form');
 
+    // System Elements
+    const systemManagerArea = document.getElementById('system-manager-area');
+    const maintenanceForm = document.getElementById('maintenance-form');
+    const maintenanceToggle = document.getElementById('maintenance-toggle');
+    const maintenanceMessageInput = document.getElementById('maintenance-message-input');
+    const maintenanceWhitelistInput = document.getElementById('maintenance-whitelist-input');
+
 
 
     let quill;
@@ -201,7 +208,12 @@
                     loadAdminUsers();
                 } else if (currentTab === 'pages') {
                     pagesManagerArea.style.display = 'block';
+                } else if (currentTab === 'pages') {
+                    pagesManagerArea.style.display = 'block';
                     loadAdminPages();
+                } else if (currentTab === 'system') {
+                    systemManagerArea.style.display = 'block';
+                    loadSystemSettings();
                 } else {
                     postsEditorArea.style.display = 'block';
                     // Reset Post Editor
@@ -451,6 +463,48 @@
                 loadGroupMembers(currentManagingGroupId);
             }
             loadingOverlay.style.display = 'none'; // Hide
+        });
+
+
+
+
+        // --- System Settings ---
+        maintenanceForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            loadingOverlay.style.display = 'flex';
+
+            const enabled = maintenanceToggle.checked;
+            const message = maintenanceMessageInput.value;
+
+            // Parse whitelist
+            const whitelistRaw = maintenanceWhitelistInput.value;
+            const whitelist = whitelistRaw.split(',').map(s => s.trim()).filter(s => s.length > 0);
+
+            // Upsert system_settings (Maintenance Mode)
+            const { error: modeError } = await supabase
+                .from('system_settings')
+                .upsert({
+                    key: 'maintenance_mode',
+                    value: { enabled, message },
+                    updated_at: new Date().toISOString()
+                });
+
+            // Upsert system_settings (Whitelist)
+            const { error: listError } = await supabase
+                .from('system_settings')
+                .upsert({
+                    key: 'maintenance_whitelist',
+                    value: JSON.stringify(whitelist),
+                    updated_at: new Date().toISOString()
+                });
+
+            if (modeError || listError) {
+                console.error('Maintenance save error:', modeError || listError);
+                alert('設定の保存に失敗しました:\n' + ((modeError?.message || listError?.message)));
+            } else {
+                alert('メンテナンス設定を保存しました！');
+            }
+            loadingOverlay.style.display = 'none';
         });
 
         // --- Calendar Management ---
@@ -798,26 +852,54 @@
         if (error) {
             postsContainer.innerHTML = '<p>投稿の読み込みに失敗しました。</p>';
             console.error(error);
-        } else {
-            if (data.length === 0) {
-                postsContainer.innerHTML = '<p>投稿はありません。</p>';
-                return;
-            }
-
-            postsContainer.innerHTML = data.map(post => `
-                <div class="post-item">
-                    <div class="post-info">
-                        <strong>${escapeHtml(post.title)}</strong>
-                        <span style="font-size:0.8rem; color:#888; margin-left:10px;">${new Date(post.created_at).toLocaleDateString()}</span>
-                    </div>
-                    <div class="post-actions">
-                        <button onclick="deletePost('${post.id}')" class="btn-delete">Delete</button>
-                        <button onclick="editPost('${post.id}')" class="btn-primary" style="margin-left:5px; font-size:0.8rem; padding:8px 16px;">Edit</button>
-                    </div>
-                </div>
-            `).join('');
+            return;
         }
+
+        postsContainer.innerHTML = data.map(post => `
+            <div class="post-item">
+                <div class="post-info">
+                    <strong>${escapeHtml(post.title)}</strong>
+                    <span style="font-size:0.8rem; color:#666;">${new Date(post.created_at).toLocaleString()}</span>
+                </div>
+                <div class="post-actions">
+                     <button class="btn-primary" onclick="editPost('${post.id}')" style="font-size:0.8rem; padding:6px 12px; margin-right:5px;">Edit</button>
+                     <button class="btn-delete" onclick="deletePost('${post.id}')" style="font-size:0.8rem; padding:6px 12px;">Delete</button>
+                </div>
+            </div>
+        `).join('');
     }
+
+    async function loadSystemSettings() {
+        // Fetch current settings
+        const { data, error } = await supabase
+            .from('system_settings')
+            .select('value')
+            .eq('key', 'maintenance_mode')
+            .single();
+
+        if (data && data.value) {
+            const config = (typeof data.value === 'string') ? JSON.parse(data.value) : data.value;
+            maintenanceToggle.checked = config.enabled || false;
+            maintenanceMessageInput.value = config.message || '';
+        }
+
+        // Fetch current settings (Whitelist)
+        const { data: listData } = await supabase
+            .from('system_settings')
+            .select('value')
+            .eq('key', 'maintenance_whitelist')
+            .single();
+
+        if (listData && listData.value) {
+            const list = (typeof listData.value === 'string') ? JSON.parse(listData.value) : listData.value;
+            if (Array.isArray(list)) {
+                maintenanceWhitelistInput.value = list.join(', ');
+            }
+        }
+
+
+    }
+
 
     async function deletePost(id) {
         if (!confirm('本当にこの投稿を削除しますか？')) return;

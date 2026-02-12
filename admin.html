@@ -569,6 +569,56 @@
                 opacity: 1;
             }
         }
+
+        /* Toggle Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 26px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: var(--primary-color);
+        }
+
+        input:focus+.slider {
+            box-shadow: 0 0 1px var(--primary-color);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(24px);
+        }
     </style>
 
 </head>
@@ -626,6 +676,9 @@
                     </a>
                     <a class="nav-item tab-btn" data-tab="pages">
                         <i class="fas fa-file-alt"></i> ページ公開設定
+                    </a>
+                    <a class="nav-item tab-btn" data-tab="system">
+                        <i class="fas fa-cogs"></i> システム設定
                     </a>
                 </nav>
                 <div class="sidebar-footer">
@@ -792,6 +845,50 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- System Settings Area -->
+                <div id="system-manager-area" class="content-panel">
+                    <div class="admin-header">
+                        <h2>システム設定</h2>
+                    </div>
+
+                    <div class="editor-container">
+                        <h3>メンテナンスモード設定</h3>
+                        <p style="color:#666; margin-bottom:1.5rem;">
+                            メンテナンスモードを有効にすると、管理者以外のユーザーはサイトにアクセスできなくなり、メンテナンス画面が表示されます。
+                        </p>
+
+                        <form id="maintenance-form">
+                            <div class="form-group"
+                                style="display:flex; align-items:center; gap:10px; margin-bottom:2rem;">
+                                <label class="switch" style="margin:0;">
+                                    <input type="checkbox" id="maintenance-toggle">
+                                    <span class="slider round"></span>
+                                </label>
+                                <label for="maintenance-toggle"
+                                    style="margin:0; cursor:pointer;">メンテナンスモードを有効にする</label>
+                            </div>
+
+                            <div class="form-group">
+                                <label>表示メッセージ</label>
+                                <textarea id="maintenance-message-input" rows="5"
+                                    style="width:100%; padding:15px; border:1px solid #ddd; border-radius:6px; font-family:inherit; resize:vertical;"
+                                    placeholder="現在メンテナンス中です。しばらくお待ちください。"></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label>ホワイトリスト (アクセス許可ページ)</label>
+                                <p style="font-size:0.8rem; color:#666; margin-bottom:0.5rem;">カンマ区切りで入力 (例: admin.html,
+                                    login.html)</p>
+                                <textarea id="maintenance-whitelist-input" rows="2"
+                                    style="width:100%; padding:15px; border:1px solid #ddd; border-radius:6px; font-family:inherit; resize:vertical;"
+                                    placeholder="admin.html, login.html, maintenance.html"></textarea>
+                            </div>
+
+                            <button type="submit" class="btn-primary">設定を保存</button>
+                        </form>
                     </div>
                 </div>
 
