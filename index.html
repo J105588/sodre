@@ -17,7 +17,18 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Quill.js CSS -->
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <link rel="manifest" href="manifest.json">
     <script src="page-guard.js"></script>
+    <script src="pwa-install.js"></script>
+    <script src="pwa-update.js"></script>
+    <script>
+        // Redirect to login.html if PWA (Standalone)
+        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+            // Check if we are already on login.html to avoid loops (though this is index.html)
+            // But if index.html is the "Private/Coming Soon" page and login.html is the App Login:
+            window.location.replace('login.html');
+        }
+    </script>
 </head>
 
 <body>

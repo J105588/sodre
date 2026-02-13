@@ -18,6 +18,25 @@ window.GAS_OTP_URL = GAS_OTP_URL;
 window.UPLOAD_API_URL = UPLOAD_API_URL;
 window.UPLOAD_API_KEY = UPLOAD_API_KEY;
 
+// Firebase Configuration
+window.FIREBASE_CONFIG = {
+    apiKey: "AIzaSyBst9EF5I70uhKqzbg6ajOod6lLa4e6o_Q",
+    authDomain: "sodre-6081d.firebaseapp.com",
+    projectId: "sodre-6081d",
+    storageBucket: "sodre-6081d.firebasestorage.app",
+    messagingSenderId: "528869542420",
+    appId: "1:528869542420:web:67377332a10bc75dd7b501",
+    measurementId: "G-EB765G7NE9"
+};
+
+// VAPID Public Key (Web Push Certificate)
+window.FIREBASE_VAPID_KEY = "BM942yHYNqVnsOgxPz-CPcZHkECm0xWVwNnYxC-SqNFE2E5xZTXnHnPPBMaA_VbE4ASAw5jhrkg253uqKsHqIDQ";
+
+// GAS Notification URL (Set this after deploying GAS)
+window.GAS_NOTIFICATION_URL = 'https://script.google.com/macros/s/AKfycbweGoDxaxHj7bVxDl_hWLdrWILxMjeKdzHGQGpUEkiNH5GwthtSIFesOfQlK9kkt-6hMQ/exec'; // TODO: Paste your GAS Web App URL here
+
+
+
 if (supabaseProvider && supabaseProvider.createClient) {
     window.supabaseClient = supabaseProvider.createClient(SUPABASE_URL, SUPABASE_KEY);
 

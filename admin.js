@@ -90,6 +90,15 @@
     const maintenanceMessageInput = document.getElementById('maintenance-message-input');
     const maintenanceWhitelistInput = document.getElementById('maintenance-whitelist-input');
 
+    // Notification Elements
+    const notificationManagerArea = document.getElementById('notification-manager-area');
+    const notificationForm = document.getElementById('notification-form');
+    const notifTargetSelect = document.getElementById('notif-target-select');
+    const notifGroupSelect = document.getElementById('notif-group-select');
+    const notifUserSelect = document.getElementById('notif-user-select');
+    const notifTargetGroupContainer = document.getElementById('notif-target-group-container');
+    const notifTargetUserContainer = document.getElementById('notif-target-user-container');
+
 
 
     let quill;
@@ -212,6 +221,9 @@
                 } else if (currentTab === 'system') {
                     systemManagerArea.style.display = 'block';
                     loadSystemSettings();
+                } else if (currentTab === 'notifications') {
+                    notificationManagerArea.style.display = 'block';
+                    // No initial load needed
                 } else {
                     postsEditorArea.style.display = 'block';
                     // Reset Post Editor
@@ -734,6 +746,104 @@
                 loadAdminUsers();
             }
             loadingOverlay.style.display = 'none';
+        });
+
+        // --- Notification Management ---
+        notifTargetSelect.addEventListener('change', (e) => {
+            const val = e.target.value;
+            notifTargetGroupContainer.style.display = 'none';
+            notifTargetUserContainer.style.display = 'none';
+            if (val === 'group') {
+                notifTargetGroupContainer.style.display = 'block';
+                loadGroupsForSelect();
+            } else if (val === 'user') {
+                notifTargetUserContainer.style.display = 'block';
+                loadUsersForSelect();
+            }
+        });
+
+        async function loadGroupsForSelect() {
+            const { data } = await supabase.from('groups').select('id, name');
+            if (data) {
+                notifGroupSelect.innerHTML = '<option value="">グループを選択</option>' +
+                    data.map(g => `<option value="${g.id}">${escapeHtml(g.name)}</option>`).join('');
+            }
+        }
+
+        async function loadUsersForSelect() {
+            const { data } = await supabase.from('profiles').select('id, display_name');
+            if (data) {
+                notifUserSelect.innerHTML = '<option value="">ユーザーを選択</option>' +
+                    data.map(u => `<option value="${u.id}">${escapeHtml(u.display_name)}</option>`).join('');
+            }
+        }
+
+        notificationForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            loadingOverlay.style.display = 'flex';
+
+            const targetType = notifTargetSelect.value;
+            const title = document.getElementById('notif-title').value;
+            const body = document.getElementById('notif-body').value;
+            const url = document.getElementById('notif-url').value;
+
+            let targetUserIds = [];
+
+            try {
+                if (targetType === 'all') {
+                    // Fetch ALL users who have tokens (or let backend handle it)
+                    // For safety and transparency, let's fetch IDs of all users
+                    const { data: users } = await supabase.from('profiles').select('id');
+                    if (users) targetUserIds = users.map(u => u.id);
+
+                } else if (targetType === 'group') {
+                    const groupId = notifGroupSelect.value;
+                    if (!groupId) throw new Error('グループを選択してください');
+                    const { data: members } = await supabase.from('group_members').select('user_id').eq('group_id', groupId);
+                    if (members) targetUserIds = members.map(m => m.user_id);
+
+                } else if (targetType === 'user') {
+                    const userId = notifUserSelect.value;
+                    if (!userId) throw new Error('ユーザーを選択してください');
+                    targetUserIds = [userId];
+                }
+
+                if (targetUserIds.length === 0) {
+                    throw new Error('送信対象のユーザーが見つかりません (または0人です)');
+                }
+
+                if (!window.GAS_NOTIFICATION_URL) {
+                    throw new Error('通知サーバー(GAS)のURLが設定されていません。config.jsを確認してください。');
+                }
+
+                // Call GAS Web App
+                const response = await fetch(window.GAS_NOTIFICATION_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain;charset=utf-8',
+                    },
+                    body: JSON.stringify({
+                        target_user_ids: targetUserIds,
+                        title: title,
+                        body: body,
+                        url: url
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!result.success) throw new Error(result.error || '送信に失敗しました');
+
+                alert(`送信成功: ${targetUserIds.length}人に送信リクエストを送りました`);
+                notificationForm.reset();
+
+            } catch (err) {
+                console.error(err);
+                alert('送信エラー: ' + err.message);
+            } finally {
+                loadingOverlay.style.display = 'none';
+            }
         });
 
     });

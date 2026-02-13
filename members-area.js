@@ -13,6 +13,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     if (!supabase) return;
 
+    // --- PWA Standalone Detection ---
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches
+        || window.navigator.standalone === true;
+
     // --- DOM Elements ---
     const displayNameEl = document.getElementById('user-display-name');
     const logoutBtn = document.getElementById('logout-btn');
@@ -35,6 +39,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const modalTitle = document.getElementById('modal-title');
     const modalPostContent = document.getElementById('modal-post-content');
     const modalSubmitBtn = document.getElementById('modal-submit-btn');
+    // --- Firebase & Notifications ---
+    // Initialize Firebase (Compat)
+    let messaging = null;
+    try {
+        if (firebase.messaging.isSupported()) {
+            firebase.initializeApp(window.FIREBASE_CONFIG);
+            messaging = firebase.messaging();
+        }
+    } catch (e) {
+        console.error('Firebase Init Error:', e);
+    }
+
 
     // New Schedule Elements
     const scheduleToggle = document.getElementById('schedule-toggle');
@@ -51,14 +67,86 @@ document.addEventListener('DOMContentLoaded', async () => {
     let isSuperAdmin = false; // Superadmin State
     let isEditingPostId = null; // Track if we are editing a post
 
-    // --- Auth Check ---
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-        window.location.href = 'login.html';
-        return;
+    // --- Auth Check (PWA: セッション自動更新) ---
+    let currentSession;
+    if (isPWA) {
+        // PWAではセッションを自動更新して維持する
+        const { data, error } = await supabase.auth.refreshSession();
+        if (error || !data.session) {
+            // リフレッシュ失敗 → 再ログイン
+            const { data: fallback } = await supabase.auth.getSession();
+            if (!fallback.session) {
+                window.location.href = 'login.html';
+                return;
+            }
+            currentSession = fallback.session;
+        } else {
+            currentSession = data.session;
+        }
+    } else {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+            window.location.href = 'login.html';
+            return;
+        }
+        currentSession = session;
     }
+    const session = currentSession;
     const user = session.user;
     loadProfile(user.id);
+
+    // --- Firebase: Token refresh & Foreground message handling (after session is ready) ---
+    async function refreshFCMToken() {
+        if (!messaging || Notification.permission !== 'granted') return;
+        try {
+            let registration = await navigator.serviceWorker.getRegistration();
+            if (!registration) registration = await navigator.serviceWorker.ready;
+            const token = await messaging.getToken({
+                vapidKey: window.FIREBASE_VAPID_KEY,
+                serviceWorkerRegistration: registration
+            });
+            if (token) {
+                const ua = navigator.userAgent;
+                let deviceType = 'web';
+                if (/android/i.test(ua)) deviceType = 'android';
+                else if (/iPad|iPhone|iPod/.test(ua)) deviceType = 'ios';
+                await supabase.from('user_fcm_tokens').upsert({
+                    user_id: session.user.id,
+                    token: token,
+                    device_type: deviceType
+                }, { onConflict: 'user_id,token' });
+            }
+        } catch (err) {
+            console.error('FCM token refresh error:', err);
+        }
+    }
+
+    // Initial token refresh
+    await refreshFCMToken();
+
+    // Periodic token refresh (every 30 minutes)
+    setInterval(refreshFCMToken, 30 * 60 * 1000);
+
+    // Handle foreground messages as proper push notifications
+    if (messaging) {
+        messaging.onMessage((payload) => {
+            console.log('Foreground message received:', payload);
+            const title = payload.data?.title || 'SoDRé';
+            const body = payload.data?.body || '';
+            if (Notification.permission === 'granted') {
+                const notif = new Notification(title, {
+                    body: body,
+                    icon: 'https://lh3.googleusercontent.com/a/ACg8ocKrevxxn-jyPFTJ3zy5r6EFRGmv0Tp8-qWyb3bMaXduuMzHS0Y=s400-c',
+                    data: payload.data
+                });
+                notif.onclick = () => {
+                    window.focus();
+                    const url = payload.data?.url;
+                    if (url) window.location.href = url;
+                };
+            }
+        });
+    }
 
     // --- Profile Logic ---
     async function loadProfile(uid) {
@@ -87,10 +175,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        setupSessionTimeout(); // Start inactivity timer
+        if (!isPWA) {
+            setupSessionTimeout(); // ブラウザ使用時のみタイムアウト適用
+        }
     }
 
-    // --- Session Expiration Logic (60 mins) ---
+    // --- Session Expiration Logic (60 mins) - PWAでは無効 ---
     function setupSessionTimeout() {
         const TIMEOUT_DURATION = 60 * 60 * 1000; // 60 minutes
         const STORAGE_KEY = 'sodre_last_activity';
@@ -170,6 +260,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Logout ---
     logoutBtn.addEventListener('click', async () => {
+        // Delete FCM Token from DB before logout
+        try {
+            if (messaging) {
+                let registration = await navigator.serviceWorker.getRegistration();
+                if (!registration) registration = await navigator.serviceWorker.ready;
+                if (registration) {
+                    const token = await messaging.getToken({
+                        vapidKey: window.FIREBASE_VAPID_KEY,
+                        serviceWorkerRegistration: registration
+                    });
+                    if (token) {
+                        await supabase.from('user_fcm_tokens').delete().eq('token', token);
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Token cleanup error:', e);
+        }
         await supabase.auth.signOut();
         window.location.href = 'login.html';
     });
@@ -201,8 +309,58 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    // --- Initial Load ---
-    loadAllPosts();
+    // --- Initial Load (with URL parameter routing) ---
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    const groupIdParam = urlParams.get('group_id');
+
+    if (tabParam === 'group' && groupIdParam) {
+        // URLパラメータでグループ指定 → グループビューを開く
+        viewAll.style.display = 'none';
+        viewGroups.style.display = 'block';
+        tabBtns.forEach(b => {
+            b.classList.toggle('active', b.dataset.tab === 'groups');
+        });
+
+        // グループ情報を取得して開く
+        (async () => {
+            const { data: membership } = await supabase
+                .from('group_members')
+                .select('can_post, groups(id, name)')
+                .eq('group_id', groupIdParam)
+                .eq('user_id', user.id)
+                .single();
+
+            if (membership && membership.groups) {
+                window.openGroup(membership.groups.id, membership.groups.name, membership.can_post);
+            } else {
+                // メンバーでない場合、管理者チェック
+                if (isAdmin) {
+                    const { data: grp } = await supabase
+                        .from('groups')
+                        .select('id, name')
+                        .eq('id', groupIdParam)
+                        .single();
+                    if (grp) {
+                        window.openGroup(grp.id, grp.name, true);
+                    } else {
+                        loadAllPosts();
+                    }
+                } else {
+                    loadAllPosts();
+                }
+            }
+        })();
+
+        // URLパラメータをクリーン
+        window.history.replaceState({}, '', window.location.pathname);
+    } else {
+        loadAllPosts();
+        // URLにパラメータがあればクリーン
+        if (tabParam) {
+            window.history.replaceState({}, '', window.location.pathname);
+        }
+    }
 
     // --- Modal / FAB Logic ---
     fabPost.addEventListener('click', () => {
@@ -482,6 +640,43 @@ document.addEventListener('DOMContentLoaded', async () => {
                     loadAllPosts();
                 } else {
                     loadGroupPosts(currentGroupId);
+                }
+
+                // --- Auto Notification ---
+                if (window.GAS_NOTIFICATION_URL) {
+                    try {
+                        const truncatedContent = content.length > 50 ? content.substring(0, 50) + '...' : content;
+                        let notifPayload;
+
+                        if (currentPostContext === 'group' && currentGroupId) {
+                            // グループ投稿 → グループメンバーのみに通知
+                            notifPayload = {
+                                group_id: currentGroupId,
+                                exclude_user_id: user.id,
+                                title: 'グループに新しい投稿があります',
+                                body: truncatedContent,
+                                url: `/members-area.html?tab=group&group_id=${currentGroupId}`
+                            };
+                        } else {
+                            // 全体掲示板 → 全ユーザーに通知
+                            notifPayload = {
+                                broadcast: true,
+                                exclude_user_id: user.id,
+                                title: '新しい投稿があります',
+                                body: truncatedContent,
+                                url: '/members-area.html?tab=all'
+                            };
+                        }
+
+                        fetch(window.GAS_NOTIFICATION_URL, {
+                            method: 'POST',
+                            body: JSON.stringify(notifPayload),
+                            mode: 'no-cors',
+                            headers: { 'Content-Type': 'text/plain' }
+                        });
+                    } catch (notifErr) {
+                        console.error('Auto notification error:', notifErr);
+                    }
                 }
             }
         }

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>オフライン - SoDRé</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            font-family: "Zen Kaku Gothic New", sans-serif;
+            text-align: center;
+            padding: 50px 20px;
+        }
+
+        .offline-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #555;
+        }
+
+        p {
+            color: #888;
+        }
+
+        .retry-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: var(--primary-color, #1e3a8a);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="offline-container">
+        <h1>インターネットに接続されていません</h1>
+        <p>恐れ入りますが、通信環境をご確認の上、再度お試しください。</p>
+        <button class="retry-btn" onclick="window.location.reload()">再読み込み</button>
+    </div>
+
+    <script src="/pwa-install.js"></script>
+    <script src="/pwa-update.js"></script>
+</body>
+
+</html>
