@@ -47,7 +47,7 @@ if (supabaseProvider && supabaseProvider.createClient) {
             // Quiet failure
         }
 
-        const isWhitelisted = WHITELIST.includes(pageName);
+        const isWhitelisted = WHITELIST.includes(pageName) || pageName === 'maintenance.html';
 
         if (isWhitelisted) {
             // maintenance.html の場合のみ、OFFなら index に戻す処理が必要
@@ -91,7 +91,8 @@ if (supabaseProvider && supabaseProvider.createClient) {
                     }
                 }
 
-                // 一般ユーザー → リダイレクト
+                // 一般ユーザー → リダイレクト (元のURLを保存)
+                sessionStorage.setItem('maintenance_return_url', window.location.href);
                 window.location.replace('maintenance.html');
                 return;
             }
@@ -130,7 +131,9 @@ async function checkIfMaintenanceOff() {
         if (data && data.value) {
             const config = (typeof data.value === 'string') ? JSON.parse(data.value) : data.value;
             if (config.enabled === false) {
-                window.location.replace('index.html');
+                const returnUrl = sessionStorage.getItem('maintenance_return_url') || 'index.html';
+                sessionStorage.removeItem('maintenance_return_url'); // Clear after use
+                window.location.replace(returnUrl);
             }
         }
     } catch (e) {
@@ -150,17 +153,12 @@ function setupRealtimeWatch(pageName) {
                 const newVal = (typeof raw === 'string') ? JSON.parse(raw) : raw;
 
                 if (newVal && newVal.enabled === true) {
-                    // メンテナンスON → リロード（チェックが再実行される）
-                    // ※ 注: ホワイトリスト自体が更新された場合を考慮して、リロードが安全
+                    // メンテナンス開始 → リロードしてチェック通過させる（管理者以外はmaintenance.htmlへ）
                     window.location.reload();
                 } else if (newVal && newVal.enabled === false) {
-                    // メンテナンスOFF → maintenance.html にいたら戻す
-                    if (pageName === 'maintenance.html') {
-                        window.location.replace('index.html');
-                    }
-                    // バナー削除
-                    const banner = document.getElementById('maintenance-banner');
-                    if (banner) banner.remove();
+                    // メンテナンス終了 → 即時リロードして通常ページを表示
+                    // maintenance.html にいる場合も、他のページにいる場合（バナー表示中）もリロードが確実
+                    window.location.reload();
                 }
             }
         )
