@@ -65,6 +65,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.getElementById('reset-email').value = email;
                 } else {
                     // Success - Redirect to Members Area
+                    // Set initial activity timestamp to prevent immediate logout from stale data
+                    localStorage.setItem('sodre_last_activity', Date.now().toString());
                     window.location.href = 'members-area.html';
                 }
             } catch (err) {

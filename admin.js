@@ -245,23 +245,58 @@
             window.location.reload();
         });
 
+        // --- Helpers ---
+        function isImageUrl(url) {
+            if (!url) return false;
+            if (url.startsWith('data:image')) return true;
+            return /\.(jpeg|jpg|gif|png|webp|bmp|svg)$/i.test(url.split('?')[0]);
+        }
+
+        function getFileIconHtml(fileName) {
+            const ext = fileName.split('.').pop().toLowerCase();
+            let iconClass = 'fas fa-file';
+            if (['pdf'].includes(ext)) iconClass = 'fas fa-file-pdf';
+            if (['doc', 'docx'].includes(ext)) iconClass = 'fas fa-file-word';
+            if (['xls', 'xlsx'].includes(ext)) iconClass = 'fas fa-file-excel';
+            if (['ppt', 'pptx'].includes(ext)) iconClass = 'fas fa-file-powerpoint';
+            if (['zip', 'rar', '7z'].includes(ext)) iconClass = 'fas fa-file-archive';
+            if (['mp3', 'wav', 'ogg', 'm4a'].includes(ext)) iconClass = 'fas fa-file-audio';
+            if (['mp4', 'mov', 'avi', 'webm'].includes(ext)) iconClass = 'fas fa-file-video';
+            return `<i class="${iconClass}" style="font-size:30px; color:#555;"></i>`;
+        }
+
         // --- Post Management ---
         // Handle Image Selection
         imageInput.addEventListener('change', (e) => {
             const files = Array.from(e.target.files);
             if (files.length > 0) {
                 files.forEach(file => {
-                    const reader = new FileReader();
-                    reader.onload = (ev) => {
-                        const img = document.createElement('img');
-                        img.src = ev.target.result;
-                        img.style.width = '100px';
-                        img.style.height = '100px';
-                        img.style.objectFit = 'cover';
-                        img.style.borderRadius = '4px';
-                        imagePreview.appendChild(img);
+                    if (file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                            const img = document.createElement('img');
+                            img.src = ev.target.result;
+                            img.style.width = '100px';
+                            img.style.height = '100px';
+                            img.style.objectFit = 'cover';
+                            img.style.borderRadius = '4px';
+                            imagePreview.appendChild(img);
+                        }
+                        reader.readAsDataURL(file);
+                    } else {
+                        const div = document.createElement('div');
+                        div.style.width = '100px';
+                        div.style.height = '100px';
+                        div.style.display = 'flex';
+                        div.style.flexDirection = 'column';
+                        div.style.alignItems = 'center';
+                        div.style.justifyContent = 'center';
+                        div.style.border = '1px solid #ddd';
+                        div.style.borderRadius = '4px';
+                        div.style.background = '#f9f9f9';
+                        div.innerHTML = `${getFileIconHtml(file.name)}<span style="font-size:0.7rem; margin-top:5px; text-align:center; word-break:break-all; max-width:90%;">${escapeHtml(file.name)}</span>`;
+                        imagePreview.appendChild(div);
                     }
-                    reader.readAsDataURL(file);
                     selectedImages.push(file); // Store file object
                 });
             }
@@ -286,10 +321,18 @@
             // 2. Build Images HTML from selectedImages (File objects)
             let imagesHtml = '';
             if (selectedImages && selectedImages.length > 0) {
-                imagesHtml = '<div class="post-images" style="display:flex; gap:10px; overflow-x:auto; margin-bottom:1rem;">';
+                imagesHtml = '<div class="post-images" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:1rem;">';
                 selectedImages.forEach(file => {
-                    const imgUrl = URL.createObjectURL(file);
-                    imagesHtml += `<img src="${imgUrl}">`;
+                    if (file.type.startsWith('image/')) {
+                        const imgUrl = URL.createObjectURL(file);
+                        imagesHtml += `<img src="${imgUrl}" style="max-height:200px; max-width:100%; border-radius:4px;">`;
+                    } else {
+                        imagesHtml += `
+                            <div style="padding:10px; border:1px solid #eee; border-radius:4px; display:flex; align-items:center; gap:5px; background:#f9f9f9;">
+                                ${getFileIconHtml(file.name)}
+                                <span>${escapeHtml(file.name)}</span>
+                            </div>`;
+                    }
                 });
                 imagesHtml += '</div>';
             }
@@ -573,17 +616,32 @@
             if (files.length > 0) {
                 const previewArea = document.getElementById('edit-image-preview');
                 files.forEach(file => {
-                    const reader = new FileReader();
-                    reader.onload = (ev) => {
-                        const img = document.createElement('img');
-                        img.src = ev.target.result;
-                        img.style.width = '80px';
-                        img.style.height = '80px';
-                        img.style.objectFit = 'cover';
-                        img.style.borderRadius = '4px';
-                        previewArea.appendChild(img);
+                    if (file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                            const img = document.createElement('img');
+                            img.src = ev.target.result;
+                            img.style.width = '80px';
+                            img.style.height = '80px';
+                            img.style.objectFit = 'cover';
+                            img.style.borderRadius = '4px';
+                            previewArea.appendChild(img);
+                        }
+                        reader.readAsDataURL(file);
+                    } else {
+                        const div = document.createElement('div');
+                        div.style.width = '80px';
+                        div.style.height = '80px';
+                        div.style.display = 'flex';
+                        div.style.flexDirection = 'column';
+                        div.style.alignItems = 'center';
+                        div.style.justifyContent = 'center';
+                        div.style.border = '1px solid #ddd';
+                        div.style.borderRadius = '4px';
+                        div.style.background = '#f9f9f9';
+                        div.innerHTML = `${getFileIconHtml(file.name)}<span style="font-size:0.6rem; margin-top:5px; text-align:center; word-break:break-all; max-width:90%;">${escapeHtml(file.name)}</span>`;
+                        previewArea.appendChild(div);
                     }
-                    reader.readAsDataURL(file);
                     editSelectedImages.push(file);
                 });
             }
@@ -1178,13 +1236,27 @@
     function renderCurrentImages() {
         const container = document.getElementById('edit-current-images');
         if (!container) return;
-        container.innerHTML = currentPostImages.map((url, idx) => `
+        container.innerHTML = currentPostImages.map((url, idx) => {
+            if (isImageUrl(url)) {
+                return `
                     <div style="position:relative; display:inline-block;">
                         <img src="${url}" style="width:80px; height:80px; object-fit:cover; border-radius:4px;">
-                            <button type="button" onclick="window.removeExistingImage(${idx})"
-                                style="position:absolute; top:-5px; right:-5px; background:red; color:white; border:none; border-radius:50%; width:20px; height:20px; font-size:12px; cursor:pointer;">&times;</button>
-                        </div>
-                `).join('');
+                        <button type="button" onclick="window.removeExistingImage(${idx})"
+                            style="position:absolute; top:-5px; right:-5px; background:red; color:white; border:none; border-radius:50%; width:20px; height:20px; font-size:12px; cursor:pointer;">&times;</button>
+                    </div>
+                `;
+            } else {
+                const fileName = url.split('/').pop().split('?')[0];
+                return `
+                    <div style="position:relative; display:inline-block; width:80px; height:80px; border:1px solid #ddd; border-radius:4px; background:#f9f9f9; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                        ${getFileIconHtml(fileName)}
+                        <span style="font-size:0.6rem; word-break:break-all; max-width:90%; text-align:center;">${escapeHtml(fileName)}</span>
+                        <button type="button" onclick="window.removeExistingImage(${idx})"
+                            style="position:absolute; top:-5px; right:-5px; background:red; color:white; border:none; border-radius:50%; width:20px; height:20px; font-size:12px; cursor:pointer;">&times;</button>
+                    </div>
+                `;
+            }
+        }).join('');
     }
 
     async function loadAllUsersForSelect() {

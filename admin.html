@@ -538,9 +538,24 @@
             border-radius: 8px;
             width: 90%;
             max-width: 600px;
+            max-height: 90vh;
+            /* Ensure fits in viewport */
+            overflow-y: auto;
+            /* Scrollable if tall */
+            scrollbar-width: thin;
+            /* Firefox */
             position: relative;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
             animation: slideUp 0.3s ease;
+        }
+
+        /* Mobile Adjustments */
+        @media (max-width: 600px) {
+            .modal-content {
+                width: 95%;
+                padding: 1.5rem;
+                border-radius: 8px;
+            }
         }
 
         .close-modal {
@@ -727,8 +742,8 @@
                             </div>
 
                             <div class="form-group">
-                                <label>画像 (選択時のみアップロード)</label>
-                                <input type="file" id="post-image" multiple accept="image/*">
+                                <label>ファイル (最大100MB, 選択時のみアップロード)</label>
+                                <input type="file" id="post-image" multiple>
                                 <div id="image-preview"
                                     style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
                                 </div>
@@ -975,8 +990,8 @@
                     </div>
 
                     <!-- Add New -->
-                    <label style="font-size:0.9rem; color:#666;">画像の追加</label>
-                    <input type="file" id="edit-post-image" multiple accept="image/*">
+                    <label style="font-size:0.9rem; color:#666;">ファイルの追加</label>
+                    <input type="file" id="edit-post-image" multiple>
                     <div id="edit-image-preview" style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;"></div>
                 </div>
 

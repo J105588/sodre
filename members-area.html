@@ -252,8 +252,23 @@
             border-radius: 12px;
             width: 90%;
             max-width: 700px;
+            max-height: 90vh;
+            /* Ensure fits in viewport */
+            overflow-y: auto;
+            /* Scrollable if tall */
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
             position: relative;
+            scrollbar-width: thin;
+            /* Firefox */
+        }
+
+        /* Mobile Adjustments */
+        @media (max-width: 600px) {
+            .modal-content {
+                width: 95%;
+                padding: 1.5rem;
+                border-radius: 8px;
+            }
         }
 
         .close-modal {
@@ -354,9 +369,10 @@
             <!-- Toolbar -->
             <div class="post-toolbar">
                 <div class="toolbar-left">
-                    <label for="modal-post-image" class="toolbar-btn" title="ファイルを添付">
+                    <label for="modal-post-image" class="toolbar-btn" title="ファイルを添付 (最大100MB)">
                         <i class="fas fa-paperclip"></i>
                     </label>
+                    <span style="font-size:0.7rem; color:#999; margin-left:4px;">(Max 100MB)</span>
                     <input type="file" id="modal-post-image" multiple style="display:none;">
 
                     <div class="toolbar-separator"></div>

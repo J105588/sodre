@@ -93,24 +93,79 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Session Expiration Logic (60 mins) ---
     function setupSessionTimeout() {
         const TIMEOUT_DURATION = 60 * 60 * 1000; // 60 minutes
-        let timeout;
+        const STORAGE_KEY = 'sodre_last_activity';
 
-        const resetTimer = () => {
-            clearTimeout(timeout);
-            timeout = setTimeout(async () => {
-                alert('Session expired due to inactivity.');
-                await supabase.auth.signOut();
-                window.location.href = 'login.html';
-            }, TIMEOUT_DURATION);
+        // Initialize or update last activity
+        const updateActivity = () => {
+            localStorage.setItem(STORAGE_KEY, Date.now().toString());
         };
 
-        // Listen for activity
-        const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
-        events.forEach(event => {
-            document.addEventListener(event, resetTimer);
+        // Check timeout
+        const checkTimeout = async () => {
+            // If already on login page, do nothing (safety)
+            if (window.location.pathname.endsWith('login.html')) return;
+
+            const lastActivity = parseInt(localStorage.getItem(STORAGE_KEY) || '0');
+            const now = Date.now();
+
+            // If lastActivity is 0 (not set) or difference > duration
+            if (lastActivity > 0 && (now - lastActivity > TIMEOUT_DURATION)) {
+                console.log('Session expired due to inactivity');
+                // Clear storage to prevent loops
+                localStorage.removeItem(STORAGE_KEY);
+
+                try {
+                    await supabase.auth.signOut();
+                } catch (e) { console.error('SignOut error', e); }
+
+                alert('一定時間操作がなかったため、ログアウトしました。');
+                window.location.href = 'login.html';
+            }
+        };
+
+        // Set initial time if not set
+        if (!localStorage.getItem(STORAGE_KEY)) {
+            updateActivity();
+        }
+
+        // Periodic check (every 1 minute)
+        // This is still needed for desktop/active users
+        setInterval(checkTimeout, 60 * 1000);
+
+        // Immediate check on visibility change (Mobile wake up)
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                checkTimeout();
+                // Optionally update activity here if simply looking counts as activity
+                // But safer to wait for interaction
+            }
         });
 
-        resetTimer(); // Start timer
+        // Also check on pageshow (Back/Forward cache restore)
+        window.addEventListener('pageshow', () => {
+            checkTimeout();
+        });
+
+        // Listen for user activity to update timestamp
+        // Throttle to avoid excessive writes
+        let throttleTimer;
+        const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+        const throttledUpdate = () => {
+            if (!throttleTimer) {
+                // Update and reset timer
+                updateActivity();
+                throttleTimer = setTimeout(() => {
+                    throttleTimer = null;
+                }, 30000); // Update max once per 30 seconds
+            }
+        };
+
+        events.forEach(event => {
+            document.addEventListener(event, throttledUpdate);
+        });
+
+        // Initial update
+        updateActivity();
     }
 
     // --- Logout ---
@@ -737,12 +792,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 </div>
                 ${post.images && post.images.length > 0 ? `
-                    <div style="display:flex; gap:10px; overflow-x:auto; margin-bottom:10px; flex-wrap:wrap;">
+                    <div style="display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
                         ${post.images.map(url => {
                         if (isImageUrl(url)) {
                             return `<img src="${url}" 
                                     onclick="openLightbox('${url}')"
-                                    style="height:100px; width:auto; border-radius:4px; cursor:pointer; transition:opacity 0.2s;" 
+                                    style="max-width:100%; height:auto; max-height:200px; border-radius:4px; cursor:pointer; transition:opacity 0.2s; object-fit: contain;" 
                                     onmouseover="this.style.opacity=0.8" 
                                     onmouseout="this.style.opacity=1"
                                 >`;
@@ -951,7 +1006,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             'ppt': 'fas fa-file-powerpoint', 'pptx': 'fas fa-file-powerpoint',
             'txt': 'fas fa-file-alt',
             'zip': 'fas fa-file-archive', 'rar': 'fas fa-file-archive',
-            'mp3': 'fas fa-file-audio', 'wav': 'fas fa-file-audio', 'ogg': 'fas fa-file-audio',
+            'mp3': 'fas fa-file-audio', 'wav': 'fas fa-file-audio', 'ogg': 'fas fa-file-audio', 'm4a': 'fas fa-file-audio',
             'mp4': 'fas fa-file-video', 'mov': 'fas fa-file-video', 'avi': 'fas fa-file-video', 'webm': 'fas fa-file-video',
         };
         return iconMap[ext] || 'fas fa-file';
