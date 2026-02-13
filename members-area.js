@@ -17,6 +17,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const isPWA = window.matchMedia('(display-mode: standalone)').matches
         || window.navigator.standalone === true;
 
+    // PWA初回起動: 強制ログアウトしてログイン画面へ
+    if (isPWA && !localStorage.getItem('sodre_pwa_initialized')) {
+        localStorage.setItem('sodre_pwa_initialized', 'true');
+        try { await supabase.auth.signOut(); } catch (e) { /* ignore */ }
+        window.location.replace('login.html');
+        return;
+    }
+
     // --- DOM Elements ---
     const displayNameEl = document.getElementById('user-display-name');
     const logoutBtn = document.getElementById('logout-btn');
@@ -121,7 +129,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Initial token refresh
+    // Token refresh (permission is managed on login.js)
     await refreshFCMToken();
 
     // Periodic token refresh (every 30 minutes)
@@ -175,9 +183,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        if (!isPWA) {
-            setupSessionTimeout(); // ブラウザ使用時のみタイムアウト適用
-        }
+        // セッションタイムアウトは無効化（自動ログアウトなし）
+        // setupSessionTimeout();
     }
 
     // --- Session Expiration Logic (60 mins) - PWAでは無効 ---

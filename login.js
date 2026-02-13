@@ -1,9 +1,8 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // DOM Elements
-    const loginForm = document.getElementById('member-login-form'); // Renamed from 'form' in edit to match original
+    const loginForm = document.getElementById('member-login-form');
     const errorMsg = document.getElementById('login-error');
-    // Initialize Supabase Client globally if SDK is available
-    // Initialize Supabase Client globally if SDK is available
+    // Initialize Supabase Client
     let supabase = window.supabaseClient;
     if (!supabase) {
         const provider = window.supabase || window.Supabase;
@@ -12,6 +11,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.supabaseClient = provider.createClient(window.SUPABASE_URL, window.SUPABASE_KEY);
                 supabase = window.supabaseClient;
             } catch (e) { console.error(e); }
+        }
+    }
+
+    // --- Auto-Login: セッションが有効ならログイン画面をスキップ ---
+    if (supabase) {
+        const isPWA = window.matchMedia('(display-mode: standalone)').matches
+            || window.navigator.standalone === true;
+
+        // PWA初回起動時は完全にログアウトして新規ログインを求める
+        if (isPWA && !localStorage.getItem('sodre_pwa_initialized')) {
+            try {
+                await supabase.auth.signOut();
+            } catch (e) { /* ignore */ }
+            localStorage.setItem('sodre_pwa_initialized', 'true');
+            // ログアウト済み → ログインフォームを表示（リダイレクトしない）
+        } else {
+            try {
+                if (isPWA) {
+                    // PWA: セッションを自動更新して維持
+                    const { data, error } = await supabase.auth.refreshSession();
+                    if (!error && data.session) {
+                        window.location.replace('members-area.html');
+                        return;
+                    }
+                }
+                // ブラウザ/PWAフォールバック: 既存セッション確認
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                    window.location.replace('members-area.html');
+                    return;
+                }
+            } catch (e) {
+                console.error('Auto-login check error:', e);
+            }
         }
     }
 
@@ -157,14 +190,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Pre-fill email for the reset flow
                     document.getElementById('reset-email').value = email;
                 } else {
-                    // Success - Setup Notification (Async) & Redirect
+                    // Success - Setup Notification & Redirect
                     try {
                         await requestNotificationPermissionAndSave(user.id);
                     } catch (e) {
                         console.error('Notif setup skipped or failed', e);
                     }
 
-                    // Set initial activity timestamp to prevent immediate logout from stale data
                     localStorage.setItem('sodre_last_activity', Date.now().toString());
                     window.location.href = 'members-area.html';
                 }
@@ -302,3 +334,104 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+// --- Helper: Notification Permission & Token Save ---
+async function requestNotificationPermissionAndSave(userId) {
+    if (!('Notification' in window)) {
+        console.log('This browser does not support desktop notification');
+        return;
+    }
+
+    // 1. Request Permission
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+        throw new Error('Notification permission denied');
+    }
+
+    // 2. Get Token
+    if (!window.firebase) return; // Safety check
+    // Initialize Messaging if not already done (it is done at top of login.js, but let's be safe)
+    let messaging = null;
+    try {
+        if (firebase.messaging.isSupported()) {
+            // Already initialized in DOMContentLoaded? We need strictly the instance
+            // We can just re-get it since firebase app is singleton-ish or just rely on global if we exposed it
+            const app = firebase.app(); // Get default app
+            messaging = firebase.messaging(app);
+        }
+    } catch (e) {
+        // initialization might have failed earlier or app not init
+        if (!firebase.apps.length) {
+            firebase.initializeApp(window.FIREBASE_CONFIG);
+        }
+        messaging = firebase.messaging();
+    }
+
+    if (!messaging) return;
+
+    if (!('serviceWorker' in navigator)) {
+        console.log('Service Worker not supported');
+        return;
+    }
+
+    let registration = await navigator.serviceWorker.getRegistration();
+    if (!registration) {
+        // Explicitly register if not found (Crucial for iOS/Android first launch)
+        try {
+            registration = await navigator.serviceWorker.register('/sw.js');
+            console.log('SW Registered on login:', registration);
+        } catch (swErr) {
+            console.error('SW Registration failed:', swErr);
+            return;
+        }
+    }
+
+    // Wait for SW to be active/ready (with timeout)
+    const swReadyPromise = navigator.serviceWorker.ready;
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('SW ready timeout')), 5000));
+
+    try {
+        registration = await Promise.race([swReadyPromise, timeoutPromise]);
+    } catch (e) {
+        console.warn('SW ready timed out, skipping token retrieval');
+        return;
+    }
+
+    // Token Retrieval with Timeout
+    const tokenPromise = messaging.getToken({
+        vapidKey: window.FIREBASE_VAPID_KEY,
+        serviceWorkerRegistration: registration
+    });
+    const tokenTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('FCM Token retrieval timeout')), 10000));
+
+    let token;
+    try {
+        token = await Promise.race([tokenPromise, tokenTimeout]);
+    } catch (e) {
+        console.warn('FCM Token retrieval failed or timed out:', e);
+        return;
+    }
+
+    if (token) {
+        // 3. Save to DB
+        let supabase = window.supabaseClient;
+        if (!supabase) {
+            const provider = window.supabase || window.Supabase;
+            supabase = provider.createClient(window.SUPABASE_URL, window.SUPABASE_KEY);
+        }
+
+        const ua = navigator.userAgent;
+        let deviceType = 'web';
+        if (/android/i.test(ua)) deviceType = 'android';
+        else if (/iPad|iPhone|iPod/.test(ua)) deviceType = 'ios';
+
+        const { error } = await supabase.from('user_fcm_tokens').upsert({
+            user_id: userId,
+            token: token,
+            device_type: deviceType
+        }, { onConflict: 'user_id,token' });
+
+        if (error) throw error;
+        console.log('FCM Token saved successfully');
+    }
+}

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sodre-cache-v3';
+const CACHE_NAME = 'sodre-cache-v1';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -29,11 +29,18 @@ const ICON_URL = 'https://lh3.googleusercontent.com/a/ACg8ocKrevxxn-jyPFTJ3zy5r6
 // Install Event
 self.addEventListener('install', (event) => {
     console.log('[SW] Installing...');
-    self.skipWaiting();
+    // Removed self.skipWaiting() to prevent auto-update
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => cache.addAll(ASSETS_TO_CACHE))
     );
+});
+
+// Listener for SKIP_WAITING message
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
 });
 
 // Activate Event
