@@ -21,8 +21,8 @@ const modalStyles = `
     padding: 2rem;
     border-radius: 12px;
     text-align: center;
-    max-width: 90%;
-    width: 320px;
+    max-width: 95%;
+    width: 360px; /* Slightly wider */
     box-shadow: 0 10px 25px rgba(0,0,0,0.5);
 }
 
@@ -31,12 +31,15 @@ const modalStyles = `
     color: #333;
     font-size: 1.2rem;
     margin-bottom: 1rem;
+    white-space: nowrap; /* Prevent title break */
 }
 
 #pwa-update-modal p {
     color: #666;
     margin-bottom: 1.5rem;
-    line-height: 1.5;
+    line-height: 1.6;
+    word-break: keep-all; /* Prevent awkward Japanese breaks */
+    overflow-wrap: break-word;
 }
 
 #pwa-update-btn {
@@ -50,6 +53,7 @@ const modalStyles = `
     width: 100%;
     font-weight: bold;
     transition: background-color 0.3s;
+    white-space: nowrap; /* Prevent button text break */
 }
 
 #pwa-update-btn:hover {
