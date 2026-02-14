@@ -1,10 +1,15 @@
-const CACHE_NAME = 'sodre-cache-v2';
+const CACHE_NAME = 'sodre-cache-v1';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
     '/style.css',
     '/script.js',
-    '/offline.html'
+    '/offline.html',
+    '/members-area.html',
+    '/members-area.js',
+    '/config.js',
+    '/pwa-install.js',
+    '/pwa-update.js'
 ];
 
 // --- Firebase Cloud Messaging setup ---
@@ -111,11 +116,23 @@ self.addEventListener('notificationclick', (event) => {
 
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+            // 1. Try to find a client that is already open to the app (same origin)
+            // We match broadly on origin to find ANY open tab of this app
             for (const client of windowClients) {
-                if (client.url.includes(urlToOpen) && 'focus' in client) {
-                    return client.focus();
+                const clientUrl = new URL(client.url);
+                const targetUrl = new URL(urlToOpen, self.location.origin);
+
+                // If same origin (and roughly the same app scope), focus and navigate
+                if (clientUrl.origin === self.location.origin && 'focus' in client) {
+                    client.focus();
+                    // Navigate only if the URL is different
+                    if (client.url !== targetUrl.href) {
+                        client.navigate(urlToOpen);
+                    }
+                    return;
                 }
             }
+            // 2. If no client found, open new window
             if (clients.openWindow) {
                 return clients.openWindow(urlToOpen);
             }

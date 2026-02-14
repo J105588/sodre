@@ -48,6 +48,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    // --- Show Login Form if not redirected ---
+    const loader = document.getElementById('login-loading');
+    if (loader) loader.style.display = 'none';
+
+    const mainContainer = document.getElementById('main-login-container');
+    if (mainContainer) mainContainer.style.display = 'block';
+
     // --- Firebase Init ---
     let messaging = null;
     try {

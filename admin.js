@@ -204,6 +204,8 @@
                 calendarManagerArea.style.display = 'none';
                 usersManagerArea.style.display = 'none';
                 pagesManagerArea.style.display = 'none';
+                systemManagerArea.style.display = 'none';
+                notificationManagerArea.style.display = 'none';
 
                 if (currentTab === 'groups') {
                     groupsManagerArea.style.display = 'block';

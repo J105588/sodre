@@ -3664,3 +3664,36 @@ footer {
 .comment-actions button[title="編集"]:hover {
     opacity: 0.7;
 }
+
+/* Load More Button */
+.load-more-container {
+    text-align: center;
+    padding: 20px 0;
+    clear: both;
+}
+
+.load-more-btn {
+    background-color: var(--secondary-bg);
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+    padding: 10px 24px;
+    border-radius: 30px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: var(--font-sans);
+    font-weight: 500;
+}
+
+.load-more-btn:hover {
+    background-color: var(--primary-color);
+    color: var(--white);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.load-more-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}

@@ -94,7 +94,16 @@
     </header>
 
     <div class="container">
-        <div class="login-container">
+        <!-- Loader: Visible by default checking session -->
+        <div id="login-loading" class="login-container">
+            <div style="text-align:center; padding:2rem;">
+                <i class="fas fa-circle-notch fa-spin"
+                    style="font-size: 3rem; color: var(--primary-color); margin-bottom: 1rem;"></i>
+                <p style="color:var(--text-color); font-weight:500;">ログイン状態を確認しています...</p>
+            </div>
+        </div>
+
+        <div id="main-login-container" class="login-container" style="display:none;">
             <h2 class="login-title">Member Login</h2>
             <form id="member-login-form">
                 <div class="form-group">

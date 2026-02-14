@@ -1,7 +1,8 @@
 {
     "name": "SoDRé - 対話的内省の暇",
     "short_name": "SoDRé",
-    "start_url": "/index.html",
+    "version": "1.0.0",
+    "start_url": "/login.html",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#ffffff",

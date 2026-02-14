@@ -70,6 +70,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentPostContext = 'all'; // 'all' or 'group'
     let currentGroupId = null;
     let currentGroupCanPost = false;
+    // Pagination State
+    let allPostsOffset = 0;
+    let groupPostsOffset = 0;
+    const POST_LIMIT = 50;
     let selectedFiles = []; // Store selected files for upload
     let isAdmin = false; // Admin State
     let isSuperAdmin = false; // Superadmin State
@@ -307,6 +311,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 viewAll.style.display = 'none';
                 viewGroups.style.display = 'block';
+
+                // Explicitly Reset View to List
+                groupsList.style.display = 'grid'; // or block/flex depending on css, grid seems used in loadMyGroups
+                groupBoardView.style.display = 'none';
+                currentGroupId = null;
 
                 // Update Context (Initially Group List)
                 currentPostContext = 'group_list';
@@ -691,8 +700,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
     // --- All Board Logic ---
-    async function loadAllPosts(isSilent = false) {
-        if (!isSilent) allFeed.innerHTML = '<p>読み込み中...</p>';
+    async function loadAllPosts(isSilent = false, offset = 0) {
+        if (offset === 0) {
+            allPostsOffset = 0;
+            if (!isSilent) allFeed.innerHTML = '<p>読み込み中...</p>';
+        }
+
         const { data, error } = await supabase
             .from('board_posts')
             .select(`
@@ -704,14 +717,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             .or(`scheduled_at.lte.${new Date().toISOString()},user_id.eq.${user.id}`)
             .order('is_pinned', { ascending: false })
             .order('scheduled_at', { ascending: false })
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .range(offset, offset + POST_LIMIT - 1);
 
         if (error) {
             console.error(error);
             allFeed.innerHTML = '<p>投稿の読み込みに失敗しました。</p>';
             return;
         }
-        renderPosts(data, allFeed);
+
+        if (offset === 0) allFeed.innerHTML = ''; // Clear for fresh load (if silent was used, innerHTML might be old or blank)
+
+        renderPosts(data, allFeed, offset > 0);
+
+        // Load More Button
+        const hasMore = data && data.length === POST_LIMIT;
+        updateLoadMoreButton(allFeed, hasMore, () => {
+            allPostsOffset += POST_LIMIT;
+            loadAllPosts(true, allPostsOffset);
+        });
     }
 
     // --- Group Logic ---
@@ -801,8 +825,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadGroupPosts(gid);
     };
 
-    async function loadGroupPosts(gid, isSilent = false) {
-        if (!isSilent) groupFeed.innerHTML = '<p>読み込み中...</p>';
+    async function loadGroupPosts(gid, isSilent = false, offset = 0) {
+        if (offset === 0) {
+            groupPostsOffset = 0;
+            if (!isSilent) groupFeed.innerHTML = '<p>読み込み中...</p>';
+        }
+
         const { data, error } = await supabase
             .from('board_posts')
             .select(`
@@ -814,13 +842,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             .or(`scheduled_at.lte.${new Date().toISOString()},user_id.eq.${user.id}`)
             .order('is_pinned', { ascending: false })
             .order('scheduled_at', { ascending: false })
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .range(offset, offset + POST_LIMIT - 1);
 
         if (error) {
-            renderPosts([], groupFeed);
+            // renderPosts([], groupFeed); // This would clear errors. Better to show error or empty.
+            if (offset === 0) renderPosts([], groupFeed);
             return;
         }
-        renderPosts(data, groupFeed);
+
+        if (offset === 0) groupFeed.innerHTML = '';
+
+        renderPosts(data, groupFeed, offset > 0);
+
+        // Load More Button View
+        const hasMore = data && data.length === POST_LIMIT;
+        updateLoadMoreButton(groupFeed, hasMore, () => {
+            groupPostsOffset += POST_LIMIT;
+            loadGroupPosts(gid, true, groupPostsOffset);
+        });
     }
 
     // --- Header Scroll Logic ---
@@ -946,15 +986,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     // --- Components ---
-    function renderPosts(posts, container) {
-        if (!posts || posts.length === 0) {
-            container.innerHTML = '<p>まだ投稿はありません。</p>';
+    function updateLoadMoreButton(container, hasMore, onClick) {
+        // Remove existing button if any
+        let existing = container.querySelector('.load-more-container');
+        if (existing) existing.remove();
+
+        if (hasMore) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'load-more-container';
+            const btn = document.createElement('button');
+            btn.className = 'load-more-btn';
+            btn.innerText = 'さらに表示';
+            btn.onclick = onClick;
+            wrapper.appendChild(btn);
+            container.appendChild(wrapper);
+        }
+    }
+
+    function renderPosts(posts, container, append = false) {
+        if (!append) {
+            container.innerHTML = ''; // Clear if not appending
+        } else {
+            // If appending, remove "No posts" message if it exists (unlikely if appending but good safety)
+            const noPosts = container.querySelector('.no-posts-msg');
+            if (noPosts) noPosts.remove();
+
+            // Remove old Load More button before appending new posts
+            // (It will be re-added by updateLoadMoreButton)
+            const oldBtn = container.querySelector('.load-more-container');
+            if (oldBtn) oldBtn.remove();
+        }
+
+        if ((!posts || posts.length === 0) && !append) {
+            container.innerHTML = '<p class="no-posts-msg">まだ投稿はありません。</p>';
             return;
         }
 
+        if (!posts || posts.length === 0) return; // Nothing to append
+
         const now = new Date();
 
-        container.innerHTML = posts.map(post => {
+        const html = posts.map(post => {
             const scheduledDate = new Date(post.scheduled_at);
             const isScheduledFuture = scheduledDate > now;
             const isMyPost = post.user_id === user.id;
@@ -1060,6 +1132,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
             `;
         }).join('');
+
+        container.insertAdjacentHTML('beforeend', html);
     }
 
     // --- Comment Logic ---
@@ -1306,8 +1380,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // --- Realtime Subscription ---
+    // --- Realtime Subscription ---
     const channel = supabase
-        .channel('board_posts_changes')
+        .channel('board_changes')
         .on(
             'postgres_changes',
             { event: '*', schema: 'public', table: 'board_posts' },
@@ -1315,7 +1390,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const eventType = payload.eventType; // INSERT, UPDATE, DELETE
                 const newPost = payload.new;
 
-                // Logic to decide whether to reload
+                // Logic to decide whether to reload posts
                 if (eventType === 'INSERT') {
                     // Check if the new post is relevant to current view
                     if (currentPostContext === 'all') {
@@ -1329,6 +1404,30 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 } else {
                     // UPDATE or DELETE - safer to just reload
+                    if (currentPostContext === 'all') loadAllPosts(true);
+                    else if (currentPostContext === 'group' && currentGroupId) loadGroupPosts(currentGroupId, true);
+                }
+            }
+        )
+        .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'board_comments' },
+            (payload) => {
+                // When comments change, reload comments if the section is open
+                // And ideally update the comment count on the post
+                const newComment = payload.new;
+                const oldComment = payload.old;
+                const postId = newComment?.post_id || oldComment?.post_id;
+
+                if (postId) {
+                    // 1. Reload comments if open
+                    const commentsList = document.getElementById(`comments-list-${postId}`);
+                    if (commentsList && commentsList.offsetParent !== null) { // visible check
+                        loadComments(postId);
+                    }
+
+                    // 2. Reload posts to update comment count (Silent)
+                    // This might be heavy, but ensures consistency
                     if (currentPostContext === 'all') loadAllPosts(true);
                     else if (currentPostContext === 'group' && currentGroupId) loadGroupPosts(currentGroupId, true);
                 }

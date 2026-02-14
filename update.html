@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>アプリの更新が必要です | SoDRé</title>
+    <link rel="icon"
+        href="https://lh3.googleusercontent.com/a/ACg8ocKrevxxn-jyPFTJ3zy5r6EFRGmv0Tp8-qWyb3bMaXduuMzHS0Y=s400-c">
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Zen Kaku Gothic New', sans-serif;
+            background-color: #fdfdfd;
+            color: #333;
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 600px;
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            color: #145ab4;
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        p {
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+
+        .icon {
+            font-size: 3rem;
+            color: #fab43c;
+            margin-bottom: 1rem;
+        }
+
+        /* Tabs */
+        .os-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .os-tab {
+            padding: 10px 20px;
+            border: 1px solid #ddd;
+            background: #f8f9fa;
+            border-radius: 30px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            color: #666;
+        }
+
+        .os-tab.active {
+            background: #145ab4;
+            color: white;
+            border-color: #145ab4;
+            box-shadow: 0 4px 10px rgba(20, 90, 180, 0.2);
+        }
+
+        .os-content {
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .os-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Steps from app.html styling */
+        .install-guide {
+            text-align: left;
+            background: #f8f9fa;
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+        }
+
+        .guide-step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 1.5rem;
+        }
+
+        .step-num {
+            background: #145ab4;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+            margin-right: 15px;
+            margin-top: -2px;
+        }
+
+        .step-text {
+            line-height: 1.6;
+            color: #444;
+        }
+
+        .step-text strong {
+            color: #145ab4;
+        }
+
+        .share-icon {
+            display: inline-block;
+            vertical-align: middle;
+            margin: 0 4px;
+            font-size: 1.2rem;
+            color: #007aff;
+        }
+
+        /* Device Specific Styles */
+        .ios-style .step-num {
+            background: #007aff;
+        }
+
+        .android-style .step-num {
+            background: #3ddc84;
+            color: #fff;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        .pc-style .step-num {
+            background: #4285f4;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="icon">⚠️</div>
+        <h1>アプリの更新が必要です</h1>
+        <p>新しいバージョンのSoDRéが公開されました。<br>
+            ご利用を続けるには、以下の手順でアプリを再インストールしてください。</p>
+
+        <div class="os-tabs">
+            <button class="os-tab active" onclick="showTab('ios')" id="tab-ios">iOS (iPhone)</button>
+            <button class="os-tab" onclick="showTab('android')" id="tab-android">Android</button>
+            <button class="os-tab" onclick="showTab('pc')" id="tab-pc">PC (Chrome)</button>
+        </div>
+
+        <!-- iOS Guide -->
+        <div id="content-ios" class="os-content active">
+            <div class="install-guide ios-style">
+                <div class="guide-step">
+                    <div class="step-num">1</div>
+                    <div class="step-text">
+                        ホーム画面から現在の「SoDRé」アイコンを長押しし、<strong>「ブックマークを削除」</strong>または<strong>「Appを削除」</strong>を選択してください。
+                    </div>
+                </div>
+                <div class="guide-step">
+                    <div class="step-num">2</div>
+                    <div class="step-text">Safariでこのページ（またはSoDRéのトップ）を開いてください。</div>
+                </div>
+                <div class="guide-step">
+                    <div class="step-num">3</div>
+                    <div class="step-text">画面下部の共有ボタン <span class="share-icon"
+                            style="display:inline-flex; align-items:center; vertical-align:middle;">
+                            <svg fill="#007aff" width="20px" height="20px" viewBox="0 0 50 50"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path d="M30.3 13.7L25 8.4l-5.3 5.3-1.4-1.4L25 5.6l6.7 6.7z" />
+                                <path d="M24 7h2v21h-2z" />
+                                <path
+                                    d="M35 40H15c-1.7 0-3-1.3-3-3V19c0-1.7 1.3-3 3-3h7v2h-7c-.6 0-1 .4-1 1v18c0 .6.4 1 1 1h20c.6 0 1-.4 1-1V19c0-.6-.4-1-1-1h-7v-2h7c1.7 0 3 1.3 3 3v18c0 1.7-1.3 3-3 3z" />
+                            </svg>
+                        </span> をタップします。</div>
+                </div>
+                <div class="guide-step">
+                    <div class="step-num">4</div>
+                    <div class="step-text">メニューから<strong>「ホーム画面に追加」</strong>を選択し、右上の「追加」をタップしてください。</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Android Guide -->
+        <div id="content-android" class="os-content">
+            <div class="install-guide android-style">
+                <div class="guide-step">
+                    <div class="step-num">1</div>
+                    <div class="step-text">
+                        ホーム画面から現在の「SoDRé」アイコンを長押しし、<strong>「アンインストール」</strong>または<strong>「削除」</strong>を選択してください。</div>
+                </div>
+                <div class="guide-step">
+                    <div class="step-num">2</div>
+                    <div class="step-text">Chromeでこのページ（またはSoDRéのトップ）を開いてください。<br>
+                        <span style="font-size:0.85rem; color:#666;">※画面下に「ホーム画面に追加」バナーが出た場合は、それをタップして完了です。</span>
+                    </div>
+                </div>
+                <div class="guide-step">
+                    <div class="step-num">3</div>
+                    <div class="step-text">バナーが出ない場合、画面右上のメニューアイコン <i class="fas fa-ellipsis-v"
+                            style="color:#666"></i>（︙）をタップします。
+                    </div>
+                </div>
+                <div class="guide-step">
+                    <div class="step-num">4</div>
+                    <div class="step-text">メニューから<strong>「アプリをインストール」</strong>または<strong>「ホーム画面に追加」</strong>を選択してください。
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PC Guide -->
+        <div id="content-pc" class="os-content">
+            <div class="install-guide pc-style">
+                <div class="guide-step">
+                    <div class="step-num">1</div>
+                    <div class="step-text">アプリウィンドウの右上メニュー（またはウィンドウ枠）から<strong>「SoDRéをアンインストール」</strong>を選択し削除してください。
+                    </div>
+                </div>
+                <div class="guide-step">
+                    <div class="step-num">2</div>
+                    <div class="step-text">ChromeまたはEdgeで再度アクセスしてください。</div>
+                </div>
+                <div class="guide-step">
+                    <div class="step-num">3</div>
+                    <div class="step-text">アドレスバー右側のインストールアイコン <i class="fas fa-download"
+                            style="color:#4285f4"></i>、またはメニューから<strong>「SoDRéをインストール」</strong>をクリックしてください。</div>
+                </div>
+            </div>
+        </div>
+
+        <p style="font-size:0.9rem; color:#666;">※データは保持されます。</p>
+
+        <div style="margin-top: 2rem;">
+            <a href="login.html"
+                style="color:#145ab4; text-decoration:underline;">アプリを削除した後、ここをタップしてログイン画面へ（ブラウザの場合）</a>
+        </div>
+    </div>
+
+    <script>
+        function showTab(os) {
+            document.querySelectorAll('.os-content').forEach(el => {
+                el.classList.remove('active');
+                el.style.display = 'none'; // Ensure hide
+            });
+            document.querySelectorAll('.os-tab').forEach(el => el.classList.remove('active'));
+
+            const target = document.getElementById('content-' + os);
+            if (target) {
+                target.style.display = 'block';
+                // Small delay to trigger animation
+                setTimeout(() => target.classList.add('active'), 10);
+            }
+
+            const tab = document.getElementById('tab-' + os);
+            if (tab) tab.classList.add('active');
+        }
+
+        // Auto-detect OS
+        const ua = navigator.userAgent.toLowerCase();
+        if (ua.indexOf('android') > -1) {
+            showTab('android');
+        } else if (ua.indexOf('iphone') > -1 || ua.indexOf('ipad') > -1 || (ua.indexOf('mac') > -1 && 'ontouchend' in document)) {
+            showTab('ios');
+        } else {
+            showTab('pc');
+        }
+    </script>
+</body>
+
+</html>
