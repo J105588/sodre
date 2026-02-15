@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sodre-cache-v1'; // Increment version
+const CACHE_NAME = 'sodre-cache-v2'; // Increment version
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -121,6 +121,9 @@ self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     const urlToOpen = event.notification.data?.url || '/members-area.html';
 
+    // Detect iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !self.MSStream;
+
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
             for (const client of windowClients) {
@@ -128,6 +131,22 @@ self.addEventListener('notificationclick', (event) => {
                 // Check if we are on the same origin
                 if (clientUrl.origin === self.location.origin && 'focus' in client) {
                     client.focus();
+
+                    // On iOS, postMessage might be dropped during resumption. Force navigate for reliability.
+                    if (isIOS) {
+                        // Navigate even if URL seems same, to ensure params are picked up or refreshed
+                        // We use navigate instead of postMessage to ensure the page actually handles the new URL
+                        if (client.url !== new URL(urlToOpen, self.location.origin).href) {
+                            client.navigate(urlToOpen);
+                        } else {
+                            // Even if same URL, forcing navigation might be safer on iOS to trigger routing logic if needed
+                            // But usually if same URL, we might just want to focus. 
+                            // However, if we are here, we want to ensure the specific group is opened.
+                            // If the URL has params ?tab=group..., navigation will trigger the router.
+                            client.navigate(urlToOpen);
+                        }
+                        return;
+                    }
 
                     // If the user is already on members-area.html, send a message to handle navigation internally
                     // This prevents full page reloads and state loss

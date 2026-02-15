@@ -12,6 +12,13 @@ CREATE TABLE IF NOT EXISTS public.user_fcm_tokens (
 -- Enable RLS
 ALTER TABLE public.user_fcm_tokens ENABLE ROW LEVEL SECURITY;
 
+-- Drop policies if they exist to avoid errors on rerun
+DROP POLICY IF EXISTS "Users can view their own tokens" ON public.user_fcm_tokens;
+DROP POLICY IF EXISTS "Users can insert their own tokens" ON public.user_fcm_tokens;
+DROP POLICY IF EXISTS "Users can update their own tokens" ON public.user_fcm_tokens;
+DROP POLICY IF EXISTS "Users can delete their own tokens" ON public.user_fcm_tokens;
+DROP POLICY IF EXISTS "Admins can view all tokens" ON public.user_fcm_tokens;
+
 -- Policies
 CREATE POLICY "Users can view their own tokens"
     ON public.user_fcm_tokens

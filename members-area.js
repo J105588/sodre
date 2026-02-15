@@ -108,25 +108,56 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadProfile(user.id);
 
     // --- Firebase: Token refresh & Foreground message handling (after session is ready) ---
+    // --- Firebase: Token refresh & Foreground message handling (after session is ready) ---
     async function refreshFCMToken() {
         if (!messaging || Notification.permission !== 'granted') return;
         try {
             let registration = await navigator.serviceWorker.getRegistration();
             if (!registration) registration = await navigator.serviceWorker.ready;
+
+            // Get current token from Firebase
             const token = await messaging.getToken({
                 vapidKey: window.FIREBASE_VAPID_KEY,
                 serviceWorkerRegistration: registration
             });
+
             if (token) {
-                const ua = navigator.userAgent;
-                let deviceType = 'web';
-                if (/android/i.test(ua)) deviceType = 'android';
-                else if (/iPad|iPhone|iPod/.test(ua)) deviceType = 'ios';
-                await supabase.from('user_fcm_tokens').upsert({
-                    user_id: session.user.id,
-                    token: token,
-                    device_type: deviceType
-                }, { onConflict: 'user_id,token' });
+                // Optimization: Check if token is already synced
+                const storageKey = `sodre_fcm_token_${user.id}`;
+                const lastSynced = localStorage.getItem(`${storageKey}_time`);
+                const lastToken = localStorage.getItem(storageKey);
+                const now = Date.now();
+                const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
+                // Condition to update DB:
+                // 1. Token changed
+                // 2. Not synced yet
+                // 3. Synced more than 24 hours ago (to keep "last_updated" fresh)
+                const needsUpdate = !lastToken || lastToken !== token || !lastSynced || (now - parseInt(lastSynced) > TWENTY_FOUR_HOURS);
+
+                if (needsUpdate) {
+                    const ua = navigator.userAgent;
+                    let deviceType = 'web';
+                    if (/android/i.test(ua)) deviceType = 'android';
+                    else if (/iPad|iPhone|iPod/.test(ua)) deviceType = 'ios';
+
+                    const { error } = await supabase.from('user_fcm_tokens').upsert({
+                        user_id: session.user.id,
+                        token: token,
+                        device_type: deviceType,
+                        last_updated: new Date().toISOString() // Ensure column exists or defaults to now()
+                    }, { onConflict: 'user_id,token' });
+
+                    if (!error) {
+                        localStorage.setItem(storageKey, token);
+                        localStorage.setItem(`${storageKey}_time`, now.toString());
+                        console.log('FCM token synced to DB');
+                    } else {
+                        console.error('FCM sync error:', error);
+                    }
+                } else {
+                    console.log('FCM token already up to date');
+                }
             }
         } catch (err) {
             console.error('FCM token refresh error:', err);
@@ -136,7 +167,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Token refresh (permission is managed on login.js)
     await refreshFCMToken();
 
-    // Periodic token refresh (every 30 minutes)
+    // Periodic check (every 30 minutes, but will only write to DB if needed)
     setInterval(refreshFCMToken, 30 * 60 * 1000);
 
     // Handle foreground messages as proper push notifications
