@@ -218,8 +218,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        // セッションタイムアウトは無効化（自動ログアウトなし）
-        // setupSessionTimeout();
+        // セッションタイムアウト設定 (PWA以外のみ)
+        if (!isPWA) {
+            setupSessionTimeout();
+        }
     }
 
     // --- Session Expiration Logic (60 mins) - PWAでは無効 ---
