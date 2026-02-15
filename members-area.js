@@ -325,21 +325,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    // --- Initial Load (with URL parameter routing) ---
-    const urlParams = new URLSearchParams(window.location.search);
-    const tabParam = urlParams.get('tab');
-    const groupIdParam = urlParams.get('group_id');
+    // --- Router Logic ---
+    async function handleRouting(urlString) {
+        // Parse URL to get params
+        // If urlString is provided (from SW), use it. Otherwise use window.location
+        const urlObj = urlString ? new URL(urlString, window.location.origin) : window.location;
+        const urlParams = new URLSearchParams(urlObj.search);
 
-    if (tabParam === 'group' && groupIdParam) {
-        // URLパラメータでグループ指定 → グループビューを開く
-        viewAll.style.display = 'none';
-        viewGroups.style.display = 'block';
-        tabBtns.forEach(b => {
-            b.classList.toggle('active', b.dataset.tab === 'groups');
-        });
+        const tabParam = urlParams.get('tab');
+        const groupIdParam = urlParams.get('group_id');
 
-        // グループ情報を取得して開く
-        (async () => {
+        if (tabParam === 'group' && groupIdParam) {
+            // Check if we are already seeing this group to avoid re-fetching if not needed?
+            // For now, just follow logic to ensure consistency.
+
+            // Switch to Group Tab UI
+            viewAll.style.display = 'none';
+            viewGroups.style.display = 'block';
+            tabBtns.forEach(b => {
+                b.classList.toggle('active', b.dataset.tab === 'groups');
+            });
+
+            // If we are already viewing this group, maybe we just reload posts?
+            // But let's run the full open logic to be safe (permission checks etc)
+
+            // Fetch membership/group info
             const { data: membership } = await supabase
                 .from('group_members')
                 .select('can_post, groups(id, name)')
@@ -350,7 +360,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (membership && membership.groups) {
                 window.openGroup(membership.groups.id, membership.groups.name, membership.can_post);
             } else {
-                // メンバーでない場合、管理者チェック
+                // Not a member, check if admin
                 if (isAdmin) {
                     const { data: grp } = await supabase
                         .from('groups')
@@ -360,23 +370,48 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (grp) {
                         window.openGroup(grp.id, grp.name, true);
                     } else {
+                        // Group not found or error, fallback to All
                         loadAllPosts();
                     }
                 } else {
+                    // Access denied, fallback to All
                     loadAllPosts();
                 }
             }
-        })();
+        } else {
+            // Default: All Posts
+            // Ensure UI is correct
+            viewAll.style.display = 'block';
+            viewGroups.style.display = 'none';
+            tabBtns.forEach(b => {
+                b.classList.toggle('active', b.dataset.tab === 'all');
+            });
+            currentPostContext = 'all';
+            fabPost.style.display = 'flex';
 
-        // URLパラメータをクリーン
-        window.history.replaceState({}, '', window.location.pathname);
-    } else {
-        loadAllPosts();
-        // URLにパラメータがあればクリーン
-        if (tabParam) {
-            window.history.replaceState({}, '', window.location.pathname);
+            loadAllPosts();
+        }
+
+        // Clean URL if it's the current window location
+        if (!urlString) {
+            if (tabParam) {
+                window.history.replaceState({}, '', window.location.pathname);
+            }
         }
     }
+
+    // --- Service Worker Message Listener (for Notification Clicks) ---
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'NOTIFICATION_CLICK') {
+                console.log('Notification clicked (SW Message):', event.data.url);
+                handleRouting(event.data.url);
+            }
+        });
+    }
+
+    // --- Initial Load ---
+    handleRouting();
 
     // --- Modal / FAB Logic ---
     fabPost.addEventListener('click', () => {
@@ -805,7 +840,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Expose to window for onclick
-    window.openGroup = (gid, gname, canPost) => {
+    function openGroup(gid, gname, canPost) {
         currentGroupId = gid;
         currentGroupCanPost = canPost;
 
@@ -823,7 +858,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         loadGroupPosts(gid);
-    };
+    }
+    // Expose to window for onclick
+    window.openGroup = openGroup;
 
     async function loadGroupPosts(gid, isSilent = false, offset = 0) {
         if (offset === 0) {

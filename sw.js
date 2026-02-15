@@ -125,14 +125,27 @@ self.addEventListener('notificationclick', (event) => {
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
             for (const client of windowClients) {
                 const clientUrl = new URL(client.url);
+                // Check if we are on the same origin
                 if (clientUrl.origin === self.location.origin && 'focus' in client) {
                     client.focus();
-                    if (client.url !== new URL(urlToOpen, self.location.origin).href) {
-                        client.navigate(urlToOpen);
+
+                    // If the user is already on members-area.html, send a message to handle navigation internally
+                    // This prevents full page reloads and state loss
+                    if (clientUrl.pathname.endsWith('members-area.html')) {
+                        client.postMessage({
+                            type: 'NOTIFICATION_CLICK',
+                            url: urlToOpen
+                        });
+                    } else {
+                        // If on login page or elsewhere, force navigation
+                        if (client.url !== new URL(urlToOpen, self.location.origin).href) {
+                            client.navigate(urlToOpen);
+                        }
                     }
-                    return;
+                    return; // Focus existing window and stop
                 }
             }
+            // If no window is open, open a new one
             if (clients.openWindow) {
                 return clients.openWindow(urlToOpen);
             }
