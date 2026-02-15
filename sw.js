@@ -128,14 +128,13 @@ self.addEventListener('notificationclick', (event) => {
 
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (windowClients) => {
+            // 1. Try to find an existing window to focus
             for (const client of windowClients) {
                 const clientUrl = new URL(client.url);
-                // Check if we are on the same origin and can focus
+                // Check if we are on the same origin
                 if (clientUrl.origin === self.location.origin && 'focus' in client) {
                     try {
                         const focusedClient = await client.focus();
-
-                        // Fallback to 'client' if focus() returns nothing (some browsers)
                         const targetClient = focusedClient || client;
 
                         if (isIOS) {
@@ -144,7 +143,8 @@ self.addEventListener('notificationclick', (event) => {
                         }
 
                         // Android/Desktop: Use postMessage for smooth transition if on same page
-                        if (clientUrl.pathname.endsWith('members-area.html')) {
+                        // (Only if the path matches exactly, otherwise navigate)
+                        if (clientUrl.pathname === new URL(urlToOpen).pathname) {
                             targetClient.postMessage({
                                 type: 'NOTIFICATION_CLICK',
                                 url: urlToOpen
@@ -154,15 +154,26 @@ self.addEventListener('notificationclick', (event) => {
                         }
                     } catch (e) {
                         console.error('Focus/Navigate failed:', e);
-                        // If focus failed, try to open a new window as fallback?
+                        // If focus failed, try to open a new window
                         if (clients.openWindow) return clients.openWindow(urlToOpen);
                     }
                     return;
                 }
             }
-            // If no window is open, open a new one
+
+            // 2. If no matching window found, open a new one
             if (clients.openWindow) {
-                return clients.openWindow(urlToOpen);
+                const newClient = await clients.openWindow(urlToOpen);
+                // iOS Edge case: openWindow might bring an existing background app to front
+                // without navigating it. We should force navigate if we can get the client handle.
+                if (isIOS && newClient) {
+                    // Check if it actually needs navigation (though openWindow *should* load the url)
+                    // But just in case it merely focused an existing one:
+                    if (newClient.url !== urlToOpen) {
+                        return newClient.navigate(urlToOpen);
+                    }
+                }
+                return newClient;
             }
         })
     );
