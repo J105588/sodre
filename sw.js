@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sodre-cache-v2'; // Increment version
+const CACHE_NAME = 'sodre-cache-v1.0.0'; // Increment version
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -119,49 +119,45 @@ messaging.onBackgroundMessage((payload) => {
 // Notification Click
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
-    const urlToOpen = event.notification.data?.url || '/members-area.html';
+    // Ensure we have an absolute URL
+    let urlToOpen = event.notification.data?.url || '/members-area.html';
+    urlToOpen = new URL(urlToOpen, self.location.origin).href;
 
     // Detect iOS
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !self.MSStream;
 
     event.waitUntil(
-        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (windowClients) => {
             for (const client of windowClients) {
                 const clientUrl = new URL(client.url);
-                // Check if we are on the same origin
+                // Check if we are on the same origin and can focus
                 if (clientUrl.origin === self.location.origin && 'focus' in client) {
-                    client.focus();
+                    try {
+                        const focusedClient = await client.focus();
 
-                    // On iOS, postMessage might be dropped during resumption. Force navigate for reliability.
-                    if (isIOS) {
-                        // Navigate even if URL seems same, to ensure params are picked up or refreshed
-                        // We use navigate instead of postMessage to ensure the page actually handles the new URL
-                        if (client.url !== new URL(urlToOpen, self.location.origin).href) {
-                            client.navigate(urlToOpen);
+                        // Fallback to 'client' if focus() returns nothing (some browsers)
+                        const targetClient = focusedClient || client;
+
+                        if (isIOS) {
+                            // iOS: Force navigation to ensure params are processed
+                            return targetClient.navigate(urlToOpen);
+                        }
+
+                        // Android/Desktop: Use postMessage for smooth transition if on same page
+                        if (clientUrl.pathname.endsWith('members-area.html')) {
+                            targetClient.postMessage({
+                                type: 'NOTIFICATION_CLICK',
+                                url: urlToOpen
+                            });
                         } else {
-                            // Even if same URL, forcing navigation might be safer on iOS to trigger routing logic if needed
-                            // But usually if same URL, we might just want to focus. 
-                            // However, if we are here, we want to ensure the specific group is opened.
-                            // If the URL has params ?tab=group..., navigation will trigger the router.
-                            client.navigate(urlToOpen);
+                            return targetClient.navigate(urlToOpen);
                         }
-                        return;
+                    } catch (e) {
+                        console.error('Focus/Navigate failed:', e);
+                        // If focus failed, try to open a new window as fallback?
+                        if (clients.openWindow) return clients.openWindow(urlToOpen);
                     }
-
-                    // If the user is already on members-area.html, send a message to handle navigation internally
-                    // This prevents full page reloads and state loss
-                    if (clientUrl.pathname.endsWith('members-area.html')) {
-                        client.postMessage({
-                            type: 'NOTIFICATION_CLICK',
-                            url: urlToOpen
-                        });
-                    } else {
-                        // If on login page or elsewhere, force navigation
-                        if (client.url !== new URL(urlToOpen, self.location.origin).href) {
-                            client.navigate(urlToOpen);
-                        }
-                    }
-                    return; // Focus existing window and stop
+                    return;
                 }
             }
             // If no window is open, open a new one

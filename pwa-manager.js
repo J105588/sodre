@@ -158,8 +158,9 @@ class PWAManager {
             let refreshing = false;
             navigator.serviceWorker.addEventListener('controllerchange', () => {
                 if (refreshing) return;
-                console.log('[PWA] Controller changed. Reloading...');
-                window.location.reload();
+                console.log('[PWA] Controller changed. Hard reloading...');
+                // Force reload from server, bypassing browser cache
+                window.location.reload(true);
                 refreshing = true;
             });
         }
