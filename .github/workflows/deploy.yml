@@ -29,27 +29,28 @@ jobs:
 
       - name: Generate env.js
         run: |
-          echo "window.ENV = {" > env.js
-          echo "  FIREBASE_CONFIG: {" >> env.js
-          echo "    apiKey: '${{ secrets.FIREBASE_API_KEY }}'," >> env.js
-          echo "    authDomain: '${{ secrets.FIREBASE_AUTH_DOMAIN }}'," >> env.js
-          echo "    projectId: '${{ secrets.FIREBASE_PROJECT_ID }}'," >> env.js
-          echo "    storageBucket: '${{ secrets.FIREBASE_STORAGE_BUCKET }}'," >> env.js
-          echo "    messagingSenderId: '${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}'," >> env.js
-          echo "    appId: '${{ secrets.FIREBASE_APP_ID }}'," >> env.js
-          echo "    measurementId: '${{ secrets.FIREBASE_MEASUREMENT_ID }}'" >> env.js
-          echo "  }," >> env.js
-          echo "  SUPABASE_URL: '${{ secrets.SUPABASE_URL }}'," >> env.js
-          echo "  SUPABASE_KEY: '${{ secrets.SUPABASE_KEY }}'," >> env.js
-          echo "  GAS_OTP_URL: '${{ secrets.GAS_OTP_URL }}'," >> env.js
-          echo "  UPLOAD_API_URL: '${{ secrets.UPLOAD_API_URL }}'," >> env.js
-          echo "  UPLOAD_API_KEY: '${{ secrets.UPLOAD_API_KEY }}'," >> env.js
-          echo "  FIREBASE_VAPID_KEY: '${{ secrets.FIREBASE_VAPID_KEY }}'," >> env.js
-          echo "  GAS_NOTIFICATION_URL: '${{ secrets.GAS_NOTIFICATION_URL }}'" >> env.js
-          echo "};" >> env.js
-          
-          # For Service Worker (self.ENV)
-          echo "try { self.ENV = window.ENV; } catch (e) { self.ENV = window.ENV; }" >> env.js
+          echo "(function() {" > env.js
+          echo "  const ENV = {" >> env.js
+          echo "    FIREBASE_CONFIG: {" >> env.js
+          echo "      apiKey: '${{ secrets.FIREBASE_API_KEY }}'," >> env.js
+          echo "      authDomain: '${{ secrets.FIREBASE_AUTH_DOMAIN }}'," >> env.js
+          echo "      projectId: '${{ secrets.FIREBASE_PROJECT_ID }}'," >> env.js
+          echo "      storageBucket: '${{ secrets.FIREBASE_STORAGE_BUCKET }}'," >> env.js
+          echo "      messagingSenderId: '${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}'," >> env.js
+          echo "      appId: '${{ secrets.FIREBASE_APP_ID }}'," >> env.js
+          echo "      measurementId: '${{ secrets.FIREBASE_MEASUREMENT_ID }}'" >> env.js
+          echo "    }," >> env.js
+          echo "    SUPABASE_URL: '${{ secrets.SUPABASE_URL }}'," >> env.js
+          echo "    SUPABASE_KEY: '${{ secrets.SUPABASE_KEY }}'," >> env.js
+          echo "    GAS_OTP_URL: '${{ secrets.GAS_OTP_URL }}'," >> env.js
+          echo "    UPLOAD_API_URL: '${{ secrets.UPLOAD_API_URL }}'," >> env.js
+          echo "    UPLOAD_API_KEY: '${{ secrets.UPLOAD_API_KEY }}'," >> env.js
+          echo "    FIREBASE_VAPID_KEY: '${{ secrets.FIREBASE_VAPID_KEY }}'," >> env.js
+          echo "    GAS_NOTIFICATION_URL: '${{ secrets.GAS_NOTIFICATION_URL }}'" >> env.js
+          echo "  };" >> env.js
+          echo "  const globalScope = typeof window !== 'undefined' ? window : self;" >> env.js
+          echo "  globalScope.ENV = ENV;" >> env.js
+          echo "})();" >> env.js
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
