@@ -2,3 +2,5 @@ GAS/
 api/.env.php
 api/cleanup.log
 uploads/
+
+env.js

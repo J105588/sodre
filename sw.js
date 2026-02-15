@@ -19,16 +19,10 @@ const ASSETS_TO_CACHE = [
 // --- Firebase Cloud Messaging setup ---
 importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js');
+importScripts('/env.js'); // Inject environment variables
 
-const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyBst9EF5I70uhKqzbg6ajOod6lLa4e6o_Q",
-    authDomain: "sodre-6081d.firebaseapp.com",
-    projectId: "sodre-6081d",
-    storageBucket: "sodre-6081d.firebasestorage.app",
-    messagingSenderId: "528869542420",
-    appId: "1:528869542420:web:67377332a10bc75dd7b501",
-    measurementId: "G-EB765G7NE9"
-};
+const ENV = self.ENV || {};
+const FIREBASE_CONFIG = ENV.FIREBASE_CONFIG || {};
 
 firebase.initializeApp(FIREBASE_CONFIG);
 const messaging = firebase.messaging();

@@ -1,12 +1,12 @@
 // --- Configuration ---
-// REPLACE THESE WITH YOUR ACTUAL SUPABASE CREDENTIALS
-const SUPABASE_URL = 'https://qrbayooyblmffolcstgg.supabase.co';
-const SUPABASE_KEY = 'sb_publishable__CTkIkbeJ5gDbfJJ17Ll6w_U2NcITAJ';
-// REPLACE THIS WITH YOUR GAS WEB APP URL
-const GAS_OTP_URL = 'https://script.google.com/macros/s/AKfycbzpwAlodnnKDN0VTQI5nzoOXsdOnN7I962ll6o_6hOlE3WdPFaQNvdXpQJt776ThF8/exec';
-// Upload API (X-server disk storage)
-const UPLOAD_API_URL = 'https://data.sodre.jp/api/upload.php';
-const UPLOAD_API_KEY = 'dJDnv9-8eykjd-KHBVlkb'; // api/.env.php と同じ値にすること
+// LOADED FROM env.js (Injected by CI/CD or env.js locally)
+const ENV = window.ENV || {};
+
+const SUPABASE_URL = ENV.SUPABASE_URL;
+const SUPABASE_KEY = ENV.SUPABASE_KEY;
+const GAS_OTP_URL = ENV.GAS_OTP_URL;
+const UPLOAD_API_URL = ENV.UPLOAD_API_URL;
+const UPLOAD_API_KEY = ENV.UPLOAD_API_KEY;
 
 // Initialize Supabase Client globally if SDK is available
 const supabaseProvider = window.supabase || window.Supabase;
@@ -19,21 +19,13 @@ window.UPLOAD_API_URL = UPLOAD_API_URL;
 window.UPLOAD_API_KEY = UPLOAD_API_KEY;
 
 // Firebase Configuration
-window.FIREBASE_CONFIG = {
-    apiKey: "AIzaSyBst9EF5I70uhKqzbg6ajOod6lLa4e6o_Q",
-    authDomain: "sodre-6081d.firebaseapp.com",
-    projectId: "sodre-6081d",
-    storageBucket: "sodre-6081d.firebasestorage.app",
-    messagingSenderId: "528869542420",
-    appId: "1:528869542420:web:67377332a10bc75dd7b501",
-    measurementId: "G-EB765G7NE9"
-};
+window.FIREBASE_CONFIG = ENV.FIREBASE_CONFIG;
 
 // VAPID Public Key (Web Push Certificate)
-window.FIREBASE_VAPID_KEY = "BM942yHYNqVnsOgxPz-CPcZHkECm0xWVwNnYxC-SqNFE2E5xZTXnHnPPBMaA_VbE4ASAw5jhrkg253uqKsHqIDQ";
+window.FIREBASE_VAPID_KEY = ENV.FIREBASE_VAPID_KEY;
 
-// GAS Notification URL (Set this after deploying GAS)
-window.GAS_NOTIFICATION_URL = 'https://script.google.com/macros/s/AKfycbweGoDxaxHj7bVxDl_hWLdrWILxMjeKdzHGQGpUEkiNH5GwthtSIFesOfQlK9kkt-6hMQ/exec'; // TODO: Paste your GAS Web App URL here
+// GAS Notification URL
+window.GAS_NOTIFICATION_URL = ENV.GAS_NOTIFICATION_URL;
 
 
 
