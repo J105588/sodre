@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sodre-cache-v1';
+const CACHE_NAME = 'sodre-cache-v1'; // Increment version
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -8,8 +8,12 @@ const ASSETS_TO_CACHE = [
     '/members-area.html',
     '/members-area.js',
     '/config.js',
-    '/pwa-install.js',
-    '/pwa-update.js'
+    '/pwa-manager.js',
+    '/login.html',
+    '/app.html',
+    '/img/icon-192.png',
+    '/img/icon-512.png',
+    '/img/logo.webp'
 ];
 
 // --- Firebase Cloud Messaging setup ---
@@ -28,27 +32,17 @@ const FIREBASE_CONFIG = {
 
 firebase.initializeApp(FIREBASE_CONFIG);
 const messaging = firebase.messaging();
-
 const ICON_URL = 'https://lh3.googleusercontent.com/a/ACg8ocKrevxxn-jyPFTJ3zy5r6EFRGmv0Tp8-qWyb3bMaXduuMzHS0Y=s400-c';
 
-// Install Event
+// Install
 self.addEventListener('install', (event) => {
     console.log('[SW] Installing...');
-    // Removed self.skipWaiting() to prevent auto-update
     event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then((cache) => cache.addAll(ASSETS_TO_CACHE))
+        caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE))
     );
 });
 
-// Listener for SKIP_WAITING message
-self.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'SKIP_WAITING') {
-        self.skipWaiting();
-    }
-});
-
-// Activate Event
+// Activate & Cleanup
 self.addEventListener('activate', (event) => {
     console.log('[SW] Activating...');
     event.waitUntil(
@@ -56,6 +50,7 @@ self.addEventListener('activate', (event) => {
             caches.keys().then((keyList) => {
                 return Promise.all(keyList.map((key) => {
                     if (key !== CACHE_NAME) {
+                        console.log('[SW] Removing old cache', key);
                         return caches.delete(key);
                     }
                 }));
@@ -65,74 +60,85 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// Fetch Event - ONLY cache same-origin GET requests
+// Message Handler (Skip Waiting)
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
+});
+
+// Fetch Strategy
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
-    if (event.request.method !== 'GET') return;
-    if (url.origin !== self.location.origin) return;
-    if (url.pathname.startsWith('/api/')) return;
 
+    // 1. API - Network Only
+    if (url.pathname.startsWith('/api/') || url.origin !== self.location.origin) {
+        return;
+    }
+
+    // 2. Navigation (HTML) - Network First, allow offline fallback
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request)
+                .catch(() => {
+                    return caches.match(event.request)
+                        .then((response) => {
+                            if (response) return response;
+                            return caches.match('/offline.html');
+                        });
+                })
+        );
+        return;
+    }
+
+    // 3. Static Assets - Stale While Revalidate
     event.respondWith(
-        caches.match(event.request)
-            .then((response) => {
-                if (response) return response;
-                return fetch(event.request).catch(() => {
-                    if (event.request.headers.get('accept')?.includes('text/html')) {
-                        return caches.match('/offline.html');
-                    }
+        caches.match(event.request).then((cachedResponse) => {
+            const fetchPromise = fetch(event.request).then((networkResponse) => {
+                // Clone the response immediately because the body can only be consumed once.
+                // If we wait for caches.open(), the browser might already have started consuming the original response.
+                const responseToCache = networkResponse.clone();
+
+                caches.open(CACHE_NAME).then((cache) => {
+                    cache.put(event.request, responseToCache);
                 });
-            })
+                return networkResponse;
+            });
+            return cachedResponse || fetchPromise;
+        })
     );
 });
 
-// --- Background message handler (ONLY handler for displaying notifications) ---
-// GAS sends data-only messages (no "notification" key) so Firebase SDK
-// does NOT auto-display. This is the single place that shows notifications.
+// Background Messages (Notifications)
 messaging.onBackgroundMessage((payload) => {
     console.log('[SW] Background message received:', payload);
-
     const title = payload.data?.title || 'SoDRé';
-    const body = payload.data?.body || '';
-
     const options = {
-        body: body,
+        body: payload.data?.body || '',
         icon: ICON_URL,
         badge: ICON_URL,
         data: payload.data || {}
     };
-
     return self.registration.showNotification(title, options);
 });
 
-// Notification click handler
+// Notification Click
 self.addEventListener('notificationclick', (event) => {
-    console.log('[SW] Notification clicked:', event);
     event.notification.close();
-
-    let urlToOpen = '/members-area.html';
-    if (event.notification.data?.url) {
-        urlToOpen = event.notification.data.url;
-    }
+    const urlToOpen = event.notification.data?.url || '/members-area.html';
 
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-            // 1. Try to find a client that is already open to the app (same origin)
-            // We match broadly on origin to find ANY open tab of this app
             for (const client of windowClients) {
                 const clientUrl = new URL(client.url);
-                const targetUrl = new URL(urlToOpen, self.location.origin);
-
-                // If same origin (and roughly the same app scope), focus and navigate
                 if (clientUrl.origin === self.location.origin && 'focus' in client) {
                     client.focus();
-                    // Navigate only if the URL is different
-                    if (client.url !== targetUrl.href) {
+                    if (client.url !== new URL(urlToOpen, self.location.origin).href) {
                         client.navigate(urlToOpen);
                     }
                     return;
                 }
             }
-            // 2. If no client found, open new window
             if (clients.openWindow) {
                 return clients.openWindow(urlToOpen);
             }

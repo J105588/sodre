@@ -12,6 +12,16 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="manifest.json">
+    <script>
+        // Capture PWA install prompt event early to avoid missing it
+        window.deferredPWAEvent = null;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            window.deferredPWAEvent = e;
+            console.log('[App] Captured beforeinstallprompt early');
+        });
+    </script>
     <style>
         body {
             background-color: #f9f9f9;
@@ -20,11 +30,20 @@
             min-height: 100vh;
         }
 
-        .container {
+        .install-container {
             max-width: 600px;
             margin: 0 auto;
             padding: 2rem;
             flex: 1;
+            margin-top: 80px;
+            /* Account for fixed header */
+        }
+
+        @media (max-width: 768px) {
+            .install-container {
+                padding: 1rem;
+                margin-top: 60px;
+            }
         }
 
         .install-card {
@@ -33,7 +52,7 @@
             padding: 2.5rem;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
             text-align: center;
-            margin-top: 2rem;
+            /* margin-top: 2rem; Removed, handled by container margin-top */
         }
 
         .app-icon {
@@ -116,6 +135,13 @@
             transform: translateY(-2px);
         }
 
+        .btn-install-trigger:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
         .note {
             font-size: 0.85rem;
             color: #888;
@@ -132,7 +158,7 @@
         </div>
     </header>
 
-    <div class="container">
+    <div class="install-container">
         <div class="install-card">
             <img src="https://lh3.googleusercontent.com/a/ACg8ocKrevxxn-jyPFTJ3zy5r6EFRGmv0Tp8-qWyb3bMaXduuMzHS0Y=s400-c"
                 alt="App Icon" class="app-icon">
@@ -142,14 +168,59 @@
                 よりスムーズな内省と対話の体験を。
             </p>
 
-            <!-- Android / PC Section (Controlled by pwa-install.js) -->
-            <div id="install-android-pc" class="os-section">
-                <p style="margin-bottom:1.5rem;">以下のボタンをクリックしてインストールしてください。</p>
-                <div id="pwa-install-container">
-                    <!-- Button injected here by pwa-install.js -->
-                    <button class="btn-install-trigger" disabled>
-                        <i class="fas fa-spinner fa-spin"></i> 準備中...
+            <!-- Android / PC Section (Controlled by pwa-install.js / Default view) -->
+            <!-- Android Section (Mobile) -->
+            <div id="install-android" class="os-section">
+                <h3 style="margin-bottom:1rem; font-size:1.1rem;">Androidをお使いの方</h3>
+                <p style="margin-bottom:1.5rem;">以下のボタンからインストールできます</p>
+                <div style="min-height: 80px; display: flex; align-items: center; justify-content: center;">
+                    <button class="btn-install-trigger" style="opacity: 1; cursor: pointer;">
+                        <i class="fas fa-download"></i> アプリをインストール
                     </button>
+                </div>
+                <p class="note" style="margin-top:0.5rem; font-size:0.8rem;">
+                    ※ボタンが反応しない場合はブラウザメニューから「アプリをインストール」を選択してください</p>
+            </div>
+
+            <!-- PC Section (Desktop) -->
+            <div id="install-pc" class="os-section">
+                <h3 style="margin-bottom:1rem; font-size:1.1rem;">PCをお使いの方</h3>
+                <p style="margin-bottom:1.5rem;">以下のボタンをクリックしてインストールしてください。</p>
+                <div style="min-height: 80px; display: flex; align-items: center; justify-content: center;">
+                    <button class="btn-install-trigger" style="opacity: 1; cursor: pointer;">
+                        <i class="fas fa-desktop"></i> PCにインストール
+                    </button>
+                </div>
+                <p class="note" style="margin-top:1rem; font-size:0.9rem;">
+                    <i class="fas fa-info-circle"></i> ボタンが表示されない場合は、アドレスバー右側の <i class="fas fa-download"></i>
+                    アイコンからもインストール可能です。
+                </p>
+            </div>
+
+            <!-- Manual Install Modal (Hidden) -->
+            <div id="manual-install-modal" class="modal" style="display:none;">
+                <div class="modal-content"
+                    style="background:white; padding:2rem; border-radius:12px; max-width:90%; margin:20% auto; position:relative;">
+                    <span class="close-modal"
+                        style="position:absolute; right:15px; top:10px; font-size:1.5rem; cursor:pointer;"
+                        onclick="closeInstallModal()">&times;</span>
+                    <h3 style="margin-bottom:1rem; color:#333;">インストール / アプリ起動</h3>
+                    <p style="margin-bottom:1rem; font-weight:bold; font-size:0.9rem;">
+                        直接インストールが開始されない場合（iOS、または既にインストール済みの場合）は、ブラウザのメニューをご確認ください。
+                    </p>
+                    <div class="step">
+                        <span class="step-num">1</span>
+                        <span>画面右上のメニューアイコン <br>（<i class="fas fa-ellipsis-v"></i> または <i
+                                class="fas fa-bars"></i>）をタップ</span>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">2</span>
+                        <span><strong>「アプリをインストール」</strong>または<br><strong>「ホーム画面に追加」</strong>を選択</span>
+                    </div>
+                    <div style="text-align:center; margin-top:1.5rem;">
+                        <button onclick="closeInstallModal()" class="btn-install-trigger"
+                            style="font-size:0.9rem; padding:10px 20px;">閉じる</button>
+                    </div>
                 </div>
             </div>
 
@@ -176,7 +247,7 @@
         </div>
     </div>
 
-    <script src="pwa-install.js"></script>
+    <script src="pwa-manager.js"></script>
     <script>
         // 1. Detect OS
         const ua = navigator.userAgent.toLowerCase();
@@ -186,15 +257,14 @@
         // 2. Show appropriate section
         if (isIOS) {
             document.getElementById('install-ios').style.display = 'block';
+        } else if (isAndroid) {
+            document.getElementById('install-android').style.display = 'block';
         } else {
-            // Default to Android/PC view
-            document.getElementById('install-android-pc').style.display = 'block';
+            // Default to PC view
+            document.getElementById('install-pc').style.display = 'block';
         }
 
-        // 3. Redirect if already Standalone
-        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
-            window.location.replace('login.html');
-        }
+        // 3. Standalone check is now handled in pwa-manager.js, but we can keep UI logic here if needed.
     </script>
 </body>
 
