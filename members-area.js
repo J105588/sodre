@@ -111,6 +111,92 @@ document.addEventListener('DOMContentLoaded', async () => {
     const user = session.user;
     loadProfile(user.id);
 
+    // --- PWA Session Persistence (Wake-up Handler) ---
+    if (isPWA) {
+        const forceSessionRefresh = async () => {
+            console.log('App wake-up: Checking session...');
+            const { data, error } = await supabase.auth.getSession();
+
+            // If session is missing or about to expire (optional check), try refresh
+            // For now, just rely on getSession returning null if invalid, or refreshSession if we want to be aggressive
+
+            if (!data.session) {
+                console.log('Session missing on wake-up, attempting refresh...');
+                const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+                if (refreshError || !refreshData.session) {
+                    console.warn('Wake-up refresh failed:', refreshError);
+                    // Do not logout immediately to avoid disruption if offline,
+                    // but next API call might fail (406).
+                    // We can try to redirect if we are sure it's fatal?
+                    // For now, let's just log.
+                } else {
+                    console.log('Session refreshed successfully on wake-up');
+                    currentSession = refreshData.session;
+                }
+            } else {
+                console.log('Session valid on wake-up');
+                currentSession = data.session;
+            }
+        };
+
+        // Debounce logic to prevent multiple calls
+        let refreshTimeout;
+        const debouncedRefresh = () => {
+            if (refreshTimeout) clearTimeout(refreshTimeout);
+            refreshTimeout = setTimeout(forceSessionRefresh, 1000);
+        };
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                debouncedRefresh();
+            }
+        });
+
+        window.addEventListener('online', () => {
+            console.log('Network online: refreshing session...');
+            debouncedRefresh();
+        });
+        window.addEventListener('online', () => {
+            console.log('Network online: refreshing session...');
+            debouncedRefresh();
+        });
+    }
+
+    // --- Periodic Credential Verification (Security Check) ---
+    // Check every 5 minutes if stored credentials are still valid
+    setInterval(async () => {
+        const storedEmail = localStorage.getItem('sodre_user_email');
+        const storedPass = localStorage.getItem('sodre_user_password');
+
+        if (storedEmail && storedPass) {
+            // We need to verify without logging out the current session if possible.
+            // signInWithPassword will update the current session on the client.
+            // This is actually what we want: refresh the session and confirm creds are valid.
+            // If password changed, this call will fail.
+
+            console.log('Periodic credential verification...');
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: storedEmail,
+                password: storedPass
+            });
+
+            if (error) {
+                console.warn('Credential verification failed (Password changed?):', error);
+                // Invalid credentials -> Force Logout
+                alert('認証情報の確認に失敗しました（パスワードが変更された可能性があります）。再ログインしてください。');
+                localStorage.removeItem('sodre_user_email');
+                localStorage.removeItem('sodre_user_password');
+                localStorage.removeItem('sodre_last_activity');
+                await supabase.auth.signOut();
+                window.location.href = 'login.html';
+            } else {
+                console.log('Credential verification success');
+                // Session is updated, which is fine.
+                currentSession = data.session;
+            }
+        }
+    }, 5 * 60 * 1000); // 5 minutes
+
     // --- Firebase: Token refresh & Foreground message handling (after session is ready) ---
     // --- Firebase: Token refresh & Foreground message handling (after session is ready) ---
     async function refreshFCMToken() {
