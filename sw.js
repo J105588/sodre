@@ -66,7 +66,12 @@ self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
     // 1. API - Network Only
-    if (url.pathname.startsWith('/api/') || url.origin !== self.location.origin) {
+    // 1. API - Network Only
+    // Exclude Supabase Storage and data.sodre.jp from this block so they can be cached below
+    const isSupabaseStorage = ENV.SUPABASE_URL && url.href.startsWith(ENV.SUPABASE_URL) && url.pathname.includes('/storage/v1/object/public/');
+    const isSodreData = url.hostname === 'data.sodre.jp';
+
+    if ((url.pathname.startsWith('/api/') || url.origin !== self.location.origin) && !isSupabaseStorage && !isSodreData) {
         return;
     }
 
@@ -85,7 +90,41 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // 3. Static Assets - Stale While Revalidate
+    // 3. Images (Supabase Storage & data.sodre.jp) - Stale While Revalidate
+    // Allow these cross-origin requests to be cached
+    // Variables isSupabaseStorage and isSodreData are already declared above
+
+    if (isSupabaseStorage || isSodreData) {
+        event.respondWith(
+            caches.open('sodre-images-v1').then((cache) => {
+                return cache.match(event.request).then((cachedResponse) => {
+                    // Use no-cors for external images to allow caching opaque responses (Sodre, etc.)
+                    // Also omit credentials to avoid CORS issues with Supabase wildcard
+                    const fetchPromise = fetch(event.request, { mode: 'no-cors', credentials: 'omit' }).then((networkResponse) => {
+                        // Check if valid response
+                        // Opaque responses have status 0 and type 'opaque'
+                        if (!networkResponse || (networkResponse.status !== 200 && networkResponse.type !== 'opaque') || (networkResponse.type !== 'basic' && networkResponse.type !== 'cors' && networkResponse.type !== 'opaque')) {
+                            return networkResponse;
+                        }
+
+                        const responseToCache = networkResponse.clone();
+                        caches.open('sodre-images-v1').then((cache) => {
+                            cache.put(event.request, responseToCache);
+                        });
+                        return networkResponse;
+                    }).catch(e => {
+                        console.error('Image fetch failed', e);
+                        throw e;
+                    });
+
+                    return cachedResponse || fetchPromise;
+                });
+            })
+        );
+        return;
+    }
+
+    // 4. Static Assets - Stale While Revalidate
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
             const fetchPromise = fetch(event.request).then((networkResponse) => {

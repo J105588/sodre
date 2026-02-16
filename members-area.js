@@ -14,8 +14,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!supabase) return;
 
     // --- PWA Standalone Detection ---
+    // --- PWA Standalone Detection (Enhanced) ---
     const isPWA = window.matchMedia('(display-mode: standalone)').matches
-        || window.navigator.standalone === true;
+        || window.navigator.standalone === true
+        || document.referrer.includes('android-app://');
 
     // PWA初回起動: 強制ログアウトしてログイン画面へ
     if (isPWA && !localStorage.getItem('sodre_pwa_initialized')) {
@@ -82,12 +84,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Auth Check (PWA: セッション自動更新) ---
     let currentSession;
     if (isPWA) {
-        // PWAではセッションを自動更新して維持する
+        // PWAではセッションを自動更新して維持する (失敗しても即座にログアウトしない)
         const { data, error } = await supabase.auth.refreshSession();
         if (error || !data.session) {
-            // リフレッシュ失敗 → 再ログイン
+            console.log('Session refresh failed, using local session (Offline mode safe)');
+            // リフレッシュ失敗 → ローカルセッションがあるか確認
             const { data: fallback } = await supabase.auth.getSession();
             if (!fallback.session) {
+                // 完全にセッションがない場合のみログイン画面へ
                 window.location.href = 'login.html';
                 return;
             }
@@ -236,6 +240,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Check timeout
         const checkTimeout = async () => {
+            // PWA Safety Check: Absolutely no auto-logout for PWA
+            const checkIsPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true || document.referrer.includes('android-app://');
+            if (checkIsPWA) return;
+
             // If already on login page, do nothing (safety)
             if (window.location.pathname.endsWith('login.html')) return;
 
@@ -1140,6 +1148,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         ${post.images.map(url => {
                         if (isImageUrl(url)) {
                             return `<img src="${url}" 
+                                    loading="lazy"
                                     onclick="openLightbox('${url}')"
                                     style="max-width:100%; height:auto; max-height:200px; border-radius:4px; cursor:pointer; transition:opacity 0.2s; object-fit: contain;" 
                                     onmouseover="this.style.opacity=0.8" 
