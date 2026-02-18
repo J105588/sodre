@@ -416,6 +416,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) {
             console.error('Token cleanup error:', e);
         }
+
+        // Clear stored credentials to prevent auto-login
+        localStorage.removeItem('sodre_user_email');
+        localStorage.removeItem('sodre_user_password');
+        localStorage.removeItem('sodre_last_activity');
+
         await supabase.auth.signOut();
         window.location.href = 'login.html';
     });
