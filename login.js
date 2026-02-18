@@ -164,6 +164,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const step2 = document.getElementById('reset-step-2');
     const resetMsg = document.getElementById('reset-msg');
 
+    // Spam Warning Elements
+    const spamWarningModal = document.getElementById('spam-warning-modal');
+    const spamWarningOkBtn = document.getElementById('spam-warning-ok-btn');
+    let pendingOtpEmail = '';
+
     // CONFIG: GAS Web App URL is now in config.js
     // const GAS_OTP_URL = '...'; 
 
@@ -298,9 +303,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         resetMsg.textContent = 'メールアドレスを確認中...';
 
         // 1. Check if email exists in Supabase
-        // DEBUG: Alerting to confirm execution
-        // alert('Debug: Checking email existence for ' + email);
-
         const { data: emailExists, error: checkError } = await supabase.rpc('check_email_exists', { p_email: email });
 
         if (checkError) {
@@ -316,11 +318,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        // Email exists. Show warning modal before sending.
+        pendingOtpEmail = email;
+        spamWarningModal.style.display = 'flex';
+    });
+
+    // Handle Spam Warning OK - Execute GAS Request
+    spamWarningOkBtn.addEventListener('click', async () => {
+        spamWarningModal.style.display = 'none';
+        const email = pendingOtpEmail;
+        const targetUrl = window.GAS_OTP_URL || GAS_OTP_URL;
+
         resetMsg.textContent = '認証コードを送信しています...';
 
         try {
             // Call GAS
-            // Debug: Log the URL we are hitting
             console.log('Sending to:', targetUrl);
 
             const response = await fetch(targetUrl, {

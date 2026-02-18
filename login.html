@@ -175,6 +175,22 @@
         </div>
     </div>
 
+    <!-- Spam Warning Modal -->
+    <div id="spam-warning-modal"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1500; align-items:center; justify-content:center;">
+        <div
+            style="background:white; padding:2rem; border-radius:8px; width:90%; max-width:400px; text-align:center; position:relative;">
+            <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #f0ad4e; margin-bottom: 1rem;"></i>
+            <h3 style="margin-bottom:1rem; color:var(--text-color);">⚠ 以下にご注意ください ⚠</h3>
+            <p style="margin-bottom:1.5rem; font-size:0.95rem; text-align:left; line-height:1.6;">
+                <span style="font-weight:bold;">sodre.jp</span> からのメールが<span
+                    style="color:red; font-weight:bold;">迷惑メールフォルダ</span>に振り分けられる可能性があります。<br><br>
+                メールが届かない場合は、迷惑メールフォルダをご確認いただくか、受信設定を再確認してください。
+            </p>
+            <button id="spam-warning-ok-btn" class="btn-login" style="background:#f0ad4e;">確認しました</button>
+        </div>
+    </div>
+
     <footer>
         <div class="container">
             <p class="copyright">&copy; 2026 SoDRé & Junxiang Jin. All Rights Reserved.</p>
