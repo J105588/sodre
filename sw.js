@@ -95,6 +95,11 @@ self.addEventListener('fetch', (event) => {
     // Variables isSupabaseStorage and isSodreData are already declared above
 
     if (isSupabaseStorage || isSodreData) {
+        // Fix: Do not attempt to cache POST/PUT/DELETE requests (e.g. upload.php)
+        if (event.request.method !== 'GET') {
+            return;
+        }
+
         event.respondWith(
             caches.open('sodre-images-v1').then((cache) => {
                 return cache.match(event.request).then((cachedResponse) => {

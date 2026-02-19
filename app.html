@@ -168,23 +168,32 @@
                 よりスムーズな内省と対話の体験を。
             </p>
 
-            <!-- Android / PC Section (Controlled by pwa-install.js / Default view) -->
             <!-- Android Section (Mobile) -->
             <div id="install-android" class="os-section">
-                <h3 style="margin-bottom:1rem; font-size:1.1rem;">Androidをお使いの方</h3>
-                <p style="margin-bottom:1.5rem;">以下のボタンからインストールできます</p>
+                <h3 style="margin-bottom:1rem; font-size:1.1rem; color:#145ab4;">Androidをご利用の方</h3>
+                <p style="margin-bottom:1.5rem;">以下のボタンからアプリをインストールできます</p>
                 <div style="min-height: 80px; display: flex; align-items: center; justify-content: center;">
                     <button class="btn-install-trigger" style="opacity: 1; cursor: pointer;">
                         <i class="fas fa-download"></i> アプリをインストール
                     </button>
                 </div>
-                <p class="note" style="margin-top:0.5rem; font-size:0.8rem;">
-                    ※ボタンが反応しない場合はブラウザメニューから「アプリをインストール」を選択してください</p>
+                <div class="note"
+                    style="text-align:left; background:#f9f9f9; padding:15px; border-radius:8px; margin-top:1.5rem;">
+                    <p style="font-weight:bold; margin-bottom:5px;">ボタンが反応しない場合：</p>
+                    <div style="display:flex; align-items:flex-start; margin-bottom:5px;">
+                        <span class="step-num" style="width:20px; height:20px; font-size:0.7rem;">1</span>
+                        <span>ブラウザ右上のメニュー <i class="fas fa-ellipsis-v"></i> をタップ</span>
+                    </div>
+                    <div style="display:flex; align-items:flex-start;">
+                        <span class="step-num" style="width:20px; height:20px; font-size:0.7rem;">2</span>
+                        <span><strong>「アプリをインストール」</strong>または<strong>「ホーム画面に追加」</strong>を選択</span>
+                    </div>
+                </div>
             </div>
 
             <!-- PC Section (Desktop) -->
             <div id="install-pc" class="os-section">
-                <h3 style="margin-bottom:1rem; font-size:1.1rem;">PCをお使いの方</h3>
+                <h3 style="margin-bottom:1rem; font-size:1.1rem; color:#145ab4;">PC (Windows / Mac) をご利用の方</h3>
                 <p style="margin-bottom:1.5rem;">以下のボタンをクリックしてインストールしてください。</p>
                 <div style="min-height: 80px; display: flex; align-items: center; justify-content: center;">
                     <button class="btn-install-trigger" style="opacity: 1; cursor: pointer;">
@@ -192,31 +201,48 @@
                     </button>
                 </div>
                 <p class="note" style="margin-top:1rem; font-size:0.9rem;">
-                    <i class="fas fa-info-circle"></i> ボタンが表示されない場合は、アドレスバー右側の <i class="fas fa-download"></i>
-                    アイコンからもインストール可能です。
+                    <i class="fas fa-info-circle"></i> ボタンが表示されない場合は、ブラウザのアドレスバー右側にある <i class="fas fa-download"></i>
+                    (インストール) アイコンをクリックしてください。
                 </p>
             </div>
 
-            <!-- Manual Install Modal (Hidden) -->
+            <!-- iOS Section -->
+            <div id="install-ios" class="os-section">
+                <h3 style="margin-bottom:1rem; font-size:1.1rem; color:#145ab4;">iPhone / iPad をご利用の方</h3>
+                <p style="margin-bottom:1.5rem;">以下の手順でホーム画面に追加してください。</p>
+
+                <div class="step">
+                    <span class="step-num">1</span>
+                    <div style="flex:1;">
+                        画面下部（iPadは右上）の<br>
+                        <strong>共有ボタン</strong> <i class="fas fa-arrow-up-from-bracket ios-share-icon"
+                            style="background:#eee; padding:5px; border-radius:5px;"></i> をタップ
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">2</span>
+                    <div style="flex:1;">
+                        メニューをスクロールして<br>
+                        <strong>「ホーム画面に追加」</strong> <i class="far fa-square-plus" style="margin:0 5px;"></i> を選択
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-num">3</span>
+                    <div style="flex:1;">
+                        画面右上の<strong>「追加」</strong>をタップ
+                    </div>
+                </div>
+            </div>
+
+            <!-- Manual Install Modal (Hidden but used by script) -->
             <div id="manual-install-modal" class="modal" style="display:none;">
                 <div class="modal-content"
                     style="background:white; padding:2rem; border-radius:12px; max-width:90%; margin:20% auto; position:relative;">
                     <span class="close-modal"
                         style="position:absolute; right:15px; top:10px; font-size:1.5rem; cursor:pointer;"
                         onclick="closeInstallModal()">&times;</span>
-                    <h3 style="margin-bottom:1rem; color:#333;">インストール / アプリ起動</h3>
-                    <p style="margin-bottom:1rem; font-weight:bold; font-size:0.9rem;">
-                        直接インストールが開始されない場合（iOS、または既にインストール済みの場合）は、ブラウザのメニューをご確認ください。
-                    </p>
-                    <div class="step">
-                        <span class="step-num">1</span>
-                        <span>画面右上のメニューアイコン <br>（<i class="fas fa-ellipsis-v"></i> または <i
-                                class="fas fa-bars"></i>）をタップ</span>
-                    </div>
-                    <div class="step">
-                        <span class="step-num">2</span>
-                        <span><strong>「アプリをインストール」</strong>または<br><strong>「ホーム画面に追加」</strong>を選択</span>
-                    </div>
+                    <h3 style="margin-bottom:1rem; color:#333;">インストールについて</h3>
+                    <p>ブラウザのメニューから「アプリをインストール」または「ホーム画面に追加」を選択してください。</p>
                     <div style="text-align:center; margin-top:1.5rem;">
                         <button onclick="closeInstallModal()" class="btn-install-trigger"
                             style="font-size:0.9rem; padding:10px 20px;">閉じる</button>
@@ -224,47 +250,33 @@
                 </div>
             </div>
 
-            <!-- iOS Section -->
-            <div id="install-ios" class="os-section">
-                <p style="margin-bottom:1rem; font-weight:bold;">iPhone / iPad をお使いの方</p>
-                <div class="step">
-                    <span class="step-num">1</span>
-                    <span>画面下部（iPadは上部）の<br><strong>共有ボタン</strong> <i
-                            class="fas fa-arrow-up-from-bracket ios-share-icon"></i> をタップ</span>
-                </div>
-                <div class="step">
-                    <span class="step-num">2</span>
-                    <span>メニューから<br><strong>「ホーム画面に追加」</strong> <i class="far fa-square-plus" style="margin:0 5px;"></i>
-                        を選択</span>
-                </div>
-                <div class="step">
-                    <span class="step-num">3</span>
-                    <span>画面右上の<strong>「追加」</strong>をタップ</span>
-                </div>
-            </div>
-
-            <p class="note">※ PWA（プログレッシブウェブアプリ）技術を使用しています。<br>App Store / Google Play ストアにはありません。</p>
+            <p class="note" style="margin-top:2rem; border-top:1px solid #eee; padding-top:1rem;">
+                ※ 本アプリはPWA（プログレッシブウェブアプリ）技術を使用しています。<br>App Store / Google Play ストア等のアプリストア経由ではありませんが、安全にご利用いただけます。
+            </p>
         </div>
     </div>
 
     <script src="pwa-manager.js"></script>
     <script>
-        // 1. Detect OS
-        const ua = navigator.userAgent.toLowerCase();
-        const isIOS = /iphone|ipad|ipod/.test(ua);
-        const isAndroid = /android/.test(ua);
+        document.addEventListener('DOMContentLoaded', () => {
+            // 1. Detect OS
+            const ua = navigator.userAgent.toLowerCase();
+            const isIOS = /iphone|ipad|ipod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); // iPad Pro support
+            const isAndroid = /android/.test(ua);
 
-        // 2. Show appropriate section
-        if (isIOS) {
-            document.getElementById('install-ios').style.display = 'block';
-        } else if (isAndroid) {
-            document.getElementById('install-android').style.display = 'block';
-        } else {
-            // Default to PC view
-            document.getElementById('install-pc').style.display = 'block';
-        }
+            // 2. Show appropriate section
+            // Hide all first to be safe (though CSS already does)
+            document.querySelectorAll('.os-section').forEach(el => el.style.display = 'none');
 
-        // 3. Standalone check is now handled in pwa-manager.js, but we can keep UI logic here if needed.
+            if (isIOS) {
+                document.getElementById('install-ios').style.display = 'block';
+            } else if (isAndroid) {
+                document.getElementById('install-android').style.display = 'block';
+            } else {
+                // Default to PC view
+                document.getElementById('install-pc').style.display = 'block';
+            }
+        });
     </script>
 </body>
 
