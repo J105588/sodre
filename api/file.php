@@ -43,12 +43,7 @@ if ($token) {
 if (!$isValid) {
     // 認証失敗時は 403 Forbidden を返す
     http_response_code(403);
-    echo "Access Denied.<br>";
-    echo "Debug Info:<br>";
-    echo "HTTP Code: " . $httpCode . "<br>";
-    echo "Response: " . htmlspecialchars($response) . "<br>";
-    echo "Token provided: " . (strlen($token) > 0 ? "Yes (" . strlen($token) . " chars)" : "No") . "<br>";
-    echo "Curl Error: " . curl_error($ch); 
+    echo "Access Denied.";
     exit;
 }
 

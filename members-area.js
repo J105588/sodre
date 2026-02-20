@@ -673,6 +673,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (files.length > 0) {
             const previewArea = document.getElementById('modal-image-preview');
             files.forEach(file => {
+                const container = document.createElement('div');
+                container.style.position = 'relative';
+                container.style.display = 'inline-block';
+                container.style.marginRight = '8px';
+                container.style.marginBottom = '8px';
+
                 if (file.type.startsWith('image/')) {
                     const reader = new FileReader();
                     reader.onload = (ev) => {
@@ -682,7 +688,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         img.style.height = '80px';
                         img.style.objectFit = 'cover';
                         img.style.borderRadius = '4px';
-                        previewArea.appendChild(img);
+                        container.appendChild(img);
                     }
                     reader.readAsDataURL(file);
                 } else {
@@ -694,12 +700,43 @@ document.addEventListener('DOMContentLoaded', async () => {
                     filePreview.style.background = '#f5f5f5';
                     filePreview.style.borderRadius = '6px';
                     filePreview.style.fontSize = '0.85rem';
-                    filePreview.style.marginRight = '5px';
-                    filePreview.innerHTML = `<i class="${getFileIcon(file.name)}" style="color:var(--primary-color);"></i> ${file.name}`;
-                    previewArea.appendChild(filePreview);
+                    filePreview.innerHTML = `<i class="${getFileIcon(file.name)}" style="color:var(--primary-color);"></i> <span style="max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${file.name}</span>`;
+                    container.appendChild(filePreview);
                 }
+
+                // Add cancel button
+                const cancelBtn = document.createElement('span');
+                cancelBtn.innerHTML = '&times;';
+                cancelBtn.style.position = 'absolute';
+                cancelBtn.style.top = '-8px';
+                cancelBtn.style.right = '-8px';
+                cancelBtn.style.background = 'rgba(0,0,0,0.6)';
+                cancelBtn.style.color = 'white';
+                cancelBtn.style.borderRadius = '50%';
+                cancelBtn.style.width = '20px';
+                cancelBtn.style.height = '20px';
+                cancelBtn.style.display = 'flex';
+                cancelBtn.style.alignItems = 'center';
+                cancelBtn.style.justifyContent = 'center';
+                cancelBtn.style.cursor = 'pointer';
+                cancelBtn.style.fontSize = '14px';
+                cancelBtn.style.lineHeight = '1';
+                cancelBtn.style.zIndex = '10';
+
+                cancelBtn.addEventListener('click', () => {
+                    const index = selectedFiles.indexOf(file);
+                    if (index > -1) {
+                        selectedFiles.splice(index, 1);
+                    }
+                    container.remove();
+                });
+
+                container.appendChild(cancelBtn);
+                previewArea.appendChild(container);
                 selectedFiles.push(file);
             });
+            // Clear input so selecting same file again works
+            e.target.value = '';
         }
     });
 
