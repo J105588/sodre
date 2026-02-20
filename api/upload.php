@@ -173,9 +173,8 @@ for ($i = 0; $i < $fileCount; $i++) {
 
     // ファイル保存
     if (move_uploaded_file($tmpName, $destPath)) {
-        // 公開URL生成（クエリパラメータに元のファイル名を付与）
-        // これにより、フロントエンドで元のファイル名を表示・取得できるようにする
-        $publicUrl = SITE_URL . '/uploads/' . $yearMonth . '/' . $uniqueName . '?name=' . urlencode($originalName);
+        // 公開URL生成（クエリパラメータはフロントエンドで付与するため純粋なパスのみ返す）
+        $publicUrl = SITE_URL . '/uploads/' . $yearMonth . '/' . $uniqueName;
         $uploadedUrls[] = $publicUrl;
     } else {
         $errors[] = "{$name}: ファイルの保存に失敗しました";

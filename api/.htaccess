@@ -1,0 +1,17 @@
+RewriteEngine On
+
+# Allow PHP execution
+<FilesMatch "\.php$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>
+
+# Combine uploads handling: Redirect uploads/... to file.php
+# This works if uploads is inside API or if this .htaccess is at a level that sees uploads/
+RewriteRule ^uploads/(.*)$ /api/file.php [QSA,L]
+
+# Prevent access to dotfiles
+<FilesMatch "^\.">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>

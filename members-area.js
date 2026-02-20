@@ -79,10 +79,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     let selectedFiles = []; // Store selected files for upload
     let isAdmin = false; // Admin State
     let isSuperAdmin = false; // Superadmin State
+    let currentSession = null; // Store session for token-based features like file access
     let isEditingPostId = null; // Track if we are editing a post
 
     // --- Auth Check (PWA: セッション自動更新) ---
-    let currentSession;
     if (isPWA) {
         // PWAではセッションを自動更新して維持する (失敗しても即座にログアウトしない)
         const { data, error } = await supabase.auth.refreshSession();
@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const { data: fallback } = await supabase.auth.getSession();
             if (!fallback.session) {
                 // 完全にセッションがない場合のみログイン画面へ
-                window.location.href = 'login.html';
+                window.location.replace('login.html');
                 return;
             }
             currentSession = fallback.session;
@@ -100,15 +100,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             currentSession = data.session;
         }
     } else {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-            window.location.href = 'login.html';
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !session) {
+            window.location.replace('login.html');
             return;
         }
         currentSession = session;
     }
-    const session = currentSession;
-    const user = session.user;
+    const user = currentSession.user;
+
+    supabase.auth.onAuthStateChange((event, newSession) => {
+        if (event === 'SIGNED_OUT') {
+            window.location.replace('login.html');
+        } else if (newSession) {
+            currentSession = newSession; // Update session
+        }
+    });
+
     loadProfile(user.id);
 
     // --- PWA Session Persistence (Wake-up Handler) ---
@@ -341,6 +349,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 console.log('Session expired due to inactivity');
                 // Clear storage to prevent loops
                 localStorage.removeItem(STORAGE_KEY);
+                localStorage.removeItem('sodre_user_email');
+                localStorage.removeItem('sodre_user_password');
 
                 try {
                     await supabase.auth.signOut();
@@ -596,7 +606,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     if (isImageUrl(url)) {
                         const img = document.createElement('img');
-                        img.src = url;
+                        img.src = getSecureUrl(url);
                         img.style.width = '80px';
                         img.style.height = '80px';
                         img.style.objectFit = 'cover';
@@ -742,19 +752,27 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
                 const uploadData = await uploadRes.json();
                 if (uploadData.success && uploadData.urls) {
-                    imageUrls = uploadData.urls;
+                    // Append original filename to URL for display/download
+                    imageUrls = uploadData.urls.map((url, index) => {
+                        const file = selectedFiles[index];
+                        if (file) {
+                            // Use encodeURIComponent for Japanese characters
+                            return `${url}?name=${encodeURIComponent(file.name)}`;
+                        }
+                        return url;
+                    });
                 } else {
                     console.error('Upload error:', uploadData.error);
                     alert('ファイルのアップロードに失敗しました: ' + (uploadData.error || '不明なエラー'));
                     modalSubmitBtn.disabled = false;
-                    modalSubmitBtn.textContent = isUpdate ? '更新する' : '投稿する';
+                    modalSubmitBtn.textContent = isEditingPostId ? '更新する' : '投稿する';
                     return; // Abort post creation
                 }
             } catch (uploadErr) {
                 console.error('Upload fetch error:', uploadErr);
                 alert('ファイルのアップロードに失敗しました。');
                 modalSubmitBtn.disabled = false;
-                modalSubmitBtn.textContent = isUpdate ? '更新する' : '投稿する';
+                modalSubmitBtn.textContent = isEditingPostId ? '更新する' : '投稿する';
                 return; // Abort post creation
             }
         }
@@ -1238,10 +1256,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 ${post.images && post.images.length > 0 ? `
                     <div style="display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
                         ${post.images.map(url => {
+                        const secureUrl = getSecureUrl(url);
                         if (isImageUrl(url)) {
-                            return `<img src="${url}" 
+                            return `<img src="${secureUrl}" 
                                     loading="lazy"
-                                    onclick="openLightbox('${url}')"
+                                    onclick="openLightbox('${secureUrl}')"
                                     style="max-width:100%; height:auto; max-height:200px; border-radius:4px; cursor:pointer; transition:opacity 0.2s; object-fit: contain;" 
                                     onmouseover="this.style.opacity=0.8" 
                                     onmouseout="this.style.opacity=1"
@@ -1262,7 +1281,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 fname = fname.split('?')[0];
                             }
 
-                            return `<a href="${url}" target="_blank" download="${fname}" 
+                            return `<a href="${secureUrl}" target="_blank" download="${fname}" 
                                     style="display:inline-flex; align-items:center; gap:6px; padding:8px 14px; background:#f5f5f5; border-radius:6px; text-decoration:none; color:#333; font-size:0.85rem; transition:background 0.2s;"
                                     onmouseover="this.style.background='#eee'" onmouseout="this.style.background='#f5f5f5'">
                                     <i class="${getFileIconFromUrl(url)}" style="color:var(--primary-color); font-size:1.1rem;"></i>
@@ -1318,6 +1337,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
+    // --- Secure URL Helper ---
+    function getSecureUrl(url) {
+        if (!url || !url.startsWith('https://data.sodre.jp/uploads/')) {
+            return url;
+        }
+        if (currentSession && currentSession.access_token) {
+            const separator = url.includes('?') ? '&' : '?';
+            const newUrl = `${url}${separator}token=${currentSession.access_token}`;
+            console.log('getSecureUrl(Debug): Appending token to', url);
+            return newUrl;
+        } else {
+            console.warn('getSecureUrl(Debug): Session/Token missing!', currentSession);
+        }
+        return url;
+    }
+
     window.loadComments = async (postId) => {
         const listEl = document.getElementById(`comments-list-${postId}`);
 
@@ -1338,6 +1373,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         renderComments(postId, data);
     };
+
 
     function renderComments(postId, comments) {
         const listEl = document.getElementById(`comments-list-${postId}`);
@@ -1463,26 +1499,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         const filename = url.split('/').pop().split('?')[0];
         return getFileIcon(filename);
     }
-
+    // Helper for file preview
     function createFilePreviewHTML(url) {
-        let fname = decodeURIComponent(url.split('/').pop());
+        let filename = 'Attachment';
         try {
             const urlObj = new URL(url);
-            const originalName = urlObj.searchParams.get('name');
-            if (originalName) {
-                fname = originalName;
+            const params = new URLSearchParams(urlObj.search);
+            if (params.has('name')) {
+                filename = decodeURIComponent(params.get('name'));
             } else {
-                fname = fname.split('?')[0];
+                filename = url.split('/').pop().split('?')[0];
             }
         } catch (e) {
-            fname = fname.split('?')[0];
+            filename = url.split('/').pop().split('?')[0];
         }
 
-        return `<div style="display:inline-flex; align-items:center; gap:5px; padding:8px 12px; background:#f5f5f5; border-radius:6px; font-size:0.85rem;">
-            <i class="${getFileIconFromUrl(url)}" style="color:var(--primary-color);"></i> ${fname}
-        </div>`;
-    }
+        const iconClass = getFileIcon(filename); // Assume getFileIcon is global or defined nearby
+        const secureUrl = getSecureUrl(url);
 
+        return `
+            <a href="${secureUrl}" target="_blank" class="file-attachment-link" onclick="event.stopPropagation();">
+                <i class="${iconClass}"></i>
+                <span class="filename">${escapeHtml(filename)}</span>
+            </a>
+        `;
+    }
     function escapeHtml(text) {
         if (!text) return '';
         return text
@@ -1501,6 +1542,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 2. Linkify URLs
         const urlRegex = /(https?:\/\/[^\s]+)/g;
         let linked = escaped.replace(urlRegex, function (url) {
+            if (url.startsWith('https://data.sodre.jp/uploads/')) {
+                const secureUrl = getSecureUrl(url);
+                return `<a href="${secureUrl}" target="_blank" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
+            }
             return `<a href="${url}" class="external-link" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
         });
 
@@ -1513,6 +1558,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const urlRegex = /(https?:\/\/[^\s]+)/g;
         let linked = escaped.replace(urlRegex, function (url) {
+            if (url.startsWith('https://data.sodre.jp/uploads/')) {
+                const secureUrl = getSecureUrl(url);
+                return `<a href="${secureUrl}" target="_blank" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
+            }
             return `<a href="${url}" class="external-link" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
         });
 

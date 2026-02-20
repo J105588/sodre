@@ -996,6 +996,8 @@
 
     let currentUserId = null; // Add at top level scope if possible, or inside IIFE
 
+    let adminCheckInterval = null;
+
     async function checkUser() {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
@@ -1012,6 +1014,29 @@
                 dashboardSection.style.display = 'block';
                 loadPosts(currentTab);
                 setupSessionTimeout(); // Start Inactivity Timer
+
+                // --- Periodic Admin Verification (Every 5 minutes) ---
+                if (adminCheckInterval) clearInterval(adminCheckInterval);
+                adminCheckInterval = setInterval(async () => {
+                    const { data: { session: currentSession } } = await supabase.auth.getSession();
+                    if (!currentSession) {
+                        alert("セッションが切れました。再ログインしてください。");
+                        window.location.reload();
+                        return;
+                    }
+                    const { data: checkProfile } = await supabase
+                        .from('profiles')
+                        .select('is_admin')
+                        .eq('id', currentSession.user.id)
+                        .single();
+
+                    if (!checkProfile || !checkProfile.is_admin) {
+                        alert("管理者権限が失われました。ログアウトします。");
+                        await supabase.auth.signOut();
+                        window.location.reload();
+                    }
+                }, 5 * 60 * 1000); // 5 minutes polling
+
             } else {
                 alert("アクセス拒否: 管理者権限が必要です。");
                 // Optional: Logout if not admin
