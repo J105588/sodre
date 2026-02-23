@@ -240,7 +240,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     else if (/iPad|iPhone|iPod/.test(ua)) deviceType = 'ios';
 
                     const { error } = await supabase.from('user_fcm_tokens').upsert({
-                        user_id: session.user.id,
+                        user_id: currentSession.user.id,
                         token: token,
                         device_type: deviceType,
                         last_updated: new Date().toISOString() // Ensure column exists or defaults to now()

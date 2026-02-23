@@ -113,24 +113,66 @@
     // --- Session Expiration Logic (30 mins) ---
     function setupSessionTimeout() {
         const TIMEOUT_DURATION = 30 * 60 * 1000; // 30 minutes
-        let timeout;
+        const STORAGE_KEY = 'sodre_admin_last_activity';
 
-        const resetTimer = () => {
-            clearTimeout(timeout);
-            timeout = setTimeout(async () => {
-                alert('Session expired due to inactivity.');
-                await supabase.auth.signOut();
-                window.location.reload();
-            }, TIMEOUT_DURATION);
+        const updateActivity = () => {
+            localStorage.setItem(STORAGE_KEY, Date.now().toString());
         };
 
-        // Listen for activity
-        const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
-        events.forEach(event => {
-            document.addEventListener(event, resetTimer);
+        const checkTimeout = async () => {
+            const lastActivity = parseInt(localStorage.getItem(STORAGE_KEY) || '0');
+            const now = Date.now();
+
+            if (lastActivity > 0 && (now - lastActivity > TIMEOUT_DURATION)) {
+                console.log('Admin session expired due to inactivity');
+                localStorage.removeItem(STORAGE_KEY);
+
+                // Clear any auto-login credentials to be safe
+                localStorage.removeItem('sodre_user_email');
+                localStorage.removeItem('sodre_user_password');
+                localStorage.removeItem('sodre_last_activity');
+
+                try {
+                    await supabase.auth.signOut();
+                } catch (e) { console.error('SignOut error', e); }
+
+                alert('一定時間操作がなかったため、ログアウトしました。');
+                window.location.reload();
+            }
+        };
+
+        if (!localStorage.getItem(STORAGE_KEY)) {
+            updateActivity();
+        }
+
+        setInterval(checkTimeout, 60 * 1000);
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                checkTimeout();
+            }
         });
 
-        resetTimer(); // Start timer
+        window.addEventListener('pageshow', () => {
+            checkTimeout();
+        });
+
+        let throttleTimer;
+        const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+        const throttledUpdate = () => {
+            if (!throttleTimer) {
+                updateActivity();
+                throttleTimer = setTimeout(() => {
+                    throttleTimer = null;
+                }, 30000); // 30 seconds throttle
+            }
+        };
+
+        events.forEach(event => {
+            document.addEventListener(event, throttledUpdate);
+        });
+
+        updateActivity();
     }
 
     document.addEventListener('DOMContentLoaded', () => {

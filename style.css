@@ -143,52 +143,50 @@ ul {
 }
 
 /* Text Content (Layer 3) */
+
 .opening-content {
     position: relative;
-    z-index: 10;
-    text-align: center;
-    opacity: 0;
-    /* transition: opacity 1s ease; */
-    /* Removed to fix start delay */
-}
-
-.opening-content.active {
-    opacity: 1;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    pointer-events: none;
+    width: 100%;
 }
 
 /* Cinematic Text Reveal (Fly-In) */
 .logo-reveal {
     font-family: var(--font-serif);
     font-size: min(18vh, 13vw);
-    /* Fit between notes (User Request) */
     font-weight: 700;
-    text-shadow: 3px 5px 10px rgba(0, 0, 0, 0.15);
-    /* Pop */
-    /* Thicker */
     letter-spacing: 0.02em;
-    /* Narrower (User Request) */
     color: var(--text-color);
-    margin-bottom: 0.5rem;
     display: flex;
-    /* keep letters together */
     gap: 0;
-    /* No gap (User Request) */
     justify-content: center;
+    opacity: 0;
+    transition: opacity 0.01s;
+    text-shadow: 3px 5px 10px rgba(0, 0, 0, 0.15);
+    margin-bottom: 0.5rem;
 }
 
-/* Only animate when active class is added to parent */
+.opening-content.active .logo-reveal {
+    opacity: 1;
+}
+
+.logo-reveal span {
+    opacity: 0;
+    display: inline-block;
+}
+
 .opening-content.active .logo-reveal span {
     display: inline-block;
     opacity: 0;
     transform: translateY(-200%) scale(1);
     filter: blur(5px);
-    animation: animalBounce 1.2s forwards;
+    animation: waterAnimalBounce 1.2s forwards;
     animation-delay: calc(0.5s + var(--i) * 0.1s);
-}
-
-/* Default state (hidden before active) */
-.logo-reveal span {
-    opacity: 0;
 }
 
 /* Logo Letter Colors (matching logo.webp) */
@@ -196,41 +194,36 @@ ul {
     color: #fab43c;
 }
 
-/* S = Orange */
 .logo-reveal span:nth-child(2) {
     color: #1a4a7c;
 }
 
-/* o = Dark Blue */
 .logo-reveal span:nth-child(3) {
     color: #145ab4;
 }
 
-/* D = Brand Blue */
 .logo-reveal span:nth-child(4) {
     color: #3c7800;
 }
 
-/* R = Green */
 .logo-reveal span:nth-child(5) {
     color: #1a4a7c;
 }
-
-/* é = Dark Blue */
 
 .fade-text {
     font-family: var(--font-serif);
     font-size: 1.2rem;
     color: var(--text-color);
     letter-spacing: 0.5em;
-    /* Wide spacing for elegance */
     opacity: 0;
     transform: translateY(20px);
-    animation: textUp 1.5s ease-out forwards 2.0s;
-    /* Delayed, simple fade up */
 }
 
-@keyframes animalBounce {
+.opening-content.active .fade-text {
+    animation: waterTextUp 1.5s ease-out forwards 0.3s;
+}
+
+@keyframes waterAnimalBounce {
     0% {
         transform: translateY(-200%) scale(1, 1);
         opacity: 0;
@@ -238,42 +231,30 @@ ul {
 
     40% {
         transform: translateY(0) scale(1.4, 0.7);
-        /* Land & Squash */
         opacity: 1;
         filter: blur(0);
     }
 
     55% {
         transform: translateY(-20%) scale(0.9, 1.1);
-        /* Rebound & Stretch */
     }
 
     70% {
         transform: translateY(0) scale(1.1, 0.9);
-        /* Land */
     }
 
     85% {
         transform: translateY(-5%) scale(0.95, 1.05);
-        /* Small hop */
     }
 
     100% {
         transform: translateY(0) scale(1, 1);
-        /* Settle */
         opacity: 1;
         filter: blur(0);
     }
 }
 
-@keyframes textUp {
-    to {
-        opacity: 0.8;
-        transform: translateY(0);
-    }
-}
-
-@keyframes textUp {
+@keyframes waterTextUp {
     to {
         opacity: 0.8;
         transform: translateY(0);
@@ -1125,8 +1106,8 @@ body.menu-open .menu-list li:nth-child(9) {
     }
 
     .logo-reveal {
-        font-size: 3rem;
-        flex-wrap: wrap;
+        font-size: min(18vh, 13vw);
+        flex-wrap: nowrap;
         margin-bottom: 0.25rem;
     }
 
