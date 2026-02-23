@@ -42,7 +42,7 @@ if ($isAllowed) {
     header("Access-Control-Allow-Origin: $origin");
 }
 header("Access-Control-Allow-Methods: POST, OPTIONS");
-header("Access-Control-Allow-Headers: X-API-KEY, Content-Type");
+header("Access-Control-Allow-Headers: Authorization, Content-Type");
 header("Content-Type: application/json; charset=utf-8");
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -56,11 +56,40 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// 認証
-$apiKey = $_SERVER['HTTP_X_API_KEY'] ?? '';
-if ($apiKey !== UPLOAD_API_KEY) {
+// API認証 (Supabase JWT検証)
+$authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+if (empty($authHeader) && function_exists('getallheaders')) {
+    $headers = getallheaders();
+    $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+}
+
+$bearerToken = '';
+if (preg_match('/Bearer\s+(\S+)/i', $authHeader, $matches)) {
+    $bearerToken = $matches[1];
+}
+
+if (!$bearerToken) {
     http_response_code(401);
-    echo json_encode(['success' => false, 'error' => '認証エラー']);
+    echo json_encode(['success' => false, 'error' => '認証トークンがありません']);
+    exit;
+}
+
+// Token Verification via Supabase Auth API
+$ch = curl_init();
+curl_setopt($ch, CURLOPT_URL, SUPABASE_URL . '/auth/v1/user');
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    'apikey: ' . SUPABASE_KEY,
+    'Authorization: Bearer ' . $bearerToken
+]);
+
+$response = curl_exec($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+if ($httpCode !== 200) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => '認証トークンが無効です']);
     exit;
 }
 

@@ -171,39 +171,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Periodic Credential Verification (Security Check) ---
-    // Check every 5 minutes if stored credentials are still valid
-    setInterval(async () => {
-        const storedEmail = localStorage.getItem('sodre_user_email');
-        const storedPass = localStorage.getItem('sodre_user_password');
-
-        if (storedEmail && storedPass) {
-            // We need to verify without logging out the current session if possible.
-            // signInWithPassword will update the current session on the client.
-            // This is actually what we want: refresh the session and confirm creds are valid.
-            // If password changed, this call will fail.
-
-            console.log('Periodic credential verification...');
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email: storedEmail,
-                password: storedPass
-            });
-
-            if (error) {
-                console.warn('Credential verification failed (Password changed?):', error);
-                // Invalid credentials -> Force Logout
-                alert('認証情報の確認に失敗しました（パスワードが変更された可能性があります）。再ログインしてください。');
-                localStorage.removeItem('sodre_user_email');
-                localStorage.removeItem('sodre_user_password');
-                localStorage.removeItem('sodre_last_activity');
-                await supabase.auth.signOut();
-                window.location.href = 'login.html';
-            } else {
-                console.log('Credential verification success');
-                // Session is updated, which is fine.
-                currentSession = data.session;
-            }
-        }
-    }, 5 * 60 * 1000); // 5 minutes
+    // Removed: Plain text password polling has been replaced by Supabase session management.
 
     // --- Firebase: Token refresh & Foreground message handling (after session is ready) ---
     // --- Firebase: Token refresh & Foreground message handling (after session is ready) ---
@@ -784,7 +752,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const uploadRes = await fetch(window.UPLOAD_API_URL, {
                     method: 'POST',
-                    headers: { 'X-API-KEY': window.UPLOAD_API_KEY },
+                    headers: { 'Authorization': `Bearer ${currentSession?.access_token}` },
                     body: formData
                 });
                 const uploadData = await uploadRes.json();
@@ -1154,7 +1122,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-API-KEY': window.UPLOAD_API_KEY
+                            'Authorization': `Bearer ${currentSession?.access_token}`
                         },
                         body: JSON.stringify({ urls: post.images })
                     });

@@ -450,9 +450,10 @@
                     formData.append('files[]', file);
                 }
                 try {
+                    const { data: { session } } = await supabase.auth.getSession();
                     const uploadRes = await fetch(window.UPLOAD_API_URL, {
                         method: 'POST',
-                        headers: { 'X-API-KEY': window.UPLOAD_API_KEY },
+                        headers: { 'Authorization': `Bearer ${session?.access_token}` },
                         body: formData
                     });
                     const uploadData = await uploadRes.json();
@@ -722,9 +723,10 @@
                     formData.append('files[]', file);
                 }
                 try {
+                    const { data: { session } } = await supabase.auth.getSession();
                     const uploadRes = await fetch(window.UPLOAD_API_URL, {
                         method: 'POST',
-                        headers: { 'X-API-KEY': window.UPLOAD_API_KEY },
+                        headers: { 'Authorization': `Bearer ${session?.access_token}` },
                         body: formData
                     });
                     const uploadData = await uploadRes.json();
@@ -1177,7 +1179,7 @@
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-API-KEY': window.UPLOAD_API_KEY
+                            'Authorization': `Bearer ${session?.access_token}`
                         },
                         body: JSON.stringify({ urls: post.images })
                     });

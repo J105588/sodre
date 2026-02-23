@@ -1,4 +1,6 @@
 RewriteEngine On
+RewriteCond %{HTTP:Authorization} ^(.*)
+RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
 
 # Allow PHP execution
 <FilesMatch "\.php$">

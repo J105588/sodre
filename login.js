@@ -43,35 +43,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     return;
                 }
 
-                // --- Auto-Login with Stored Credentials ---
-                const storedEmail = localStorage.getItem('sodre_user_email');
-                const storedPass = localStorage.getItem('sodre_user_password'); // WARNING: PLAIN TEXT
-
-                if (storedEmail && storedPass) {
-                    console.log('Auto-login: attempting with stored credentials...');
-                    // Show loading UI if possible
-                    const loader = document.getElementById('login-loading');
-                    if (loader) loader.style.display = 'flex';
-                    const mainContainer = document.getElementById('main-login-container');
-                    if (mainContainer) mainContainer.style.display = 'none';
-
-                    const { data, error } = await supabase.auth.signInWithPassword({
-                        email: storedEmail,
-                        password: storedPass
-                    });
-
-                    if (!error && data.user) {
-                        console.log('Auto-login success');
-                        window.location.replace('members-area.html');
-                        return;
-                    } else {
-                        console.warn('Auto-login failed:', error);
-                        // Credentials invalid, clear them
-                        localStorage.removeItem('sodre_user_email');
-                        localStorage.removeItem('sodre_user_password');
-                        // Show login form (loader hide is handled below)
-                    }
-                }
+                // (Removed Auto-Login with Stored Credentials due to plain text security risk)
             } catch (e) {
                 console.error('Auto-login check error:', e);
             }
@@ -239,11 +211,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         console.error('Notif setup skipped or failed', e);
                     }
 
-                    // Save Credentials for Auto-Login
-                    // WARNING: Saving password in plain text as requested. XSS risk.
-                    localStorage.setItem('sodre_user_email', email);
-                    localStorage.setItem('sodre_user_password', password);
-
+                    // Save last activity for session timeout logic
                     localStorage.setItem('sodre_last_activity', Date.now().toString());
                     window.location.href = 'members-area.html';
                 }
