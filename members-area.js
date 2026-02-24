@@ -1666,8 +1666,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         .subscribe();
 
     // --- Personal Action Realtime Subscription ---
-    if (session && session.user) {
-        supabase.channel(`user_actions_${session.user.id}`)
+    if (typeof currentSession !== 'undefined' && currentSession?.user) {
+        supabase.channel(`user_actions_${currentSession.user.id}`)
             .on('broadcast', { event: 'force_unlock' }, (payload) => {
                 console.log('Received force unlock command', payload);
                 // Wipe local lock state
