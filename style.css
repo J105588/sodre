@@ -3626,28 +3626,28 @@ footer {
     right: 0;
     bottom: 0;
     background-color: #ddd;
-    transition: .4s;
+    transition: .3s cubic-bezier(0.4, 0.0, 0.2, 1);
     border-radius: 34px;
 }
 
-.setting-slider:before {
+.setting-slider:after {
     position: absolute;
     content: "";
-    height: 22px;
-    width: 22px;
-    left: 3px;
-    bottom: 3px;
+    height: 24px;
+    width: 24px;
+    left: 2px;
+    bottom: 2px;
     background-color: white;
-    transition: .4s;
+    transition: .3s cubic-bezier(0.4, 0.0, 0.2, 1);
     border-radius: 50%;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
 }
 
 .setting-toggle input:checked+.setting-slider {
     background-color: var(--primary-color);
 }
 
-.setting-toggle input:checked+.setting-slider:before {
+.setting-toggle input:checked+.setting-slider:after {
     transform: translateX(22px);
 }
 

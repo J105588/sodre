@@ -1817,10 +1817,50 @@ document.addEventListener('DOMContentLoaded', async () => {
                 appLockToggle.disabled = false;
             }
         } else {
-            // Disable App Lock
-            localStorage.removeItem('sodre_app_lock_enabled');
-            localStorage.removeItem('sodre_app_lock_cred_id');
-            alert('App Lock を無効にしました。');
+            // Require authentication to disable App Lock
+            try {
+                const credIdBase64 = localStorage.getItem('sodre_app_lock_cred_id');
+                if (!credIdBase64) throw new Error('No credential ID');
+
+                const credIdBytes = Uint8Array.from(atob(credIdBase64), c => c.charCodeAt(0));
+                const challenge = new Uint8Array(32);
+                window.crypto.getRandomValues(challenge);
+
+                let rpId = window.location.hostname;
+                const isLocalIP = /^(127\.0\.0\.1|localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.test(rpId);
+
+                const getOptions = {
+                    publicKey: {
+                        challenge: challenge,
+                        allowCredentials: [{
+                            type: "public-key",
+                            id: credIdBytes
+                        }],
+                        userVerification: "required",
+                        timeout: 60000
+                    }
+                };
+
+                if (!isLocalIP) {
+                    getOptions.publicKey.rpId = rpId;
+                }
+
+                appLockToggle.disabled = true;
+                const assertion = await navigator.credentials.get(getOptions);
+
+                if (assertion) {
+                    localStorage.removeItem('sodre_app_lock_enabled');
+                    localStorage.removeItem('sodre_app_lock_cred_id');
+                    alert('App Lock を無効にしました。');
+                } else {
+                    throw new Error('解除キャンセル');
+                }
+            } catch (err) {
+                console.error("WebAuthn Disable Error:", err);
+                appLockToggle.checked = true; // Revert visually
+            } finally {
+                appLockToggle.disabled = false;
+            }
         }
     });
 
