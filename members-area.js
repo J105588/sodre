@@ -668,7 +668,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     filePreview.style.background = '#f5f5f5';
                     filePreview.style.borderRadius = '6px';
                     filePreview.style.fontSize = '0.85rem';
-                    filePreview.innerHTML = `<i class="${getFileIcon(file.name)}" style="color:var(--primary-color);"></i> <span style="max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${file.name}</span>`;
+                    filePreview.innerHTML = `<i class="${getFileIcon(file.name)}" style="color:var(--primary-color);"></i> <span style="max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(file.name)}</span>`;
                     container.appendChild(filePreview);
                 }
 

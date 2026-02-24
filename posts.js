@@ -69,7 +69,7 @@
         }
 
         const html = `
-            <h2>${post.title}</h2>
+            <h2>${escapeHtml(post.title)}</h2>
             <p class="post-date">${new Date(post.created_at).toLocaleDateString()}</p>
             ${imagesHtml}
             <div class="ql-snow">
@@ -100,6 +100,18 @@
         }
     }
 
+    function escapeHtml(text) {
+        if (!text) return '';
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return String(text).replace(/[&<>"']/g, function (m) { return map[m]; });
+    }
+
     // --- DOM Generators ---
     function createPostCard(post) {
         // Store post in registry
@@ -116,11 +128,11 @@
         return `
             <article class="post-card" onclick="openModalFromId('${post.id}')">
                 <div class="post-img">
-                    <img src="${thumb}" alt="${post.title}">
+                    <img src="${thumb}" alt="${escapeHtml(post.title)}">
                 </div>
                 <div class="post-content">
                     <span class="post-date">${new Date(post.created_at).toLocaleDateString()}</span>
-                    <h3 class="post-title">${post.title}</h3>
+                    <h3 class="post-title">${escapeHtml(post.title)}</h3>
                     <p class="post-excerpt">${excerpt}</p>
                     <button class="read-more-btn" onclick="openModalFromId('${post.id}'); event.stopPropagation();">Read More <i class="fas fa-arrow-right"></i></button>
                 </div>
