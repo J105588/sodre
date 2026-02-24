@@ -305,6 +305,9 @@
         <div class="member-tabs">
             <button class="m-tab-btn active" data-tab="all">全体掲示板</button>
             <button class="m-tab-btn" data-tab="groups">参加グループ</button>
+            <!-- Settings Button -->
+            <button id="settings-btn" class="m-tab-btn" style="margin-left: auto;" title="設定"><i
+                    class="fas fa-cog"></i></button>
         </div>
 
         <!-- All Members Board -->
@@ -430,6 +433,57 @@
                 <button id="external-link-proceed" class="btn-post">移動する</button>
             </div>
         </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <span id="settings-modal-close" class="close-modal">&times;</span>
+            <div class="modal-header-new">
+                <h3>システム設定</h3>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <div class="setting-item"
+                    style="display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #eee;">
+                    <div>
+                        <h4 style="margin: 0 0 5px 0;">App Lock</h4>
+                        <p style="margin: 0; font-size: 0.85rem; color: #666;">
+                            AppをFace ID / Touch ID などの生体認証により保護します。
+                        </p>
+                    </div>
+                    <label class="setting-toggle">
+                        <input type="checkbox" id="app-lock-toggle">
+                        <span class="setting-slider"></span>
+                    </label>
+                </div>
+
+                <div class="setting-item"
+                    style="display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #eee;">
+                    <div>
+                        <h4 style="margin: 0 0 5px 0;">プッシュ通知</h4>
+                        <p style="margin: 0; font-size: 0.85rem; color: #666;">
+                            新しい投稿や重要な通知を受け取ります。
+                        </p>
+                    </div>
+                    <label class="setting-toggle">
+                        <input type="checkbox" id="notification-toggle">
+                        <span class="setting-slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Lock Overlay -->
+    <div id="app-lock-overlay"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--primary-color); z-index: 99999; flex-direction: column; align-items: center; justify-content: center; color: white;">
+        <i class="fas fa-lock" style="font-size: 4rem; margin-bottom: 20px;"></i>
+        <h2>App Locked</h2>
+        <p style="margin-bottom: 30px;">認証を行ってロックを解除してください</p>
+        <button id="btn-unlock-app" class="btn-post-modern" style="background: white; color: var(--primary-color);">
+            <i class="fas fa-fingerprint"></i> ロック解除
+        </button>
     </div>
 
     <!-- Lightbox Modal -->

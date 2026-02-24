@@ -174,9 +174,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Removed: Plain text password polling has been replaced by Supabase session management.
 
     // --- Firebase: Token refresh & Foreground message handling (after session is ready) ---
-    // --- Firebase: Token refresh & Foreground message handling (after session is ready) ---
     async function refreshFCMToken() {
         if (!messaging || Notification.permission !== 'granted') return;
+        if (localStorage.getItem('sodre_notifications_disabled') === 'true') return; // User opted out
         try {
             let registration = await navigator.serviceWorker.getRegistration();
             if (!registration) registration = await navigator.serviceWorker.ready;
@@ -239,6 +239,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Handle foreground messages as proper push notifications
     if (messaging) {
         messaging.onMessage((payload) => {
+            if (localStorage.getItem('sodre_notifications_disabled') === 'true') return;
             console.log('Foreground message received:', payload);
             const title = payload.data?.title || 'SoDRé';
             const body = payload.data?.body || '';
@@ -407,7 +408,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Tab Switching ---
     tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {
-            tabBtns.forEach(b => b.classList.remove('active'));
+            // Ignore settings button which is also a tab btn class for styling
+            if (btn.id === 'settings-btn') return;
+
+            tabBtns.forEach(b => {
+                if (b.id !== 'settings-btn') b.classList.remove('active');
+            });
             btn.classList.add('active');
 
             const tab = btn.dataset.tab;
@@ -419,7 +425,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 currentPostContext = 'all';
                 fabPost.style.display = 'flex'; // Show FAB for All Board
                 loadAllPosts();
-            } else {
+            } else if (tab === 'groups') {
                 viewAll.style.display = 'none';
                 viewGroups.style.display = 'block';
 
@@ -1658,4 +1664,226 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         )
         .subscribe();
+
+    // --- Settings Modal & App Lock (WebAuthn) Logic ---
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsModal = document.getElementById('settings-modal');
+    const settingsModalClose = document.getElementById('settings-modal-close');
+    const appLockToggle = document.getElementById('app-lock-toggle');
+    const notificationToggle = document.getElementById('notification-toggle');
+    const appLockOverlay = document.getElementById('app-lock-overlay');
+    const btnUnlockApp = document.getElementById('btn-unlock-app');
+
+    // Load initial settings
+    const isAppLockEnabled = localStorage.getItem('sodre_app_lock_enabled') === 'true';
+    appLockToggle.checked = isAppLockEnabled;
+
+    if (notificationToggle) {
+        notificationToggle.checked = Notification.permission === 'granted' && localStorage.getItem('sodre_notifications_disabled') !== 'true';
+
+        notificationToggle.addEventListener('change', async (e) => {
+            const enable = e.target.checked;
+            if (enable) {
+                if (!messaging) {
+                    alert('お使いのブラウザはプッシュ通知をサポートしていません。');
+                    notificationToggle.checked = false;
+                    return;
+                }
+
+                if (Notification.permission !== 'granted') {
+                    const permission = await Notification.requestPermission();
+                    if (permission !== 'granted') {
+                        alert('プッシュ通知が許可されませんでした。ブラウザの設定から許可してください。');
+                        notificationToggle.checked = false;
+                        return;
+                    }
+                }
+
+                localStorage.removeItem('sodre_notifications_disabled');
+                alert('プッシュ通知をオンにしました。');
+                refreshFCMToken(); // Force refresh and sync to DB
+            } else {
+                localStorage.setItem('sodre_notifications_disabled', 'true');
+                try {
+                    if (messaging) {
+                        let registration = await navigator.serviceWorker.getRegistration();
+                        if (!registration) registration = await navigator.serviceWorker.ready;
+                        if (registration) {
+                            const token = await messaging.getToken({
+                                vapidKey: window.FIREBASE_VAPID_KEY,
+                                serviceWorkerRegistration: registration
+                            });
+                            if (token) {
+                                await supabase.from('user_fcm_tokens').delete().eq('token', token);
+                                localStorage.removeItem(`sodre_fcm_token_${user.id}`);
+                            }
+                        }
+                    }
+                    alert('プッシュ通知をオフにしました。');
+                } catch (err) {
+                    console.error('Failed to remove token', err);
+                }
+            }
+        });
+    }
+
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', () => {
+            settingsModal.classList.add('show');
+        });
+    }
+
+    if (settingsModalClose) {
+        settingsModalClose.addEventListener('click', () => {
+            settingsModal.classList.remove('show');
+        });
+    }
+
+    // Close settings modal on outside click
+    window.addEventListener('click', (e) => {
+        if (e.target === settingsModal) {
+            settingsModal.classList.remove('show');
+        }
+    });
+
+    // Handle App Lock Toggle
+    appLockToggle.addEventListener('change', async (e) => {
+        const enable = e.target.checked;
+        if (enable) {
+            // Attempt to register WebAuthn
+            try {
+                if (!window.PublicKeyCredential) {
+                    throw new Error('お使いのブラウザは生体認証(WebAuthn)をサポートしていません。');
+                }
+
+                appLockToggle.disabled = true;
+                const challenge = new Uint8Array(32);
+                window.crypto.getRandomValues(challenge);
+
+                const userId = new Uint8Array(16);
+                window.crypto.getRandomValues(userId);
+
+                let rpId = window.location.hostname;
+                // WebAuthn spec requires rpId to be a valid domain. 
+                // IPs like 127.0.0.1 or 'localhost' can cause SecurityError in some browsers if explicitly set as rpId.
+                // Omitting rp.id makes the browser default to the current effective domain.
+                const isLocalIP = /^(127\.0\.0\.1|localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.test(rpId);
+
+                const createOptions = {
+                    publicKey: {
+                        challenge: challenge,
+                        rp: {
+                            name: "SoDRé App Lock"
+                        },
+                        user: {
+                            id: userId,
+                            name: currentSession.user.email,
+                            displayName: currentSession.user.user_metadata?.display_name || currentSession.user.email
+                        },
+                        pubKeyCredParams: [
+                            { type: "public-key", alg: -7 }, // ES256
+                            { type: "public-key", alg: -257 } // RS256
+                        ],
+                        authenticatorSelection: {
+                            authenticatorAttachment: "platform", // FaceID/TouchID/Windows Hello
+                            userVerification: "required"
+                        },
+                        timeout: 60000,
+                        attestation: "none"
+                    }
+                };
+
+                // Only set rpId explicitly if it's a real domain
+                if (!isLocalIP) {
+                    createOptions.publicKey.rp.id = rpId;
+                }
+
+                const credential = await navigator.credentials.create(createOptions);
+
+                if (credential) {
+                    // Store the credential ID locally
+                    const credIdBase64 = btoa(String.fromCharCode.apply(null, new Uint8Array(credential.rawId)));
+                    localStorage.setItem('sodre_app_lock_cred_id', credIdBase64);
+                    localStorage.setItem('sodre_app_lock_enabled', 'true');
+                    alert('App Lock を有効にしました。次回PWA復帰時より生体認証が要求されます。');
+                } else {
+                    throw new Error('認証デバイストークンの作成に失敗しました。');
+                }
+            } catch (err) {
+                console.error("WebAuthn Create Error:", err);
+                alert('App Lock の設定に失敗しました: ' + err.message);
+                appLockToggle.checked = false; // Revert
+            } finally {
+                appLockToggle.disabled = false;
+            }
+        } else {
+            // Disable App Lock
+            localStorage.removeItem('sodre_app_lock_enabled');
+            localStorage.removeItem('sodre_app_lock_cred_id');
+            alert('App Lock を無効にしました。');
+        }
+    });
+
+    // App Lock Unlock Function
+    async function triggerAppUnlock() {
+        const isEnabled = localStorage.getItem('sodre_app_lock_enabled') === 'true';
+        const credIdBase64 = localStorage.getItem('sodre_app_lock_cred_id');
+
+        // Only trigger if enabled and in PWA mode
+        if (isEnabled && isPWA && credIdBase64) {
+            appLockOverlay.style.display = 'flex';
+
+            try {
+                const credIdBytes = Uint8Array.from(atob(credIdBase64), c => c.charCodeAt(0));
+                const challenge = new Uint8Array(32);
+                window.crypto.getRandomValues(challenge);
+
+                let rpId = window.location.hostname;
+                const isLocalIP = /^(127\.0\.0\.1|localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.test(rpId);
+
+                const getOptions = {
+                    publicKey: {
+                        challenge: challenge,
+                        allowCredentials: [{
+                            type: "public-key",
+                            id: credIdBytes
+                        }],
+                        userVerification: "required",
+                        timeout: 60000
+                    }
+                };
+
+                if (!isLocalIP) {
+                    getOptions.publicKey.rpId = rpId;
+                }
+
+                const assertion = await navigator.credentials.get(getOptions);
+                if (assertion) {
+                    // Success
+                    appLockOverlay.style.display = 'none';
+                }
+            } catch (err) {
+                console.error("WebAuthn Get Error:", err);
+                // Failed or cancelled - leave overlay up
+                // The unlock button handles retries
+            }
+        } else {
+            appLockOverlay.style.display = 'none';
+        }
+    }
+
+    // Manual unlock button retry
+    btnUnlockApp.addEventListener('click', triggerAppUnlock);
+
+    // Trigger on visibility change (returning to foreground)
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            triggerAppUnlock();
+        }
+    });
+
+    // Initial Trigger if locked
+    if (localStorage.getItem('sodre_app_lock_enabled') === 'true' && isPWA) {
+        triggerAppUnlock();
+    }
 });
