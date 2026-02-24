@@ -1864,6 +1864,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    let isUnlockPending = false;
+
     // App Lock Unlock Function
     async function triggerAppUnlock() {
         const isEnabled = localStorage.getItem('sodre_app_lock_enabled') === 'true';
@@ -1872,8 +1874,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Only trigger if enabled and in PWA mode
         if (isEnabled && isPWA && credIdBase64) {
             appLockOverlay.style.display = 'flex';
+            document.body.style.overflow = 'hidden'; // Ensure no scrolling while locked
+
+            if (isUnlockPending) return; // Prevent concurrent WebAuthn prompts
 
             try {
+                isUnlockPending = true;
                 const credIdBytes = Uint8Array.from(atob(credIdBase64), c => c.charCodeAt(0));
                 const challenge = new Uint8Array(32);
                 window.crypto.getRandomValues(challenge);
@@ -1901,29 +1907,49 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (assertion) {
                     // Success
                     appLockOverlay.style.display = 'none';
+                    document.body.style.overflow = ''; // Restore scrolling
                 }
             } catch (err) {
                 console.error("WebAuthn Get Error:", err);
                 // Failed or cancelled - leave overlay up
                 // The unlock button handles retries
+            } finally {
+                isUnlockPending = false;
             }
         } else {
             appLockOverlay.style.display = 'none';
+            document.body.style.overflow = '';
         }
     }
 
     // Manual unlock button retry
     btnUnlockApp.addEventListener('click', triggerAppUnlock);
 
-    // Trigger on visibility change (returning to foreground)
+    // Aggressive Visual Lock
+    function lockAppVisually() {
+        const isEnabled = localStorage.getItem('sodre_app_lock_enabled') === 'true';
+        if (isEnabled && isPWA) {
+            appLockOverlay.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    // Trigger on visibility change
     document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
+        if (document.visibilityState === 'hidden') {
+            lockAppVisually();
+        } else if (document.visibilityState === 'visible') {
             triggerAppUnlock();
         }
     });
 
+    // Aggressive lock on blur (app switcher) and pagehide (app closing)
+    window.addEventListener('blur', lockAppVisually);
+    window.addEventListener('pagehide', lockAppVisually);
+
     // Initial Trigger if locked
     if (localStorage.getItem('sodre_app_lock_enabled') === 'true' && isPWA) {
+        lockAppVisually();
         triggerAppUnlock();
     }
 });
