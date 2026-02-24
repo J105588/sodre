@@ -1295,9 +1295,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 </a>`;
                         }
                     }).join('')}
-                    </div>
-                ` : ''}
-                <div class="bp-content">${formatContent(post.content)}</div>
+                    </div>` : ''}
+                <div class="bp-content">${DOMPurify.sanitize(formatContent(post.content))}</div>
                 
                 <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
                     ${post.allow_comments ? (() => {
@@ -1402,7 +1401,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     : ''}
                     </div>
                 </div>
-                <div id="comment-content-${comment.id}">${formatCommentContent(comment.content)}</div>
+                <div id="comment-content-${comment.id}">${DOMPurify.sanitize(formatCommentContent(comment.content))}</div>
                 <div id="comment-edit-form-${comment.id}" style="display:none; margin-top:8px;">
                     <textarea id="comment-edit-input-${comment.id}" class="comment-input" rows="2" style="resize:vertical; width:100%;">${escapeHtml(comment.content)}</textarea>
                     <div style="display:flex; gap:8px; margin-top:5px;">

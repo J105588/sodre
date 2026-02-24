@@ -410,7 +410,7 @@
                 ${imagesHtml}
                 <div class="ql-snow">
                     <div class="ql-editor post-body-text">
-                        ${content}
+                        ${DOMPurify.sanitize(content)}
                     </div>
                 </div>
             `;

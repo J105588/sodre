@@ -74,7 +74,7 @@
             ${imagesHtml}
             <div class="ql-snow">
                 <div class="ql-editor post-body-text">
-                    ${post.content}
+                    ${DOMPurify.sanitize(post.content)}
                 </div>
             </div>
         `;
@@ -109,7 +109,7 @@
 
         // Strip HTML for excerpt
         const tempDiv = document.createElement("div");
-        tempDiv.innerHTML = post.content;
+        tempDiv.innerHTML = DOMPurify.sanitize(post.content);
         const textContent = tempDiv.textContent || tempDiv.innerText || "";
         const excerpt = textContent.slice(0, 20) + '...';
 
