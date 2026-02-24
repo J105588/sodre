@@ -1021,6 +1021,11 @@
                     ${isSuper ? '<span style="background:#f1c40f; color:#000; font-weight:bold; font-size:0.7rem; padding:2px 5px; border-radius:3px; margin-left:5px;">SUPERADMIN</span>' : ''}
                 </div>
                 <div class="post-actions">
+                    <button class="btn-primary" 
+                        onclick="forceUnlockApp('${user.id}', '${escapeHtml(user.display_name || 'ユーザー')}')"
+                        style="font-size:0.8rem; padding:6px 12px; margin-right:5px; background:var(--accent-color); border:none; color:white;">
+                        <i class="fas fa-unlock"></i> 強制ロック解除
+                    </button>
                     <button class="btn-primary btn-edit-user" 
                         data-id="${user.id}" 
                         data-name="${escapeHtml(user.display_name || '')}" 
@@ -1037,6 +1042,47 @@
         `;
         }).join('');
     }
+
+    // Force unlock function (Exposed to window for inline onclick)
+    window.forceUnlockApp = async (userId, userName) => {
+        if (confirm(`本当に ${userName} のApp Lock（生体認証ロック）を強制解除しますか？\n（対象がオンラインの場合、即座にロック画面が解除されます）`)) {
+            try {
+                // Determine channel name for this specific user
+                const channelName = `user_actions_${userId}`;
+
+                // Create a temporary channel to broadcast the unlock signal
+                const channel = supabase.channel(channelName);
+
+                channel.subscribe(async (status) => {
+                    if (status === 'SUBSCRIBED') {
+                        const sendRes = await channel.send({
+                            type: 'broadcast',
+                            event: 'force_unlock',
+                            payload: {
+                                adminRequested: true,
+                                requestedAt: new Date().toISOString()
+                            }
+                        });
+
+                        if (sendRes === 'ok') {
+                            alert(`${userName} へ強制解除シグナルを送信しました。\n対象ユーザーがオンラインであれば即座にロックが解除されます。`);
+                        } else {
+                            alert('シグナルの送信に失敗しました。');
+                        }
+
+                        // Clean up
+                        supabase.removeChannel(channel);
+                    } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+                        console.error('Channel error/closed', status);
+                    }
+                });
+
+            } catch (err) {
+                console.error('Force Unlock Error:', err);
+                alert('エラーが発生しました: ' + err.message);
+            }
+        }
+    };
 
     let currentUserId = null; // Add at top level scope if possible, or inside IIFE
 

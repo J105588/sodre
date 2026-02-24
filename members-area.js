@@ -1665,6 +1665,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         )
         .subscribe();
 
+    // --- Personal Action Realtime Subscription ---
+    if (session && session.user) {
+        supabase.channel(`user_actions_${session.user.id}`)
+            .on('broadcast', { event: 'force_unlock' }, (payload) => {
+                console.log('Received force unlock command', payload);
+                // Wipe local lock state
+                localStorage.removeItem('sodre_app_lock_enabled');
+                localStorage.removeItem('sodre_app_lock_cred_id');
+
+                // Immediately disable UI protections
+                const overlay = document.getElementById('app-lock-overlay');
+                if (overlay) overlay.style.display = 'none';
+                document.body.style.overflow = '';
+
+                // Uncheck the toggle visually if settings are open
+                const toggle = document.getElementById('app-lock-toggle');
+                if (toggle) toggle.checked = false;
+
+                alert('管理者によってApp Lock（生体認証ロック）が強制解除されました。');
+            })
+            .subscribe();
+    }
+
     // --- Settings Modal & App Lock (WebAuthn) Logic ---
     const settingsBtn = document.getElementById('settings-btn');
     const settingsModal = document.getElementById('settings-modal');
