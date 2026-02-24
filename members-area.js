@@ -1931,6 +1931,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (isEnabled && isPWA) {
             appLockOverlay.style.display = 'flex';
             document.body.style.overflow = 'hidden';
+
+            // Force a synchronous layout/reflow. 
+            // This forces the browser to paint the display:flex immediately, 
+            // catching the screen BEFORE the OS takes the background snapshot for the App Switcher.
+            void appLockOverlay.offsetHeight;
         }
     }
 
@@ -1946,6 +1951,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Aggressive lock on blur (app switcher) and pagehide (app closing)
     window.addEventListener('blur', lockAppVisually);
     window.addEventListener('pagehide', lockAppVisually);
+    document.addEventListener('freeze', lockAppVisually); // Page Lifecycle API fallback
 
     // Initial Trigger if locked
     if (localStorage.getItem('sodre_app_lock_enabled') === 'true' && isPWA) {
