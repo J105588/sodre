@@ -1021,11 +1021,12 @@
                     ${isSuper ? '<span style="background:#f1c40f; color:#000; font-weight:bold; font-size:0.7rem; padding:2px 5px; border-radius:3px; margin-left:5px;">SUPERADMIN</span>' : ''}
                 </div>
                 <div class="post-actions">
+                    ${currentIsSuperadmin ? `
                     <button class="btn-primary" 
                         onclick="forceUnlockApp('${user.id}', '${escapeHtml(user.display_name || 'ユーザー')}')"
                         style="font-size:0.8rem; padding:6px 12px; margin-right:5px; background:var(--accent-color); border:none; color:white;">
                         <i class="fas fa-unlock"></i> 強制ロック解除
-                    </button>
+                    </button>` : ''}
                     <button class="btn-primary btn-edit-user" 
                         data-id="${user.id}" 
                         data-name="${escapeHtml(user.display_name || '')}" 
@@ -1043,48 +1044,129 @@
         }).join('');
     }
 
+    // OTP State for Force Unlock
+    let pendingForceUnlockUserId = null;
+    let pendingForceUnlockUserName = null;
+
     // Force unlock function (Exposed to window for inline onclick)
     window.forceUnlockApp = async (userId, userName) => {
+        if (!currentIsSuperadmin) {
+            alert("この操作はSuperadmin権限が必要です。");
+            return;
+        }
+
         if (confirm(`本当に ${userName} のApp Lock（生体認証ロック）を強制解除しますか？\n（対象がオンラインの場合、即座にロック画面が解除されます）`)) {
+            // Initiate OTP request
             try {
-                // Determine channel name for this specific user
-                const channelName = `user_actions_${userId}`;
+                const targetUrl = window.GAS_OTP_URL || GAS_OTP_URL;
+                if (!targetUrl) throw new Error("GAS_OTP_URL is not configured.");
 
-                // Create a temporary channel to broadcast the unlock signal
-                const channel = supabase.channel(channelName);
+                // Show modal & set pending state
+                pendingForceUnlockUserId = userId;
+                pendingForceUnlockUserName = userName;
+                document.getElementById('admin-otp-code').value = '';
+                document.getElementById('admin-otp-modal').style.display = 'flex';
 
-                channel.subscribe(async (status) => {
-                    if (status === 'SUBSCRIBED') {
-                        const sendRes = await channel.send({
-                            type: 'broadcast',
-                            event: 'force_unlock',
-                            payload: {
-                                adminRequested: true,
-                                requestedAt: new Date().toISOString()
-                            }
-                        });
+                const msgEl = document.getElementById('admin-otp-msg');
+                msgEl.innerHTML = '送信中...<br>あなたのメールアドレス（' + currentUserEmail + '）へ認証コードを送っています。';
+                msgEl.style.color = '#555';
 
-                        if (sendRes === 'ok') {
-                            alert(`${userName} へ強制解除シグナルを送信しました。\n対象ユーザーがオンラインであれば即座にロックが解除されます。`);
-                        } else {
-                            alert('シグナルの送信に失敗しました。');
-                        }
+                // Disable submit while sending
+                const submitBtn = document.getElementById('submit-admin-otp');
+                submitBtn.disabled = true;
 
-                        // Clean up
-                        supabase.removeChannel(channel);
-                    } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-                        console.error('Channel error/closed', status);
+                // Send via GAS (no-cors prevents reading JSON response, but triggers email)
+                await fetch(targetUrl, {
+                    method: 'POST',
+                    body: JSON.stringify({ email: currentUserEmail }),
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'text/plain'
                     }
                 });
 
+                msgEl.innerHTML = 'スーパーアカウントでの操作です。<br>あなたのメールアドレス（' + currentUserEmail + '）に送信された6桁の認証コードを入力して強制解除を実行します。';
+                submitBtn.disabled = false;
+
             } catch (err) {
-                console.error('Force Unlock Error:', err);
-                alert('エラーが発生しました: ' + err.message);
+                console.error("OTP Request Error:", err);
+                alert("認証コードの送信に失敗しました。");
+                document.getElementById('admin-otp-modal').style.display = 'none';
             }
         }
     };
 
+    // Admin OTP Modal Handlers
+    document.getElementById('close-admin-otp').addEventListener('click', () => {
+        document.getElementById('admin-otp-modal').style.display = 'none';
+    });
+    document.getElementById('cancel-admin-otp').addEventListener('click', () => {
+        document.getElementById('admin-otp-modal').style.display = 'none';
+    });
+
+    document.getElementById('admin-otp-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const code = document.getElementById('admin-otp-code').value;
+        const msgEl = document.getElementById('admin-otp-msg');
+        const submitBtn = document.getElementById('submit-admin-otp');
+
+        msgEl.innerHTML = '認証コードを確認中...';
+        msgEl.style.color = 'blue';
+        submitBtn.disabled = true;
+
+        try {
+            // Verify OTP via Custom RPC
+            const { data: isValid, error } = await supabase.rpc('verify_admin_otp', {
+                p_email: currentUserEmail,
+                p_otp: code
+            });
+
+            if (error) throw error;
+
+            if (!isValid) {
+                msgEl.innerHTML = '認証コードが間違っているか、期限切れです。';
+                msgEl.style.color = 'red';
+                submitBtn.disabled = false;
+                return;
+            }
+
+            // Valid OTP! Execute Force Unlock Broadcast
+            const channelName = `user_actions_${pendingForceUnlockUserId}`;
+            const channel = supabase.channel(channelName);
+
+            channel.subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    const sendRes = await channel.send({
+                        type: 'broadcast',
+                        event: 'force_unlock',
+                        payload: {
+                            adminRequested: true,
+                            requestedAt: new Date().toISOString()
+                        }
+                    });
+
+                    if (sendRes === 'ok') {
+                        alert(`${pendingForceUnlockUserName} へ強制解除シグナルを送信しました。\n対象ユーザーがオンラインであれば即座にロックが解除されます。`);
+                    } else {
+                        alert('シグナルの送信に失敗しました。');
+                    }
+                    supabase.removeChannel(channel);
+                    document.getElementById('admin-otp-modal').style.display = 'none';
+                    msgEl.style.color = '#555';
+                }
+            });
+
+        } catch (err) {
+            console.error("OTP Verification Error:", err);
+            msgEl.innerHTML = 'エラーが発生しました: ' + err.message;
+            msgEl.style.color = 'red';
+            submitBtn.disabled = false;
+        }
+    });
+
     let currentUserId = null; // Add at top level scope if possible, or inside IIFE
+    let currentIsSuperadmin = false;
+    let currentUserEmail = null;
 
     let adminCheckInterval = null;
 
@@ -1092,14 +1174,17 @@
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             currentUserId = session.user.id; // Store ID
+            currentUserEmail = session.user.email;
+
             // Check if admin
             const { data: profile } = await supabase
                 .from('profiles')
-                .select('is_admin')
+                .select('is_admin, is_superadmin')
                 .eq('id', session.user.id)
                 .single();
 
             if (profile && profile.is_admin) {
+                currentIsSuperadmin = profile.is_superadmin || false;
                 loginSection.style.display = 'none';
                 dashboardSection.style.display = 'block';
                 loadPosts(currentTab);
