@@ -262,7 +262,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadProfile(uid) {
         const { data, error } = await supabase
             .from('profiles')
-            .select('display_name, is_admin, is_superadmin')
+            .select('display_name, is_admin, is_superadmin, app_lock_enabled, app_lock_credential_id')
             .eq('id', uid)
             .maybeSingle();
 
@@ -282,6 +282,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (data.is_superadmin) {
                 isSuperAdmin = true;
                 console.log('User is Superadmin');
+            }
+
+            // Sync App Lock security from server to prevent localStorage bypass
+            if (data.app_lock_enabled) {
+                if (localStorage.getItem('sodre_app_lock_enabled') !== 'true') {
+                    console.log('Restoring App Lock from server profile...');
+                    localStorage.setItem('sodre_app_lock_enabled', 'true');
+                    if (data.app_lock_credential_id) {
+                        localStorage.setItem('sodre_app_lock_cred_id', data.app_lock_credential_id);
+                    }
+                    if (isPWA && typeof lockAppVisually === 'function') {
+                        lockAppVisually();
+                        if (typeof triggerAppUnlock === 'function') triggerAppUnlock();
+                    }
+                }
+
+                // Initialize toggle UI state
+                const appLockToggle = document.getElementById('app-lock-toggle');
+                if (appLockToggle) appLockToggle.checked = true;
             }
         }
 
@@ -1828,6 +1847,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const credIdBase64 = btoa(String.fromCharCode.apply(null, new Uint8Array(credential.rawId)));
                     localStorage.setItem('sodre_app_lock_cred_id', credIdBase64);
                     localStorage.setItem('sodre_app_lock_enabled', 'true');
+
+                    // Sync with DB
+                    await supabase.from('profiles').update({
+                        app_lock_enabled: true,
+                        app_lock_credential_id: credIdBase64
+                    }).eq('id', currentSession.user.id);
+
                     alert('App Lock を有効にしました。次回PWA復帰時より生体認証が要求されます。');
                 } else {
                     throw new Error('認証デバイストークンの作成に失敗しました。');
@@ -1874,6 +1900,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (assertion) {
                     localStorage.removeItem('sodre_app_lock_enabled');
                     localStorage.removeItem('sodre_app_lock_cred_id');
+
+                    // Sync with DB
+                    await supabase.from('profiles').update({
+                        app_lock_enabled: false,
+                        app_lock_credential_id: null
+                    }).eq('id', currentSession.user.id);
+
                     alert('App Lock を無効にしました。');
                 } else {
                     throw new Error('解除キャンセル');

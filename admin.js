@@ -137,7 +137,7 @@
                 } catch (e) { console.error('SignOut error', e); }
 
                 alert('一定時間操作がなかったため、ログアウトしました。');
-                window.location.reload();
+                window.location.replace('login.html');
             }
         };
 
@@ -1051,7 +1051,7 @@
     // Force unlock function (Exposed to window for inline onclick)
     window.forceUnlockApp = async (userId, userName) => {
         if (!currentIsSuperadmin) {
-            alert("この操作はSuperadmin権限が必要です。");
+            alert("この操作は最高管理者権限が必要です。");
             return;
         }
 
@@ -1064,8 +1064,12 @@
                 // Show modal & set pending state
                 pendingForceUnlockUserId = userId;
                 pendingForceUnlockUserName = userName;
-                document.getElementById('admin-otp-code').value = '';
                 document.getElementById('admin-otp-modal').style.display = 'flex';
+
+                // Trigger reflow and fade in
+                setTimeout(() => {
+                    document.getElementById('admin-otp-modal').style.opacity = '1';
+                }, 10);
 
                 const msgEl = document.getElementById('admin-otp-msg');
                 msgEl.innerHTML = '送信中...<br>あなたのメールアドレス（' + currentUserEmail + '）へ認証コードを送っています。';
@@ -1085,23 +1089,31 @@
                     }
                 });
 
-                msgEl.innerHTML = 'スーパーアカウントでの操作です。<br>あなたのメールアドレス（' + currentUserEmail + '）に送信された6桁の認証コードを入力して強制解除を実行します。';
+                msgEl.innerHTML = '最高管理者権限での操作です。<br>あなたのメールアドレス（' + currentUserEmail + '）に送信された6桁の認証コードを入力して強制解除を実行します。';
                 submitBtn.disabled = false;
 
             } catch (err) {
                 console.error("OTP Request Error:", err);
-                alert("認証コードの送信に失敗しました。");
-                document.getElementById('admin-otp-modal').style.display = 'none';
+                // GAS Fetch will often throw a TypeError because the 302 redirect from the POST to GET fails no-cors
+                // Due to how no-cors and browser redirect policies work, the POST succeeds (and email sends) but the JS throws.
+                // We will NOT hide the modal, so the user can enter the code if the email arrived.
+                const msgEl = document.getElementById('admin-otp-msg');
+                msgEl.innerHTML = '<span style="color:orange;">※送信時にネットワーク警告が発生しましたが、メールが送信されている可能性があります。</span><br>最高管理者権限での操作です。<br>あなたのメールアドレス（' + currentUserEmail + '）に届いた6桁の認証コードを入力して強制解除を実行します。';
+
+                const submitBtn = document.getElementById('submit-admin-otp');
+                if (submitBtn) submitBtn.disabled = false;
             }
         }
-    };
+    }; // Closes window.forceUnlockApp
 
     // Admin OTP Modal Handlers
     document.getElementById('close-admin-otp').addEventListener('click', () => {
-        document.getElementById('admin-otp-modal').style.display = 'none';
+        document.getElementById('admin-otp-modal').style.opacity = '0';
+        setTimeout(() => document.getElementById('admin-otp-modal').style.display = 'none', 300);
     });
     document.getElementById('cancel-admin-otp').addEventListener('click', () => {
-        document.getElementById('admin-otp-modal').style.display = 'none';
+        document.getElementById('admin-otp-modal').style.opacity = '0';
+        setTimeout(() => document.getElementById('admin-otp-modal').style.display = 'none', 300);
     });
 
     document.getElementById('admin-otp-form').addEventListener('submit', async (e) => {
@@ -1130,9 +1142,23 @@
                 return;
             }
 
-            // Valid OTP! Execute Force Unlock Broadcast
+            // Valid OTP! Execute Force Unlock Broadcast and Data Update
             const channelName = `user_actions_${pendingForceUnlockUserId}`;
             const channel = supabase.channel(channelName);
+
+            // First, clear the database flag to guarantee unlock even if they miss the broadcast
+            const { error: updateError } = await supabase.from('profiles').update({
+                app_lock_enabled: false,
+                app_lock_credential_id: null
+            }).eq('id', pendingForceUnlockUserId);
+
+            if (updateError) {
+                console.error("Failed to update profile lock status:", updateError);
+                alert("データベースの更新に失敗しました。シグナル送信を中止します。");
+                msgEl.style.color = '#555';
+                submitBtn.disabled = false;
+                return;
+            }
 
             channel.subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
@@ -1151,7 +1177,8 @@
                         alert('シグナルの送信に失敗しました。');
                     }
                     supabase.removeChannel(channel);
-                    document.getElementById('admin-otp-modal').style.display = 'none';
+                    document.getElementById('admin-otp-modal').style.opacity = '0';
+                    setTimeout(() => document.getElementById('admin-otp-modal').style.display = 'none', 300);
                     msgEl.style.color = '#555';
                 }
             });
