@@ -154,9 +154,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             refreshTimeout = setTimeout(forceSessionRefresh, 1000);
         };
 
+        // --- IndexedDB Helper for Badge Reset ---
+        const clearBadgeCount = () => {
+            if (navigator.clearAppBadge) {
+                navigator.clearAppBadge().catch(console.error);
+            }
+            const request = indexedDB.open('SodreAppDB', 1);
+            request.onsuccess = (event) => {
+                const db = event.target.result;
+                if (db.objectStoreNames.contains('badge_store')) {
+                    const transaction = db.transaction(['badge_store'], 'readwrite');
+                    const store = transaction.objectStore('badge_store');
+                    store.put({ id: 'unread_count', value: 0 });
+                }
+            };
+        };
+
+        // Clear badge on initial load
+        clearBadgeCount();
+
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
                 debouncedRefresh();
+                clearBadgeCount();
             }
         });
 
@@ -1721,6 +1741,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 alert('管理者によってApp Lock（生体認証ロック）が強制解除されました。');
             })
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${currentSession.user.id}` },
+                (payload) => {
+                    const newLockState = payload.new.app_lock_enabled === true;
+                    const localLockState = localStorage.getItem('sodre_app_lock_enabled') === 'true';
+
+                    // If the database toggled App Lock on/off and it disagrees with our current browser state,
+                    // reload the page so loadProfile() can properly sync UI, localStorage, and WebAuthn checks.
+                    if (newLockState !== localLockState) {
+                        console.log('Detected remote App Lock settings change. Reloading to sync state.');
+                        window.location.reload();
+                    }
+                }
+            )
             .subscribe();
     }
 

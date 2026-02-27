@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sodre-cache-v1.1.8'; // Increment version
+const CACHE_NAME = 'sodre-cache-v1.2.0'; // Increment version
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -147,6 +147,50 @@ self.addEventListener('fetch', (event) => {
     );
 });
 
+// --- IndexedDB Helper for Badge Count ---
+function updateBadgeCount() {
+    return new Promise((resolve) => {
+        if (!self.navigator || !self.navigator.setAppBadge) {
+            resolve(0);
+            return;
+        }
+
+        const request = indexedDB.open('SodreAppDB', 1);
+
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains('badge_store')) {
+                db.createObjectStore('badge_store', { keyPath: 'id' });
+            }
+        };
+
+        request.onsuccess = (event) => {
+            const db = event.target.result;
+            // Check if store exists in case of weird upgrades
+            if (!db.objectStoreNames.contains('badge_store')) {
+                resolve(0);
+                return;
+            }
+
+            const transaction = db.transaction(['badge_store'], 'readwrite');
+            const store = transaction.objectStore('badge_store');
+            const getRequest = store.get('unread_count');
+
+            getRequest.onsuccess = () => {
+                let count = getRequest.result ? getRequest.result.value : 0;
+                count++;
+                store.put({ id: 'unread_count', value: count });
+                self.navigator.setAppBadge(count).catch(console.error);
+                resolve(count);
+            };
+
+            getRequest.onerror = () => resolve(0);
+        };
+
+        request.onerror = () => resolve(0);
+    });
+}
+
 // Background Messages (Notifications)
 messaging.onBackgroundMessage((payload) => {
     console.log('[SW] Background message received:', payload);
@@ -157,6 +201,10 @@ messaging.onBackgroundMessage((payload) => {
         badge: ICON_URL,
         data: payload.data || {}
     };
+
+    // Use IndexedDB to count notifications and update the badge
+    updateBadgeCount();
+
     return self.registration.showNotification(title, options);
 });
 
