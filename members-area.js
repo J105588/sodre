@@ -1972,7 +1972,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             } finally {
                 isUnlockPending = false;
             }
-        } else {
+        } else if (isPWA && !credIdBase64 && document.getElementById('app-lock-overlay').style.display === 'flex') {
+            // Edge case: User clicked unlock but cleared localStorage. 
+            // Do NOT hide the overlay. Let the session timeout/refresh logic handle logging them out to login.html.
+            console.warn('App lock active but credentials missing. Waiting for session validation...');
+            // Optional: force session check here to speed up redirect
+            if (typeof supabase !== 'undefined') {
+                supabase.auth.getSession().then(({ data }) => {
+                    if (!data.session) window.location.replace('login.html');
+                });
+            }
+        } else if (!isPWA || (!isEnabled && document.getElementById('app-lock-overlay').style.display !== 'flex')) {
+            // Normal unlocked state: ensure it's hidden. Do not carelessly hide if it's already showing.
             appLockOverlay.style.display = 'none';
             document.body.style.overflow = '';
         }
