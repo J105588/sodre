@@ -1072,7 +1072,11 @@
                 }, 10);
 
                 const msgEl = document.getElementById('admin-otp-msg');
-                msgEl.innerHTML = '送信中...<br>あなたのメールアドレス（' + currentUserEmail + '）へ認証コードを送っています。';
+                msgEl.innerHTML = '';
+                msgEl.textContent = '送信中...';
+                const br1 = document.createElement('br');
+                msgEl.appendChild(br1);
+                msgEl.appendChild(document.createTextNode('あなたのメールアドレス（' + currentUserEmail + '）へ認証コードを送っています。'));
                 msgEl.style.color = '#555';
 
                 // Disable submit while sending
@@ -1089,7 +1093,11 @@
                     }
                 });
 
-                msgEl.innerHTML = '最高管理者権限での操作です。<br>あなたのメールアドレス（' + currentUserEmail + '）に送信された6桁の認証コードを入力して強制解除を実行します。';
+                msgEl.innerHTML = '';
+                msgEl.textContent = '最高管理者権限での操作です。';
+                const br2 = document.createElement('br');
+                msgEl.appendChild(br2);
+                msgEl.appendChild(document.createTextNode('あなたのメールアドレス（' + currentUserEmail + '）に送信された6桁の認証コードを入力して強制解除を実行します。'));
                 submitBtn.disabled = false;
 
             } catch (err) {
@@ -1098,7 +1106,15 @@
                 // Due to how no-cors and browser redirect policies work, the POST succeeds (and email sends) but the JS throws.
                 // We will NOT hide the modal, so the user can enter the code if the email arrived.
                 const msgEl = document.getElementById('admin-otp-msg');
-                msgEl.innerHTML = '<span style="color:orange;">※送信時にネットワーク警告が発生しましたが、メールが送信されている可能性があります。</span><br>最高管理者権限での操作です。<br>あなたのメールアドレス（' + currentUserEmail + '）に届いた6桁の認証コードを入力して強制解除を実行します。';
+                msgEl.innerHTML = '';
+                const span = document.createElement('span');
+                span.style.color = 'orange';
+                span.textContent = '※送信時にネットワーク警告が発生しましたが、メールが送信されている可能性があります。';
+                msgEl.appendChild(span);
+                msgEl.appendChild(document.createElement('br'));
+                msgEl.appendChild(document.createTextNode('最高管理者権限での操作です。'));
+                msgEl.appendChild(document.createElement('br'));
+                msgEl.appendChild(document.createTextNode('あなたのメールアドレス（' + currentUserEmail + '）に届いた6桁の認証コードを入力して強制解除を実行します。'));
 
                 const submitBtn = document.getElementById('submit-admin-otp');
                 if (submitBtn) submitBtn.disabled = false;
