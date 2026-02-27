@@ -301,6 +301,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Initialize toggle UI state
                 const appLockToggle = document.getElementById('app-lock-toggle');
                 if (appLockToggle) appLockToggle.checked = true;
+            } else {
+                // Ensure App Lock is disabled locally if DB says it is disabled
+                if (localStorage.getItem('sodre_app_lock_enabled') === 'true' || localStorage.getItem('sodre_app_lock_cred_id')) {
+                    console.log('Removing outdated App Lock from local storage sync...');
+                    localStorage.removeItem('sodre_app_lock_enabled');
+                    localStorage.removeItem('sodre_app_lock_cred_id');
+
+                    const appLockOverlay = document.getElementById('app-lock-overlay');
+                    if (appLockOverlay) {
+                        appLockOverlay.style.display = 'none';
+                        document.body.style.overflow = '';
+                    }
+                }
+
+                // Initialize toggle UI state
+                const appLockToggle = document.getElementById('app-lock-toggle');
+                if (appLockToggle) appLockToggle.checked = false;
             }
         }
 
