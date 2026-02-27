@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sodre-cache-v1.2.0'; // Increment version
+const CACHE_NAME = 'sodre-cache-v1.2.1'; // Increment version
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -203,9 +203,10 @@ messaging.onBackgroundMessage((payload) => {
     };
 
     // Use IndexedDB to count notifications and update the badge
-    updateBadgeCount();
+    const badgePromise = updateBadgeCount();
+    const notificationPromise = self.registration.showNotification(title, options);
 
-    return self.registration.showNotification(title, options);
+    return Promise.all([badgePromise, notificationPromise]);
 });
 
 // Notification Click
