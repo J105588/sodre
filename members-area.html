@@ -231,6 +231,37 @@
             background: #e0e0e0;
         }
 
+        .comment-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 0.5rem;
+        }
+
+        .comment-toolbar-btn {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 1.1rem;
+            padding: 5px;
+            transition: color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .comment-toolbar-btn:hover {
+            color: var(--primary-color);
+        }
+
+        .comment-media-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
         /* Modal Styles */
         .modal {
             display: none;

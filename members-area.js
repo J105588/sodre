@@ -1379,9 +1379,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                     
                     ${post.allow_comments ? `
-                        <div class="comment-form">
-                            <textarea id="comment-input-${post.id}" class="comment-input" placeholder="コメントを書く..." rows="2" style="resize:vertical;"></textarea>
-                            <button onclick="submitComment('${post.id}')" class="btn-comment-submit">送信</button>
+                        <div class="comment-form" style="flex-direction: column; align-items: stretch;">
+                            <textarea id="comment-input-${post.id}" class="comment-input" placeholder="コメントを書く..." rows="2" style="resize:vertical; width: 100%;"></textarea>
+                            <div class="comment-media-preview" id="comment-media-preview-${post.id}"></div>
+                            <div class="comment-toolbar">
+                                <label for="comment-file-${post.id}" class="comment-toolbar-btn" title="ファイルを添付">
+                                    <i class="fas fa-paperclip"></i>
+                                </label>
+                                <input type="file" id="comment-file-${post.id}" multiple style="display:none;" onchange="handleCommentFileSelect(event, '${post.id}')">
+                                <button onclick="submitComment('${post.id}')" class="btn-comment-submit">送信</button>
+                            </div>
                         </div>
                     ` : ''}
                 </div>
@@ -1463,6 +1470,41 @@ document.addEventListener('DOMContentLoaded', async () => {
                     : ''}
                     </div>
                 </div>
+                ${comment.images && comment.images.length > 0 ? `
+                    <div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
+                        ${comment.images.map(url => {
+                        const secureUrl = getSecureUrl(url);
+                        if (isImageUrl(url)) {
+                            return `<img src="${secureUrl}" 
+                                    loading="lazy"
+                                    onclick="openLightbox('${secureUrl}')"
+                                    style="max-width:100px; height:auto; max-height:100px; border-radius:4px; cursor:pointer; transition:opacity 0.2s; object-fit: contain;" 
+                                    onmouseover="this.style.opacity=0.8" 
+                                    onmouseout="this.style.opacity=1"
+                                >`;
+                        } else {
+                            let fname = url.split('/').pop();
+                            try {
+                                const urlObj = new URL(url);
+                                const originalName = urlObj.searchParams.get('name');
+                                if (originalName) {
+                                    fname = originalName;
+                                } else {
+                                    fname = fname.split('?')[0];
+                                }
+                            } catch (e) {
+                                fname = fname.split('?')[0];
+                            }
+
+                            return `<a href="${secureUrl}" target="_blank" download="${fname}" 
+                                    style="display:inline-flex; align-items:center; gap:6px; padding:6px 10px; background:#f5f5f5; border-radius:6px; text-decoration:none; color:#333; font-size:0.8rem; transition:background 0.2s;"
+                                    onmouseover="this.style.background='#eee'" onmouseout="this.style.background='#f5f5f5'">
+                                    <i class="${getFileIconFromUrl(url)}" style="color:var(--primary-color); font-size:1rem;"></i>
+                                    <span style="max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${decodeURIComponent(fname)}</span>
+                                </a>`;
+                        }
+                    }).join('')}
+                    </div>` : ''}
                 <div id="comment-content-${comment.id}">${DOMPurify.sanitize(formatCommentContent(comment.content))}</div>
                 <div id="comment-edit-form-${comment.id}" style="display:none; margin-top:8px;">
                     <textarea id="comment-edit-input-${comment.id}" class="comment-input" rows="2" style="resize:vertical; width:100%;">${escapeHtml(comment.content)}</textarea>
@@ -1503,24 +1545,155 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
+    // --- Comment File Handling State ---
+    const commentFiles = {}; // Structure: { [postId]: [File, File, ...] }
+
+    window.handleCommentFileSelect = (event, postId) => {
+        const files = Array.from(event.target.files);
+        if (!files || files.length === 0) return;
+
+        if (!commentFiles[postId]) {
+            commentFiles[postId] = [];
+        }
+
+        const previewArea = document.getElementById(`comment-media-preview-${postId}`);
+
+        files.forEach(file => {
+            const container = document.createElement('div');
+            container.style.position = 'relative';
+            container.style.display = 'inline-block';
+
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const img = document.createElement('img');
+                    img.src = ev.target.result;
+                    img.style.width = '60px';
+                    img.style.height = '60px';
+                    img.style.objectFit = 'cover';
+                    img.style.borderRadius = '4px';
+                    container.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                const filePreview = document.createElement('div');
+                filePreview.style.display = 'inline-flex';
+                filePreview.style.alignItems = 'center';
+                filePreview.style.gap = '5px';
+                filePreview.style.padding = '4px 8px';
+                filePreview.style.background = '#f5f5f5';
+                filePreview.style.borderRadius = '4px';
+                filePreview.style.fontSize = '0.75rem';
+                filePreview.innerHTML = `<i class="${getFileIcon(file.name)}" style="color:var(--primary-color);"></i> <span style="max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(file.name)}</span>`;
+                container.appendChild(filePreview);
+            }
+
+            const cancelBtn = document.createElement('span');
+            cancelBtn.innerHTML = '&times;';
+            cancelBtn.style.position = 'absolute';
+            cancelBtn.style.top = '-6px';
+            cancelBtn.style.right = '-6px';
+            cancelBtn.style.background = 'rgba(0,0,0,0.6)';
+            cancelBtn.style.color = 'white';
+            cancelBtn.style.borderRadius = '50%';
+            cancelBtn.style.width = '16px';
+            cancelBtn.style.height = '16px';
+            cancelBtn.style.display = 'flex';
+            cancelBtn.style.alignItems = 'center';
+            cancelBtn.style.justifyContent = 'center';
+            cancelBtn.style.cursor = 'pointer';
+            cancelBtn.style.fontSize = '12px';
+            cancelBtn.style.lineHeight = '1';
+            cancelBtn.style.zIndex = '10';
+
+            cancelBtn.addEventListener('click', () => {
+                const index = commentFiles[postId].indexOf(file);
+                if (index > -1) {
+                    commentFiles[postId].splice(index, 1);
+                }
+                container.remove();
+            });
+
+            container.appendChild(cancelBtn);
+            previewArea.appendChild(container);
+            commentFiles[postId].push(file);
+        });
+
+        // Clear input
+        event.target.value = '';
+    };
+
     window.submitComment = async (postId) => {
         const inputEl = document.getElementById(`comment-input-${postId}`);
+        const submitBtn = inputEl.parentElement.querySelector('.btn-comment-submit');
         const content = inputEl.value.trim();
+        const filesToUpload = commentFiles[postId] || [];
 
-        if (!content) return;
+        if (!content && filesToUpload.length === 0) return;
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = '送信中...';
+
+        let imageUrls = [];
+
+        // Upload files if any exist
+        if (filesToUpload.length > 0) {
+            const formData = new FormData();
+            for (const file of filesToUpload) {
+                formData.append('files[]', file);
+            }
+            try {
+                const uploadRes = await fetch(window.UPLOAD_API_URL, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${currentSession?.access_token}` },
+                    body: formData
+                });
+                const uploadData = await uploadRes.json();
+                if (uploadData.success && uploadData.urls) {
+                    imageUrls = uploadData.urls.map((url, index) => {
+                        const file = filesToUpload[index];
+                        if (file) {
+                            return `${url}?name=${encodeURIComponent(file.name)}`;
+                        }
+                        return url;
+                    });
+                } else {
+                    console.error('Comment upload error:', uploadData.error);
+                    alert('ファイルのアップロードに失敗しました: ' + (uploadData.error || '不明なエラー'));
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '送信';
+                    return;
+                }
+            } catch (uploadErr) {
+                console.error('Comment upload fetch error:', uploadErr);
+                alert('ファイルのアップロードに失敗しました。');
+                submitBtn.disabled = false;
+                submitBtn.textContent = '送信';
+                return;
+            }
+        }
 
         const { error } = await supabase
             .from('board_comments')
             .insert([{
                 post_id: postId,
                 user_id: user.id,
-                content: content
+                content: content,
+                images: imageUrls
             }]);
+
+        submitBtn.disabled = false;
+        submitBtn.textContent = '送信';
 
         if (error) {
             alert('コメントの送信に失敗しました: ' + error.message);
         } else {
             inputEl.value = '';
+            // Clear files
+            commentFiles[postId] = [];
+            const previewArea = document.getElementById(`comment-media-preview-${postId}`);
+            if (previewArea) previewArea.innerHTML = '';
+
             await loadComments(postId); // Reload comments
         }
     };
@@ -1528,15 +1701,46 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.deleteComment = async (commentId, postId) => {
         if (!confirm('本当に削除しますか？')) return;
 
-        const { error } = await supabase
-            .from('board_comments')
-            .delete()
-            .eq('id', commentId);
+        try {
+            // 1. Get comment data to find images
+            const { data: comment, error: fetchError } = await supabase
+                .from('board_comments')
+                .select('images')
+                .eq('id', commentId)
+                .single();
 
-        if (error) {
-            alert('削除に失敗しました: ' + error.message);
-        } else {
-            await loadComments(postId); // Reload
+            if (fetchError) {
+                console.error('Error fetching comment for deletion:', fetchError);
+            } else if (comment && comment.images && comment.images.length > 0) {
+                // 2. Delete files from X-server
+                try {
+                    await fetch('https://data.sodre.jp/api/delete.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${currentSession?.access_token}`
+                        },
+                        body: JSON.stringify({ urls: comment.images })
+                    });
+                } catch (deleteErr) {
+                    console.error('Physical file delete error for comment:', deleteErr);
+                }
+            }
+
+            // 3. Delete from DB
+            const { error } = await supabase
+                .from('board_comments')
+                .delete()
+                .eq('id', commentId);
+
+            if (error) {
+                alert('削除に失敗しました: ' + error.message);
+            } else {
+                await loadComments(postId); // Reload
+            }
+        } catch (err) {
+            console.error('Delete comment error:', err);
+            alert('削除中にエラーが発生しました。');
         }
     };
 
