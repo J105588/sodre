@@ -19,6 +19,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         || window.navigator.standalone === true
         || document.referrer.includes('android-app://');
 
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
     // PWA初回起動: 強制ログアウトしてログイン画面へ
     if (isPWA && !localStorage.getItem('sodre_pwa_initialized')) {
         localStorage.setItem('sodre_pwa_initialized', 'true');
@@ -1348,7 +1350,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 fname = fname.split('?')[0];
                             }
 
-                            return `<a href="${secureUrl}" target="_blank" download="${fname}" 
+                            return `<a href="${secureUrl}" target="_blank" 
+                                    onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(fname)}')"
                                     style="display:inline-flex; align-items:center; gap:6px; padding:8px 14px; background:#f5f5f5; border-radius:6px; text-decoration:none; color:#333; font-size:0.85rem; transition:background 0.2s;"
                                     onmouseover="this.style.background='#eee'" onmouseout="this.style.background='#f5f5f5'">
                                     <i class="${getFileIconFromUrl(url)}" style="color:var(--primary-color); font-size:1.1rem;"></i>
@@ -1496,7 +1499,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 fname = fname.split('?')[0];
                             }
 
-                            return `<a href="${secureUrl}" target="_blank" download="${fname}" 
+                            return `<a href="${secureUrl}" target="_blank" 
+                                    onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(fname)}')"
                                     style="display:inline-flex; align-items:center; gap:6px; padding:6px 10px; background:#f5f5f5; border-radius:6px; text-decoration:none; color:#333; font-size:0.8rem; transition:background 0.2s;"
                                     onmouseover="this.style.background='#eee'" onmouseout="this.style.background='#f5f5f5'">
                                     <i class="${getFileIconFromUrl(url)}" style="color:var(--primary-color); font-size:1rem;"></i>
@@ -1769,6 +1773,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         const filename = url.split('/').pop().split('?')[0];
         return getFileIcon(filename);
     }
+
+    // --- File Download Handler (iOS PWA Fallback) ---
+    window.handleFileDownload = async (event, url, encodedFilename) => {
+        const filename = decodeURIComponent(encodedFilename);
+
+        // Fallback only needed for iOS PWA and certain file types
+        const isNonPreviewable = filename.toLowerCase().endsWith('.zip') || filename.toLowerCase().endsWith('.rar');
+
+        if (isPWA && isIOS && (isNonPreviewable || !isImageUrl(url))) {
+            event.preventDefault();
+
+            try {
+                const response = await fetch(url);
+                const blob = await response.blob();
+                const file = new File([blob], filename, { type: blob.type });
+
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: filename,
+                        text: 'ファイルを保存または共有'
+                    });
+                } else {
+                    // Fallback to open in new tab if sharing files is not supported
+                    window.open(url, '_blank');
+                }
+            } catch (err) {
+                console.error('File share error:', err);
+                // Last resort: standard open
+                window.open(url, '_blank');
+            }
+        } else {
+            // Standard download for non-iOS or other apps
+            // If we are here, we let the default <a> behavior happen, 
+            // but since we want 'download' attribute, we can also force it if it's not working
+            // For iOS standard browser, 'download' usually works, or it opens in a way that allows saving.
+        }
+    };
     // Helper for file preview
     function createFilePreviewHTML(url) {
         let filename = 'Attachment';
@@ -1788,7 +1830,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const secureUrl = getSecureUrl(url);
 
         return `
-            <a href="${secureUrl}" target="_blank" class="file-attachment-link" onclick="event.stopPropagation();">
+            <a href="${secureUrl}" target="_blank" class="file-attachment-link" onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(filename)}'); event.stopPropagation();">
                 <i class="${iconClass}"></i>
                 <span class="filename">${escapeHtml(filename)}</span>
             </a>
