@@ -1,616 +1,789 @@
 <!doctype html>
 <html lang="ja">
-  <head>
+
+<head>
     <meta charset="UTF-8" />
-    <link
-      rel="icon"
-      href="https://lh3.googleusercontent.com/a/ACg8ocKrevxxn-jyPFTJ3zy5r6EFRGmv0Tp8-qWyb3bMaXduuMzHS0Y=s400-c"
-    />
+    <link rel="icon"
+        href="https://lh3.googleusercontent.com/a/ACg8ocKrevxxn-jyPFTJ3zy5r6EFRGmv0Tp8-qWyb3bMaXduuMzHS0Y=s400-c" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Members Area | SoDRé</title>
     <link rel="stylesheet" href="style.css" />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-    />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <!-- Quill.js CSS -->
-    <link
-      href="https://cdn.quilljs.com/1.3.6/quill.snow.css"
-      rel="stylesheet"
-    />
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet" />
     <!-- DomPurify for XSS Protection -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     <link rel="manifest" href="manifest.json" />
     <script src="page-guard.js"></script>
     <style>
-      .members-dashboard {
-        padding-top: 100px;
-        padding-bottom: 50px;
-        background: #fffcf5;
-        min-height: 100vh;
-      }
-
-      .dashboard-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 2rem;
-        border-bottom: 2px solid #eee;
-        padding-bottom: 1rem;
-      }
-
-      .welcome-msg {
-        font-size: 1.2rem;
-        color: var(--text-color);
-      }
-
-      .btn-logout {
-        background: transparent;
-        border: 1px solid var(--text-color);
-        padding: 5px 15px;
-        border-radius: 20px;
-        cursor: pointer;
-        transition: all 0.3s;
-      }
-
-      .btn-logout:hover {
-        background: var(--text-color);
-        color: white;
-      }
-
-      /* Tabs */
-      .member-tabs {
-        display: flex;
-        gap: 1rem;
-        margin-bottom: 2rem;
-      }
-
-      .m-tab-btn {
-        padding: 10px 20px;
-        background: white;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: bold;
-        transition: all 0.3s;
-      }
-
-      .m-tab-btn.active {
-        background: var(--primary-color);
-        color: white;
-        border-color: var(--primary-color);
-      }
-
-      /* Board Area */
-      .board-container {
-        background: white;
-        padding: 2rem;
-        border-radius: 12px;
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
-      }
-
-      .post-form-area {
-        margin-bottom: 2rem;
-        padding-bottom: 2rem;
-        border-bottom: 1px solid #eee;
-      }
-
-      .post-input {
-        width: 100%;
-        padding: 15px;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        resize: vertical;
-        min-height: 100px;
-        margin-bottom: 1rem;
-        font-family: inherit;
-      }
-
-      .btn-post {
-        background: var(--primary-color);
-        color: white;
-        border: none;
-        padding: 10px 25px;
-        border-radius: 5px;
-        cursor: pointer;
-        font-weight: bold;
-      }
-
-      .board-feed {
-        display: flex;
-        flex-direction: column;
-        gap: 1.5rem;
-      }
-
-      .board-post {
-        border: 1px solid #f0f0f0;
-        padding: 1.5rem;
-        border-radius: 8px;
-        background: #fafafa;
-      }
-
-      .bp-header {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-        font-size: 0.9rem;
-        color: #666;
-      }
-
-      .bp-author {
-        font-weight: bold;
-        color: var(--primary-color);
-      }
-
-      .bp-content {
-        line-height: 1.6;
-        white-space: pre-wrap;
-        color: #333;
-      }
-
-      /* Groups List */
-      .groups-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 1.5rem;
-      }
-
-      .group-card {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 8px;
-        border: 1px solid #eee;
-        cursor: pointer;
-        transition: transform 0.2s;
-      }
-
-      .group-card:hover {
-        transform: translateY(-5px);
-        border-color: var(--primary-color);
-      }
-
-      /* Comment Styles */
-      .comments-section {
-        margin-top: 1rem;
-        padding-top: 1rem;
-        border-top: 1px dashed #eee;
-        display: none;
-        /* Hidden by default */
-      }
-
-      .comment-item {
-        background: #fff;
-        padding: 0.8rem;
-        border-radius: 6px;
-        margin-bottom: 0.8rem;
-        border: 1px solid #f0f0f0;
-        font-size: 0.9rem;
-      }
-
-      .comment-header {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 0.3rem;
-        font-size: 0.8rem;
-        color: #888;
-      }
-
-      .comment-author {
-        font-weight: bold;
-        color: var(--text-color);
-      }
-
-      .comment-actions button {
-        background: none;
-        border: none;
-        color: #999;
-        cursor: pointer;
-        font-size: 0.8rem;
-        margin-left: 0.5rem;
-      }
-
-      .comment-actions button:hover {
-        color: #d9534f;
-      }
-
-      .comment-form {
-        display: flex;
-        gap: 0.5rem;
-        margin-top: 1rem;
-      }
-
-      .comment-input {
-        flex: 1;
-        padding: 8px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-family: inherit;
-      }
-
-      .btn-comment-submit {
-        background: var(--secondary-bg);
-        border: 1px solid #ccc;
-        padding: 5px 15px;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.2s;
-      }
-
-      .btn-comment-submit:hover {
-        background: #e0e0e0;
-      }
-
-      .comment-toolbar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: 0.5rem;
-      }
-
-      .comment-toolbar-btn {
-        background: none;
-        border: none;
-        color: #666;
-        cursor: pointer;
-        font-size: 1.1rem;
-        padding: 5px;
-        transition: color 0.2s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .comment-toolbar-btn:hover {
-        color: var(--primary-color);
-      }
-
-      .comment-media-preview {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 8px;
-      }
-
-      /* Modal Styles */
-      .modal {
-        display: none;
-        position: fixed;
-        z-index: 2000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
-        align-items: center;
-        justify-content: center;
-      }
-
-      .modal.show {
-        display: flex;
-      }
-
-      .modal-content {
-        background-color: white;
-        padding: 2rem;
-        border-radius: 12px;
-        width: 90%;
-        max-width: 700px;
-        max-height: 90vh;
-        /* Ensure fits in viewport */
-        overflow-y: auto;
-        /* Scrollable if tall */
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        position: relative;
-        scrollbar-width: thin;
-        /* Firefox */
-      }
-
-      /* Mobile Adjustments */
-      @media (max-width: 600px) {
-        .modal-content {
-          width: 95%;
-          padding: 1.5rem;
-          border-radius: 8px;
+        /* ===== Members Dashboard Layout ===== */
+        .members-dashboard {
+            padding-top: 80px;
+            padding-bottom: 80px;
+            background: var(--warm-bg);
+            min-height: 100vh;
         }
-      }
 
-      .close-modal {
-        position: absolute;
-        top: 15px;
-        right: 20px;
-        font-size: 1.5rem;
-        cursor: pointer;
-        color: #666;
-      }
+        /* ===== Dashboard Header ===== */
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            background: white;
+            padding: 1.2rem 1.5rem;
+            border-radius: 12px;
+            border: 1px solid #e8e8e8;
+        }
+
+        .dashboard-header h1 {
+            font-size: 1.3rem;
+            margin-bottom: 2px;
+        }
+
+        .welcome-msg {
+            font-size: 0.9rem;
+            color: #666;
+            font-family: var(--font-sans);
+        }
+
+        .btn-logout {
+            background: transparent;
+            border: 1px solid #ccc;
+            padding: 8px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: #666;
+            white-space: nowrap;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .btn-logout:hover {
+            background: var(--text-color);
+            color: white;
+            border-color: var(--text-color);
+        }
+
+        /* ===== Tab Navigation ===== */
+        .member-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 1.5rem;
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e8e8e8;
+            padding: 4px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .m-tab-btn {
+            flex: 1;
+            padding: 12px 16px;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #888;
+            white-space: nowrap;
+            text-align: center;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .m-tab-btn:not(.active):hover {
+            background: #f0f0f0;
+            color: #555;
+        }
+
+        .m-tab-btn.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .m-tab-btn[title="設定"] {
+            flex: 0;
+            padding: 12px 16px;
+        }
+
+        /* ===== Board Container ===== */
+        .board-container {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid #e8e8e8;
+        }
+
+        .board-container h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .post-form-area {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .post-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            resize: vertical;
+            min-height: 80px;
+            margin-bottom: 0.8rem;
+            font-family: inherit;
+            font-size: 0.95rem;
+        }
+
+        .btn-post {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: opacity 0.2s;
+        }
+
+        .btn-post:hover {
+            opacity: 0.85;
+        }
+
+        #back-to-groups-btn:hover {
+            background: #f0f4f8;
+            /* Secondary BG */
+            border-color: var(--primary-color) !important;
+        }
+
+        /* ===== Board Feed ===== */
+        .board-feed {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .board-post {
+            border: 1px solid #eee;
+            padding: 1.2rem;
+            border-radius: 10px;
+            background: #fafbfc;
+        }
+
+        .bp-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.6rem;
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        .bp-author {
+            font-weight: 700;
+            color: var(--primary-color);
+            font-size: 0.9rem;
+        }
+
+        .bp-content {
+            line-height: 1.7;
+            white-space: pre-wrap;
+            color: #333;
+            font-size: 0.95rem;
+        }
+
+        /* ===== Groups Grid ===== */
+        .groups-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 12px;
+        }
+
+        .group-card {
+            background: #fafbfc;
+            padding: 1.2rem;
+            border-radius: 10px;
+            border: 1px solid #eee;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .group-card:hover {
+            border-color: var(--primary-color);
+        }
+
+        .group-card h4 {
+            margin-bottom: 4px;
+        }
+
+        /* ===== Comments ===== */
+        .comments-section {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #eee;
+            display: none;
+        }
+
+        .comment-item {
+            background: #f8f9fa;
+            padding: 10px 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border-left: 3px solid var(--primary-color);
+            font-size: 0.9rem;
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .comment-author {
+            font-weight: 700;
+            color: var(--text-color);
+        }
+
+        .comment-actions button {
+            background: none;
+            border: none;
+            color: #aaa;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-left: 8px;
+            padding: 2px 4px;
+            transition: color 0.2s;
+        }
+
+        .comment-actions button:hover {
+            color: #d9534f;
+        }
+
+        .comment-form {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .comment-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+
+        .btn-comment-submit {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            white-space: nowrap;
+            transition: opacity 0.2s;
+        }
+
+        .btn-comment-submit:hover {
+            opacity: 0.85;
+        }
+
+        .comment-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+        }
+
+        .comment-toolbar-btn {
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            font-size: 1.1rem;
+            padding: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .comment-media-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        /* ===== Modals ===== */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 16px;
+            width: 92%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            scrollbar-width: thin;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #999;
+            line-height: 1;
+            padding: 4px;
+        }
+
+        /* ===== Mobile Responsive ===== */
+        @media (max-width: 600px) {
+            .members-dashboard {
+                padding-top: 60px;
+                padding-bottom: 80px;
+                /* 下部ナビバー分の余白 */
+                padding-left: 0.5rem;
+                padding-right: 0.5rem;
+            }
+
+            /* ヘッダー：コンパクトに */
+            .dashboard-header {
+                padding: 12px 14px;
+                border-radius: 10px;
+                margin-bottom: 10px;
+            }
+
+            .dashboard-header h1 {
+                font-size: 1.05rem;
+            }
+
+            .welcome-msg {
+                font-size: 0.8rem;
+            }
+
+            .btn-logout {
+                padding: 7px 14px;
+                font-size: 0.8rem;
+            }
+
+            /* ===== 下部固定ナビバー ===== */
+            .member-tabs {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 999;
+                margin-bottom: 0;
+                border-radius: 0;
+                border: none;
+                border-top: 1px solid #ddd;
+                padding: 4px 0;
+                padding-bottom: env(safe-area-inset-bottom, 0px);
+                /* iPhoneノッチ対応 */
+                background: white;
+                box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
+            }
+
+            .m-tab-btn {
+                flex: 1;
+                flex-direction: column;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 2px;
+                padding: 6px 4px;
+                font-size: 0.7rem;
+                min-height: 50px;
+                border-radius: 0;
+            }
+
+            .m-tab-btn i {
+                display: block !important;
+                font-size: 1.15rem;
+                margin-right: 0 !important;
+            }
+
+            .m-tab-btn.active {
+                background: transparent;
+                color: var(--primary-color);
+            }
+
+            .m-tab-btn:not(.active) {
+                color: #999;
+            }
+
+            /* FABを下部ナビバーの上に */
+            .fab-btn {
+                bottom: 70px !important;
+                right: 16px !important;
+                width: 52px !important;
+                height: 52px !important;
+            }
+
+            /* ボード：端まで広く使う */
+            .board-container {
+                padding: 12px;
+                border-radius: 10px;
+            }
+
+            .board-container h3 {
+                font-size: 1rem;
+            }
+
+            .board-container>p {
+                font-size: 0.8rem !important;
+                margin-bottom: 8px !important;
+            }
+
+            /* 投稿カード */
+            .board-feed {
+                gap: 8px;
+            }
+
+            .board-post {
+                padding: 12px;
+                border-radius: 8px;
+            }
+
+            .bp-header {
+                font-size: 0.8rem;
+                margin-bottom: 6px;
+            }
+
+            .bp-author {
+                font-size: 0.85rem;
+            }
+
+            .bp-content {
+                font-size: 0.9rem;
+                line-height: 1.65;
+            }
+
+            /* グループカード */
+            .groups-grid {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .group-card {
+                padding: 14px;
+                min-height: 44px;
+            }
+
+            /* コメント */
+            .comment-item {
+                padding: 10px;
+                font-size: 0.85rem;
+            }
+
+            .comment-form {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .comment-input {
+                font-size: 16px;
+                /* iOS：16px未満だとズームされる */
+            }
+
+            .btn-comment-submit {
+                padding: 12px;
+                font-size: 0.9rem;
+                min-height: 44px;
+                border-radius: 8px;
+            }
+
+            .comment-toolbar-btn {
+                min-width: 44px;
+                min-height: 44px;
+                font-size: 1.2rem;
+            }
+
+            /* モーダル */
+            .modal-content {
+                width: 98%;
+                padding: 1rem;
+                border-radius: 14px;
+                max-height: 92vh;
+            }
+
+            .close-modal {
+                font-size: 1.8rem;
+                top: 8px;
+                right: 12px;
+                min-width: 44px;
+                min-height: 44px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+        }
     </style>
-  </head>
+</head>
 
-  <body>
+<body>
     <header class="header" id="global-header">
-      <div class="container header-container">
-        <a href="https://sodre.jp" class="logo"
-          ><img src="img/logo.webp" alt="SoDRé"
-        /></a>
-      </div>
+        <div class="container header-container">
+            <a href="https://sodre.jp" class="logo"><img src="img/logo.webp" alt="SoDRé" /></a>
+        </div>
     </header>
 
     <div class="container members-dashboard">
-      <div class="dashboard-header">
-        <div>
-          <h1>Members Area</h1>
-          <p class="welcome-msg" id="user-display-name">Welcome...</p>
-        </div>
-        <button class="btn-logout" id="logout-btn">ログアウト</button>
-      </div>
-
-      <div class="member-tabs">
-        <button class="m-tab-btn active" data-tab="all">全体掲示板</button>
-        <button class="m-tab-btn" data-tab="groups">参加グループ</button>
-        <!-- Settings Button -->
-        <button
-          id="settings-btn"
-          class="m-tab-btn"
-          style="margin-left: auto"
-          title="設定"
-        >
-          <i class="fas fa-cog"></i>
-        </button>
-      </div>
-
-      <!-- All Members Board -->
-      <div id="view-all" class="board-container">
-        <h3>全体掲示板 (All Members)</h3>
-        <p style="margin-bottom: 1rem; color: #666; font-size: 0.9rem">
-          ここは全メンバーが閲覧・投稿できるオープンスペースです。
-        </p>
-
-        <!-- Inline Form Removed for FAB -->
-
-        <div id="all-board-feed" class="board-feed">
-          <!-- Posts go here -->
-          <p>読み込み中...</p>
-        </div>
-      </div>
-
-      <!-- Groups List -->
-      <div id="view-groups" class="board-container" style="display: none">
-        <h3>My Groups</h3>
-        <p style="margin-bottom: 1rem">
-          あなたが参加しているグループ一覧です。
-        </p>
-
-        <div id="my-groups-list" class="groups-grid">
-          <!-- Groups loaded here -->
+        <div class="dashboard-header">
+            <div>
+                <h1>Members Area</h1>
+                <p class="welcome-msg" id="user-display-name">Welcome...</p>
+            </div>
+            <button class="btn-logout" id="logout-btn">ログアウト</button>
         </div>
 
-        <!-- Specific Group Board (Hidden initially) -->
-        <div
-          id="group-board-view"
-          style="
-            display: none;
-            margin-top: 2rem;
-            border-top: 1px solid #eee;
-            padding-top: 2rem;
-          "
-        >
-          <div
-            style="
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              margin-bottom: 1rem;
-            "
-          >
-            <h4 id="current-group-name" style="font-size: 1.5rem">
-              Group Name
-            </h4>
-            <button id="back-to-groups-btn" class="btn-logout">
-              一覧に戻る
+        <div class="member-tabs">
+            <button class="m-tab-btn active" data-tab="all"><i class="fas fa-bullhorn"
+                    style="margin-right:4px"></i>全体掲示板</button>
+            <button class="m-tab-btn" data-tab="groups"><i class="fas fa-users"
+                    style="margin-right:4px"></i>グループ</button>
+            <button id="settings-btn" class="m-tab-btn" title="設定">
+                <i class="fas fa-cog"></i>
             </button>
-          </div>
-
-          <!-- Inline Form Removed for FAB -->
-
-          <div id="group-board-feed" class="board-feed">
-            <!-- Group posts here -->
-          </div>
         </div>
-      </div>
+
+        <!-- All Members Board -->
+        <div id="view-all" class="board-container">
+            <h3>全体掲示板</h3>
+            <p style="margin-bottom: 1rem; color: #888; font-size: 0.85rem">
+                全メンバーが閲覧・投稿できるスペースです
+            </p>
+
+            <!-- Inline Form Removed for FAB -->
+
+            <div id="all-board-feed" class="board-feed">
+                <!-- Posts go here -->
+                <p>読み込み中...</p>
+            </div>
+        </div>
+
+        <!-- Groups List -->
+        <div id="view-groups" class="board-container" style="display: none">
+            <h3>参加グループ</h3>
+            <p style="margin-bottom: 1rem; color: #888; font-size: 0.85rem">
+                参加しているグループ一覧
+            </p>
+
+            <div id="my-groups-list" class="groups-grid">
+                <!-- Groups loaded here -->
+            </div>
+
+            <!-- Specific Group Board (Hidden initially) -->
+            <div id="group-board-view" style="
+            display: none;
+            margin-top: 1.5rem;
+            border-top: 1px solid #eee;
+            padding-top: 1.5rem;
+          ">
+                <button id="back-to-groups-btn" style="
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    background: none;
+                    border: 1px solid #ddd;
+                    border-radius: 8px;
+                    padding: 10px 16px;
+                    font-size: 0.9rem;
+                    color: var(--primary-color);
+                    cursor: pointer;
+                    margin-bottom: 12px;
+                    font-weight: 600;
+                    transition: background 0.2s, border-color 0.2s;
+                ">
+                    <i class="fas fa-arrow-left"></i> 一覧に戻る
+                </button>
+                <h4 id="current-group-name" style="font-size: 1.3rem; margin-bottom: 1rem">
+                    Group Name
+                </h4>
+
+                <!-- Inline Form Removed for FAB -->
+
+                <div id="group-board-feed" class="board-feed">
+                    <!-- Group posts here -->
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- FAB Button -->
     <button id="fab-post" class="fab-btn" title="投稿する">
-      <i class="fas fa-pen"></i>
+        <i class="fas fa-pen"></i>
     </button>
 
     <!-- Post Modal -->
     <!-- Post Modal (Redesigned) -->
     <div id="post-modal" class="modal">
-      <div class="modal-content post-modal-content">
-        <span id="modal-close" class="close-modal">&times;</span>
-        <div class="modal-header-new">
-          <h3 id="modal-title">投稿を作成</h3>
-        </div>
-
-        <div class="post-creation-area">
-          <div
-            id="modal-post-content"
-            style="min-height: 150px; background: #fff; font-family: inherit"
-          ></div>
-
-          <!-- Media Preview -->
-          <div id="modal-image-preview" class="media-preview-container"></div>
-        </div>
-
-        <!-- Toolbar -->
-        <div class="post-toolbar">
-          <div class="toolbar-left">
-            <label
-              for="modal-post-image"
-              class="toolbar-btn"
-              title="ファイルを添付 (最大100MB)"
-            >
-              <i class="fas fa-paperclip"></i>
-            </label>
-            <span style="font-size: 0.7rem; color: #999; margin-left: 4px"
-              >(Max 100MB)</span
-            >
-            <input
-              type="file"
-              id="modal-post-image"
-              multiple
-              style="display: none"
-            />
-
-            <div class="toolbar-separator"></div>
-
-            <div class="toggle-switch-container" title="予約投稿">
-              <input
-                type="checkbox"
-                id="schedule-toggle"
-                class="toggle-checkbox"
-              />
-              <label for="schedule-toggle" class="toggle-label">
-                <i class="far fa-clock"></i> 予約
-              </label>
+        <div class="modal-content post-modal-content">
+            <span id="modal-close" class="close-modal">&times;</span>
+            <div class="modal-header-new">
+                <h3 id="modal-title">投稿を作成</h3>
             </div>
-          </div>
 
-          <div class="toolbar-right">
-            <div class="comment-permission">
-              <input type="checkbox" id="modal-allow-comments" checked />
-              <label for="modal-allow-comments">コメント許可</label>
+            <div class="post-creation-area">
+                <div id="modal-post-content" style="min-height: 150px; background: #fff; font-family: inherit"></div>
+
+                <!-- Media Preview -->
+                <div id="modal-image-preview" class="media-preview-container"></div>
             </div>
-          </div>
-        </div>
 
-        <!-- Schedule Options (Hidden by default) -->
-        <div id="schedule-options" class="schedule-options-panel">
-          <p class="schedule-info">指定した日時に投稿されます</p>
-          <div class="schedule-inputs">
-            <input type="date" id="schedule-date" class="modern-input" />
-            <input type="time" id="schedule-time" class="modern-input" />
-          </div>
-        </div>
+            <!-- Toolbar -->
+            <div class="post-toolbar">
+                <div class="toolbar-left">
+                    <label for="modal-post-image" class="toolbar-btn" title="ファイルを添付 (最大100MB)">
+                        <i class="fas fa-paperclip"></i>
+                    </label>
+                    <span style="font-size: 0.7rem; color: #999; margin-left: 4px">(Max 100MB)</span>
+                    <input type="file" id="modal-post-image" multiple style="display: none" />
 
-        <div class="modal-footer-new">
-          <button id="modal-submit-btn" class="btn-post-modern">
-            <span>投稿する</span>
-            <i class="fas fa-paper-plane"></i>
-          </button>
+                    <div class="toolbar-separator"></div>
+
+                    <div class="toggle-switch-container" title="予約投稿">
+                        <input type="checkbox" id="schedule-toggle" class="toggle-checkbox" />
+                        <label for="schedule-toggle" class="toggle-label">
+                            <i class="far fa-clock"></i> 予約
+                        </label>
+                    </div>
+                </div>
+
+                <div class="toolbar-right">
+                    <div class="comment-permission">
+                        <input type="checkbox" id="modal-allow-comments" checked />
+                        <label for="modal-allow-comments">コメント許可</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Schedule Options (Hidden by default) -->
+            <div id="schedule-options" class="schedule-options-panel">
+                <p class="schedule-info">指定した日時に投稿されます</p>
+                <div class="schedule-inputs">
+                    <input type="date" id="schedule-date" class="modern-input" />
+                    <input type="time" id="schedule-time" class="modern-input" />
+                </div>
+            </div>
+
+            <div class="modal-footer-new">
+                <button id="modal-submit-btn" class="btn-post-modern">
+                    <span>投稿する</span>
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
         </div>
-      </div>
     </div>
 
     <!-- External Link Warning Modal -->
     <div id="external-link-modal" class="modal">
-      <div class="modal-content" style="max-width: 400px; text-align: center">
-        <div
-          class="modal-header"
-          style="border-bottom: none; padding-bottom: 0"
-        >
-          <h3 style="margin: 0; color: #d9534f">
-            <i class="fas fa-exclamation-triangle"></i> 外部サイトへ移動
-          </h3>
+        <div class="modal-content" style="max-width: 400px; text-align: center">
+            <div class="modal-header" style="border-bottom: none; padding-bottom: 0">
+                <h3 style="margin: 0; color: #d9534f">
+                    <i class="fas fa-exclamation-triangle"></i> 外部サイトへ移動
+                </h3>
+            </div>
+            <div style="margin: 20px 0">
+                <p>外部サイトへ移動しようとしています。</p>
+                <p style="font-size: 0.9rem; color: #666; word-break: break-all" id="external-link-url"></p>
+                <p>よろしいですか？</p>
+            </div>
+            <div class="modal-actions" style="justify-content: center; gap: 15px; display: flex">
+                <button id="external-link-cancel" class="m-tab-btn">
+                    キャンセル
+                </button>
+                <button id="external-link-proceed" class="btn-post">移動する</button>
+            </div>
         </div>
-        <div style="margin: 20px 0">
-          <p>外部サイトへ移動しようとしています。</p>
-          <p
-            style="font-size: 0.9rem; color: #666; word-break: break-all"
-            id="external-link-url"
-          ></p>
-          <p>よろしいですか？</p>
-        </div>
-        <div
-          class="modal-actions"
-          style="justify-content: center; gap: 15px; display: flex"
-        >
-          <button id="external-link-cancel" class="m-tab-btn">
-            キャンセル
-          </button>
-          <button id="external-link-proceed" class="btn-post">移動する</button>
-        </div>
-      </div>
     </div>
 
     <!-- Settings Modal -->
     <div id="settings-modal" class="modal">
-      <div class="modal-content" style="max-width: 500px">
-        <span id="settings-modal-close" class="close-modal">&times;</span>
-        <div class="modal-header-new">
-          <h3>システム設定</h3>
-        </div>
+        <div class="modal-content" style="max-width: 500px">
+            <span id="settings-modal-close" class="close-modal">&times;</span>
+            <div class="modal-header-new">
+                <h3>システム設定</h3>
+            </div>
 
-        <div style="margin-top: 20px">
-          <div
-            class="setting-item"
-            style="
+            <div style="margin-top: 20px">
+                <div class="setting-item" style="
               display: flex;
               justify-content: space-between;
               align-items: center;
               padding: 15px 0;
               border-bottom: 1px solid #eee;
-            "
-          >
-            <div>
-              <h4 style="margin: 0 0 5px 0">App Lock</h4>
-              <p style="margin: 0; font-size: 0.85rem; color: #666">
-                AppをFace ID / Touch ID などの生体認証により保護します。
-              </p>
-            </div>
-            <div class="toggle-switch-container">
-              <input
-                type="checkbox"
-                id="app-lock-toggle"
-                class="toggle-checkbox"
-              />
-              <label
-                for="app-lock-toggle"
-                class="toggle-label"
-                style="padding: 10px 20px"
-                ><i class="fas fa-lock"></i
-              ></label>
-            </div>
-          </div>
+            ">
+                    <div>
+                        <h4 style="margin: 0 0 5px 0">App Lock</h4>
+                        <p style="margin: 0; font-size: 0.85rem; color: #666">
+                            AppをFace ID / Touch ID などの生体認証により保護します。
+                        </p>
+                    </div>
+                    <div class="toggle-switch-container">
+                        <input type="checkbox" id="app-lock-toggle" class="toggle-checkbox" />
+                        <label for="app-lock-toggle" class="toggle-label" style="padding: 10px 20px"><i
+                                class="fas fa-lock"></i></label>
+                    </div>
+                </div>
 
-          <div
-            class="setting-item"
-            style="
+                <div class="setting-item" style="
               display: flex;
               justify-content: space-between;
               align-items: center;
               padding: 15px 0;
               border-bottom: 1px solid #eee;
-            "
-          >
-            <div>
-              <h4 style="margin: 0 0 5px 0">プッシュ通知</h4>
-              <p style="margin: 0; font-size: 0.85rem; color: #666">
-                新しい投稿や重要な通知を受け取ります。
-              </p>
+            ">
+                    <div>
+                        <h4 style="margin: 0 0 5px 0">プッシュ通知</h4>
+                        <p style="margin: 0; font-size: 0.85rem; color: #666">
+                            新しい投稿や重要な通知を受け取ります。
+                        </p>
+                    </div>
+                    <div class="toggle-switch-container">
+                        <input type="checkbox" id="notification-toggle" class="toggle-checkbox" />
+                        <label for="notification-toggle" class="toggle-label" style="padding: 10px 20px"><i
+                                class="fas fa-bell"></i></label>
+                    </div>
+                </div>
             </div>
-            <div class="toggle-switch-container">
-              <input
-                type="checkbox"
-                id="notification-toggle"
-                class="toggle-checkbox"
-              />
-              <label
-                for="notification-toggle"
-                class="toggle-label"
-                style="padding: 10px 20px"
-                ><i class="fas fa-bell"></i
-              ></label>
-            </div>
-          </div>
         </div>
-      </div>
     </div>
 
     <!-- App Lock Overlay -->
-    <div
-      id="app-lock-overlay"
-      style="
+    <div id="app-lock-overlay" style="
         display: none;
         position: fixed;
         top: 0;
@@ -620,11 +793,9 @@
         z-index: 99999;
         overflow: hidden;
         background: #fff;
-      "
-    >
-      <div class="aurora-bg"></div>
-      <div
-        style="
+      ">
+        <div class="aurora-bg"></div>
+        <div style="
           position: relative;
           z-index: 2;
           width: 100%;
@@ -634,31 +805,24 @@
           align-items: center;
           justify-content: center;
           backdrop-filter: blur(5px);
-        "
-      >
-        <i
-          class="fas fa-lock"
-          style="
+        ">
+            <i class="fas fa-lock" style="
             font-size: 4.5rem;
             margin-bottom: 25px;
             color: var(--primary-color);
             text-shadow: 0 5px 15px rgba(20, 90, 180, 0.3);
-          "
-        ></i>
-        <h2
-          style="
+          "></i>
+            <h2 style="
             font-family: var(--font-serif);
             font-size: 2.5rem;
             margin-bottom: 15px;
             color: var(--text-color);
             font-weight: 600;
             text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-          "
-        >
-          App Locked
-        </h2>
-        <p
-          style="
+          ">
+                App Locked
+            </h2>
+            <p style="
             margin-bottom: 40px;
             color: var(--text-color);
             background: rgba(255, 255, 255, 0.8);
@@ -668,30 +832,22 @@
             font-size: 1rem;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.5);
-          "
-        >
-          認証を行ってロックを解除してください
-        </p>
-        <button
-          id="btn-unlock-app"
-          class="btn-post-modern"
-          style="
+          ">
+                認証を行ってロックを解除してください
+            </p>
+            <button id="btn-unlock-app" class="btn-post-modern" style="
             padding: 15px 40px;
             font-size: 1.2rem;
             box-shadow: 0 10px 30px rgba(20, 90, 180, 0.25);
             border: 2px solid white;
-          "
-        >
-          <i class="fas fa-unlock"></i> 認証する
-        </button>
-      </div>
+          ">
+                <i class="fas fa-unlock"></i> 認証する
+            </button>
+        </div>
     </div>
 
     <!-- Lightbox Modal -->
-    <div
-      id="lightbox-modal"
-      class="modal-overlay"
-      style="
+    <div id="lightbox-modal" class="modal-overlay" style="
         display: none;
         opacity: 0;
         z-index: 10000;
@@ -699,42 +855,32 @@
         align-items: center;
         background: rgba(0, 0, 0, 0.7);
         flex-direction: column;
-      "
-    >
-      <div
-        style="
+      ">
+        <div style="
           position: absolute;
           top: 20px;
           right: 30px;
           display: flex;
           gap: 20px;
           align-items: center;
-        "
-      >
-        <span
-          id="lightbox-close"
-          style="color: white; font-size: 40px; cursor: pointer; line-height: 1"
-          >&times;</span
-        >
-      </div>
-      <img
-        id="lightbox-img"
-        src=""
-        style="
+        ">
+            <span id="lightbox-close"
+                style="color: white; font-size: 40px; cursor: pointer; line-height: 1">&times;</span>
+        </div>
+        <img id="lightbox-img" src="" style="
           max-height: 85vh;
           max-width: 90vw;
           object-fit: contain;
           border-radius: 4px;
-        "
-      />
+        " />
     </div>
 
     <footer>
-      <div class="container">
-        <p class="copyright">
-          &copy; 2026 SoDRé & Junxiang Jin. All Rights Reserved.
-        </p>
-      </div>
+        <div class="container">
+            <p class="copyright">
+                &copy; 2026 SoDRé & Junxiang Jin. All Rights Reserved.
+            </p>
+        </div>
     </footer>
 
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -746,5 +892,6 @@
     <script src="env.js"></script>
     <script src="config.js"></script>
     <script src="members-area.js"></script>
-  </body>
+</body>
+
 </html>
