@@ -2119,12 +2119,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     // If it is NOT in the previewable list, we force the download flow via Web Share API
     const isNonPreviewable = !previewableExts.includes(ext);
 
-    if (isPWA && isIOS && isNonPreviewable) {
+    const isIOS =
+      /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+    // Specifically for iOS, standard downloads often fail or open as unreadable text.
+    // We enforce Web Share API for these files.
+    if (isIOS && isNonPreviewable) {
       event.preventDefault();
 
       // Check if the file is already downloaded and cached or we need to fetch it
       try {
-        // Show some feedback if needed here: modalSubmitBtn.textContent = 'ダウンロード中...'; etc.
         const response = await fetch(url);
         const blob = await response.blob();
         const file = new File([blob], filename, { type: blob.type });
@@ -2136,6 +2140,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           });
         } else {
           // Fallback to open in new tab if sharing files is not supported
+          // (iOS Safari should support this)
           window.open(url, "_blank");
         }
       } catch (err) {
