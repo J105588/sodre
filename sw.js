@@ -1,4 +1,4 @@
-const CACHE_NAME = "sodre-cache-v1.3.1"; // Increment version
+const CACHE_NAME = "sodre-cache-v1.3.2"; // Increment version
 const ASSETS_TO_CACHE = [
     "/",
     "/index.html",

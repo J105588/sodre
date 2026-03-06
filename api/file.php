@@ -80,6 +80,30 @@ $mimeType = mime_content_type($realTarget);
 header('Content-Type: ' . $mimeType);
 header('Content-Length: ' . filesize($realTarget));
 
+// CORS: Allow the PWA frontend to fetch files for download
+header('Access-Control-Allow-Origin: *');
+
+// Content-Disposition: ブラウザにプレビュー(inline)かダウンロード(attachment)かを指示
+// iOS PWAではこのヘッダーがないとダウンロードが正しく動作しない
+$filename = basename($realTarget);
+$ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+// ブラウザが直接表示できるファイルタイプ
+$inlineExts = [
+    'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp',  // 画像
+    'pdf',                                                  // PDF
+    'mp3', 'wav', 'ogg', 'm4a',                            // 音声
+    'mp4', 'mov', 'webm',                                   // 動画
+    'txt', 'html', 'css', 'js', 'json', 'xml',             // テキスト
+];
+
+if (in_array($ext, $inlineExts)) {
+    header('Content-Disposition: inline; filename="' . $filename . '"');
+} else {
+    // ZIP, DOCX, XLSX, など: ダウンロードを強制
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+}
+
 // キャッシュ制御 (認証付きなので、ブラウザキャッシュは少し慎重に、でもパフォーマンスのため許可)
 // Privateキャッシュにする
 header('Cache-Control: private, max-age=3600'); 
