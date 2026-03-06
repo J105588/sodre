@@ -2129,46 +2129,31 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   window.handleFileDownload = async (event, url, encodedFilename) => {
     const filename = decodeURIComponent(encodedFilename);
+    // If it is NOT in the previewable list, we need to handle it carefully, especially on iOS PWAs
     const isNonPreviewable = !isPreviewableFile(filename);
 
     const isIOS =
       /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-    // Specifically for iOS, standard downloads often fail or open as unreadable text.
-    // We enforce Web Share API for these files.
     if (isIOS && isNonPreviewable) {
       event.preventDefault();
 
-      // Check if the file is already downloaded and cached or we need to fetch it
-      try {
-        const response = await fetch(url);
-        const blob = await response.blob();
-        const file = new File([blob], filename, { type: blob.type });
-
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: filename,
-          });
-        } else {
-          // Fallback to open in new tab if sharing files is not supported
-          // (iOS Safari should support this)
-          alert("ファイルを共有できません。新しいタブで開きます。");
-          window.open(url, "_blank");
-        }
-      } catch (err) {
-        console.error("File share error:", err);
-        alert(
-          "ファイルの取得または共有中にエラーが発生しました。 (" +
-            err.message +
-            ")",
-        );
-        // Last resort: standard open
-        window.open(url, "_blank");
-      }
+      // On iOS PWAs, downloading ZIPs or Blobs often fails or is blocked by sandbox limits.
+      // The most reliable fallback is to force the URL open in the native Safari browser,
+      // where the OS download manager will take over.
+      window.open(url, "_blank");
     } else {
-      // Standard download for non-iOS or other apps, or if the file IS previewable on iOS
-      // If we are here, we let the default <a> behavior happen
+      // Standard download for non-iOS or other apps
+      // If we are here, we let the default <a> behavior happen (we might need to manually trigger download if event is prevented)
+
+      // Since some links use href="javascript:void(0)" and count on this function, we must ensure download happens.
+      // We can create a temporary anchor to force native download behavior if this was hijacked.
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename; // Try to force download attribute
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     }
   };
   // Helper for file preview
