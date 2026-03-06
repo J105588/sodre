@@ -2245,6 +2245,19 @@ footer {
     margin-bottom: 0.8rem;
 }
 
+/* Members Area Specific Quill Overrides */
+#modal-post-content.ql-container {
+    height: 200px;
+    font-family: inherit;
+}
+
+.comment-input.ql-container {
+    height: 100px;
+    font-family: inherit;
+    background: #fff;
+    border-radius: 4px;
+}
+
 
 /* --- Featured Voice Card (Ken Tanaka) --- */
 
