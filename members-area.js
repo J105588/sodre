@@ -1261,17 +1261,37 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.handleFileDownload = async (event, url, filename) => {
         event.preventDefault();
         try {
-            // iOS PWA workaround: Fetch the file as a blob and save it locally
+            const decodedFilename = decodeURIComponent(filename);
+
+            // ファイルをBlobとして取得
             const response = await fetch(url);
             if (!response.ok) throw new Error("Network response was not ok");
 
             const blob = await response.blob();
-            const blobUrl = window.URL.createObjectURL(blob);
 
+            // --- iOS PWA向け対応 (Web Share API) ---
+            // ※titleやtextを含めるとiOSが謎の.txtファイルを同時生成することがあるため、filesのみ指定
+            if (navigator.canShare) {
+                const file = new File([blob], decodedFilename, { type: blob.type || "application/octet-stream" });
+                if (navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({
+                            files: [file]
+                        });
+                        return; // 共有（保存）成功したら終了
+                    } catch (shareErr) {
+                        console.log("Share failed or canceled", shareErr);
+                        // キャンセルされた場合は何もしないが、エラーならフォールバックへ
+                    }
+                }
+            }
+
+            // --- PCや非対応ブラウザ向けの通常のダウンロード処理 ---
+            const blobUrl = window.URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.style.display = "none";
             a.href = blobUrl;
-            a.download = decodeURIComponent(filename);
+            a.download = decodedFilename;
 
             document.body.appendChild(a);
             a.click();
@@ -1283,7 +1303,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }, 100);
         } catch (error) {
             console.error("Download failed:", error);
-            alert("ファイルのダウンロードに失敗しました。");
+            alert("ファイルの取得に失敗しました。");
         }
     };
 
