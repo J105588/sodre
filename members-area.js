@@ -2168,38 +2168,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         ];
         return previewableExts.includes(ext);
     }
-    window.handleFileDownload = async (event, url, encodedFilename) => {
-        event.preventDefault();
-        const filename = decodeURIComponent(encodedFilename);
 
-        const isIOS =
-            /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-
-        if (isIOS) {
-            // iOS PWA: サーバー側で Content-Disposition: attachment が設定されているため、
-            // window.openでSafariの内蔵ブラウザが開き、ダウンロードダイアログが表示される
-            // window.location.hrefだとPWAのページ自体が遷移してしまい副作用が出る
-            window.open(url, "_blank");
-        } else {
-            // Non-iOS: Blob経由でダウンロード（download属性が動作する）
-            try {
-                const response = await fetch(url, { cache: "no-store" });
-                if (!response.ok) throw new Error("HTTP " + response.status);
-                const blob = await response.blob();
-                const downloadUrl = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = downloadUrl;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(downloadUrl);
-            } catch (err) {
-                console.error("File download error:", err);
-                window.open(url, "_blank");
-            }
-        }
-    };
     // Helper for file preview
     function createFilePreviewHTML(url) {
         let filename = "Attachment";
