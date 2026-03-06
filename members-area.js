@@ -1257,6 +1257,36 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
+    // --- Custom Download Logic for iOS PWA ---
+    window.handleFileDownload = async (event, url, filename) => {
+        event.preventDefault();
+        try {
+            // iOS PWA workaround: Fetch the file as a blob and save it locally
+            const response = await fetch(url);
+            if (!response.ok) throw new Error("Network response was not ok");
+
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+
+            const a = document.createElement("a");
+            a.style.display = "none";
+            a.href = blobUrl;
+            a.download = decodeURIComponent(filename);
+
+            document.body.appendChild(a);
+            a.click();
+
+            // Clean up
+            setTimeout(() => {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(blobUrl);
+            }, 100);
+        } catch (error) {
+            console.error("Download failed:", error);
+            alert("ファイルのダウンロードに失敗しました。");
+        }
+    };
+
     // --- Lightbox Logic ---
     const lightboxModal = document.getElementById("lightbox-modal");
     const lightboxImg = document.getElementById("lightbox-img");
