@@ -1487,7 +1487,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 fname = fname.split("?")[0];
                               }
 
-                              return `<a href="${secureUrl}" target="_blank" 
+                              return `<a href="javascript:void(0)" 
                                     onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(fname)}')"
                                     style="display:inline-flex; align-items:center; gap:6px; padding:8px 14px; background:#f5f5f5; border-radius:6px; text-decoration:none; color:#333; font-size:0.85rem; transition:background 0.2s;"
                                     onmouseover="this.style.background='#eee'" onmouseout="this.style.background='#f5f5f5'">
@@ -1698,7 +1698,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 fname = fname.split("?")[0];
                               }
 
-                              return `<a href="${secureUrl}" target="_blank" 
+                              return `<a href="javascript:void(0)" 
                                     onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(fname)}')"
                                     style="display:inline-flex; align-items:center; gap:6px; padding:6px 10px; background:#f5f5f5; border-radius:6px; text-decoration:none; color:#333; font-size:0.8rem; transition:background 0.2s;"
                                     onmouseover="this.style.background='#eee'" onmouseout="this.style.background='#f5f5f5'">
@@ -2141,10 +2141,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         } else {
           // Fallback to open in new tab if sharing files is not supported
           // (iOS Safari should support this)
+          alert("ファイルを共有できません。新しいタブで開きます。");
           window.open(url, "_blank");
         }
       } catch (err) {
         console.error("File share error:", err);
+        alert(
+          "ファイルの取得または共有中にエラーが発生しました。 (" +
+            err.message +
+            ")",
+        );
         // Last resort: standard open
         window.open(url, "_blank");
       }
@@ -2172,7 +2178,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const secureUrl = getSecureUrl(url);
 
     return `
-            <a href="${secureUrl}" target="_blank" class="file-attachment-link" onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(filename)}'); event.stopPropagation();">
+            <a href="javascript:void(0)" class="file-attachment-link" onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(filename)}'); event.stopPropagation();">
                 <i class="${iconClass}"></i>
                 <span class="filename">${escapeHtml(filename)}</span>
             </a>
@@ -2200,7 +2206,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     let linked = content.replace(urlRegex, function (url) {
       if (url.startsWith("https://data.sodre.jp/uploads/")) {
         const secureUrl = getSecureUrl(url);
-        return `<a href="${secureUrl}" target="_blank" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
+        let fname = url.split("/").pop().split("?")[0];
+        return `<a href="javascript:void(0)" onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(fname)}'); event.stopPropagation();" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
       }
       return `<a href="${url}" class="external-link" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
     });
@@ -2217,7 +2224,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     let linked = content.replace(urlRegex, function (url) {
       if (url.startsWith("https://data.sodre.jp/uploads/")) {
         const secureUrl = getSecureUrl(url);
-        return `<a href="${secureUrl}" target="_blank" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
+        let fname = url.split("/").pop().split("?")[0];
+        return `<a href="javascript:void(0)" onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(fname)}'); event.stopPropagation();" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
       }
       return `<a href="${url}" class="external-link" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
     });
