@@ -1487,14 +1487,25 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 fname = fname.split("?")[0];
                               }
 
-                              return `<a href="javascript:void(0)" 
-                                    onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(fname)}')"
-                                    style="display:inline-flex; align-items:center; gap:6px; padding:8px 14px; background:#f5f5f5; border-radius:6px; text-decoration:none; color:#333; font-size:0.85rem; transition:background 0.2s;"
-                                    onmouseover="this.style.background='#eee'" onmouseout="this.style.background='#f5f5f5'">
-                                    <i class="${getFileIconFromUrl(url)}" style="color:var(--primary-color); font-size:1.1rem;"></i>
-                                    <span>${decodeURIComponent(fname)}</span>
-                                    <i class="fas fa-download" style="color:#999; font-size:0.8rem;"></i>
-                                </a>`;
+                              const isPreviewable = isPreviewableFile(fname);
+                              if (isPreviewable) {
+                                return `<a href="${secureUrl}" target="_blank" rel="noopener noreferrer" 
+                                        style="display:inline-flex; align-items:center; gap:6px; padding:8px 14px; background:#f5f5f5; border-radius:6px; text-decoration:none; color:#333; font-size:0.85rem; transition:background 0.2s;"
+                                        onmouseover="this.style.background='#eee'" onmouseout="this.style.background='#f5f5f5'">
+                                        <i class="${getFileIconFromUrl(url)}" style="color:var(--primary-color); font-size:1.1rem;"></i>
+                                        <span>${decodeURIComponent(fname)}</span>
+                                        <i class="fas fa-external-link-alt" style="color:#999; font-size:0.8rem;"></i>
+                                    </a>`;
+                              } else {
+                                return `<a href="javascript:void(0)" 
+                                        onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(fname)}')"
+                                        style="display:inline-flex; align-items:center; gap:6px; padding:8px 14px; background:#f5f5f5; border-radius:6px; text-decoration:none; color:#333; font-size:0.85rem; transition:background 0.2s;"
+                                        onmouseover="this.style.background='#eee'" onmouseout="this.style.background='#f5f5f5'">
+                                        <i class="${getFileIconFromUrl(url)}" style="color:var(--primary-color); font-size:1.1rem;"></i>
+                                        <span>${decodeURIComponent(fname)}</span>
+                                        <i class="fas fa-download" style="color:#999; font-size:0.8rem;"></i>
+                                    </a>`;
+                              }
                             }
                           })
                           .join("")}
@@ -1698,13 +1709,23 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 fname = fname.split("?")[0];
                               }
 
-                              return `<a href="javascript:void(0)" 
-                                    onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(fname)}')"
-                                    style="display:inline-flex; align-items:center; gap:6px; padding:6px 10px; background:#f5f5f5; border-radius:6px; text-decoration:none; color:#333; font-size:0.8rem; transition:background 0.2s;"
-                                    onmouseover="this.style.background='#eee'" onmouseout="this.style.background='#f5f5f5'">
-                                    <i class="${getFileIconFromUrl(url)}" style="color:var(--primary-color); font-size:1rem;"></i>
-                                    <span style="max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${decodeURIComponent(fname)}</span>
-                                </a>`;
+                              const isPreviewable = isPreviewableFile(fname);
+                              if (isPreviewable) {
+                                return `<a href="${secureUrl}" target="_blank" rel="noopener noreferrer" 
+                                        style="display:inline-flex; align-items:center; gap:6px; padding:6px 10px; background:#f5f5f5; border-radius:6px; text-decoration:none; color:#333; font-size:0.8rem; transition:background 0.2s;"
+                                        onmouseover="this.style.background='#eee'" onmouseout="this.style.background='#f5f5f5'">
+                                        <i class="${getFileIconFromUrl(url)}" style="color:var(--primary-color); font-size:1rem;"></i>
+                                        <span style="max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${decodeURIComponent(fname)}</span>
+                                    </a>`;
+                              } else {
+                                return `<a href="javascript:void(0)" 
+                                        onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(fname)}')"
+                                        style="display:inline-flex; align-items:center; gap:6px; padding:6px 10px; background:#f5f5f5; border-radius:6px; text-decoration:none; color:#333; font-size:0.8rem; transition:background 0.2s;"
+                                        onmouseover="this.style.background='#eee'" onmouseout="this.style.background='#f5f5f5'">
+                                        <i class="${getFileIconFromUrl(url)}" style="color:var(--primary-color); font-size:1rem;"></i>
+                                        <span style="max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${decodeURIComponent(fname)}</span>
+                                    </a>`;
+                              }
                             }
                           })
                           .join("")}
@@ -2085,10 +2106,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // --- File Download Handler (iOS PWA Fallback) ---
-  window.handleFileDownload = async (event, url, encodedFilename) => {
-    const filename = decodeURIComponent(encodedFilename);
-
-    // Define files that iOS can natively preview
+  function isPreviewableFile(filenameOrUrl) {
+    const ext = filenameOrUrl.split(".").pop().toLowerCase().split("?")[0];
     const previewableExts = [
       "pdf",
       "jpg",
@@ -2105,19 +2124,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       "mov",
       "avi",
       "webm",
-      "doc",
-      "docx",
-      "xls",
-      "xlsx",
-      "ppt",
-      "pptx",
-      "txt",
-      "csv",
     ];
-    const ext = filename.split(".").pop().toLowerCase();
-
-    // If it is NOT in the previewable list, we force the download flow via Web Share API
-    const isNonPreviewable = !previewableExts.includes(ext);
+    return previewableExts.includes(ext);
+  }
+  window.handleFileDownload = async (event, url, encodedFilename) => {
+    const filename = decodeURIComponent(encodedFilename);
+    const isNonPreviewable = !isPreviewableFile(filename);
 
     const isIOS =
       /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
@@ -2177,12 +2189,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     const iconClass = getFileIcon(filename); // Assume getFileIcon is global or defined nearby
     const secureUrl = getSecureUrl(url);
 
-    return `
+    const isPreviewable = isPreviewableFile(filename);
+    if (isPreviewable) {
+      return `
+            <a href="${secureUrl}" target="_blank" rel="noopener noreferrer" class="file-attachment-link">
+                <i class="${iconClass}"></i>
+                <span class="filename">${escapeHtml(filename)}</span>
+            </a>
+        `;
+    } else {
+      return `
             <a href="javascript:void(0)" class="file-attachment-link" onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(filename)}'); event.stopPropagation();">
                 <i class="${iconClass}"></i>
                 <span class="filename">${escapeHtml(filename)}</span>
             </a>
         `;
+    }
   }
   function escapeHtml(text) {
     if (!text) return "";
@@ -2207,7 +2229,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (url.startsWith("https://data.sodre.jp/uploads/")) {
         const secureUrl = getSecureUrl(url);
         let fname = url.split("/").pop().split("?")[0];
-        return `<a href="javascript:void(0)" onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(fname)}'); event.stopPropagation();" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
+        const isPreviewable = isPreviewableFile(fname);
+        if (isPreviewable) {
+          return `<a href="${secureUrl}" target="_blank" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
+        } else {
+          return `<a href="javascript:void(0)" onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(fname)}'); event.stopPropagation();" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
+        }
       }
       return `<a href="${url}" class="external-link" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
     });
@@ -2225,7 +2252,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (url.startsWith("https://data.sodre.jp/uploads/")) {
         const secureUrl = getSecureUrl(url);
         let fname = url.split("/").pop().split("?")[0];
-        return `<a href="javascript:void(0)" onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(fname)}'); event.stopPropagation();" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
+        const isPreviewable = isPreviewableFile(fname);
+        if (isPreviewable) {
+          return `<a href="${secureUrl}" target="_blank" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
+        } else {
+          return `<a href="javascript:void(0)" onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(fname)}'); event.stopPropagation();" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
+        }
       }
       return `<a href="${url}" class="external-link" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
     });
