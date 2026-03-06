@@ -1,1432 +1,1431 @@
 document.addEventListener("DOMContentLoaded", async () => {
-  let supabase = window.supabaseClient;
-  if (!supabase) {
-    const provider = window.supabase || window.Supabase;
-    if (
-      provider &&
-      provider.createClient &&
-      window.SUPABASE_URL &&
-      window.SUPABASE_KEY
-    ) {
-      try {
-        window.supabaseClient = provider.createClient(
-          window.SUPABASE_URL,
-          window.SUPABASE_KEY,
-        );
-        supabase = window.supabaseClient;
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  }
-  if (!supabase) return;
-
-  // --- PWA Standalone Detection ---
-  // --- PWA Standalone Detection (Enhanced) ---
-  const isPWA =
-    window.matchMedia("(display-mode: standalone)").matches ||
-    window.navigator.standalone === true ||
-    document.referrer.includes("android-app://");
-
-  const isIOS =
-    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-
-  // PWA初回起動: 強制ログアウトしてログイン画面へ
-  if (isPWA && !localStorage.getItem("sodre_pwa_initialized")) {
-    localStorage.setItem("sodre_pwa_initialized", "true");
-    try {
-      await supabase.auth.signOut();
-    } catch (e) {
-      /* ignore */
-    }
-    window.location.replace("login.html");
-    return;
-  }
-
-  // --- DOM Elements ---
-  const displayNameEl = document.getElementById("user-display-name");
-  const logoutBtn = document.getElementById("logout-btn");
-  const tabBtns = document.querySelectorAll(".m-tab-btn");
-  const viewAll = document.getElementById("view-all");
-  const viewGroups = document.getElementById("view-groups");
-
-  // Feeds
-  const allFeed = document.getElementById("all-board-feed");
-  const groupFeed = document.getElementById("group-board-feed");
-  const groupsList = document.getElementById("my-groups-list");
-  const groupBoardView = document.getElementById("group-board-view");
-  const currentGroupName = document.getElementById("current-group-name");
-  const backToGroupsBtn = document.getElementById("back-to-groups-btn");
-
-  // FAB & Modal Elements
-  const fabPost = document.getElementById("fab-post");
-  const postModal = document.getElementById("post-modal");
-  const modalClose = document.getElementById("modal-close");
-  const modalTitle = document.getElementById("modal-title");
-  const modalPostContent = document.getElementById("modal-post-content");
-  const modalSubmitBtn = document.getElementById("modal-submit-btn");
-  // --- Firebase & Notifications ---
-  // Initialize Firebase (Compat)
-  let messaging = null;
-  try {
-    if (firebase.messaging.isSupported()) {
-      firebase.initializeApp(window.FIREBASE_CONFIG);
-      messaging = firebase.messaging();
-    }
-  } catch (e) {
-    console.error("Firebase Init Error:", e);
-  }
-
-  // New Schedule Elements
-  const scheduleToggle = document.getElementById("schedule-toggle");
-  const scheduleOptions = document.getElementById("schedule-options");
-  const scheduleDateInput = document.getElementById("schedule-date");
-  const scheduleTimeInput = document.getElementById("schedule-time");
-
-  // --- State ---
-  let currentPostContext = "all"; // 'all' or 'group'
-  let currentGroupId = null;
-  let currentGroupCanPost = false;
-  // Pagination State
-  let allPostsOffset = 0;
-  let groupPostsOffset = 0;
-  const POST_LIMIT = 50;
-  let selectedFiles = []; // Store selected files for upload
-  let isAdmin = false; // Admin State
-  let isSuperAdmin = false; // Superadmin State
-  let currentSession = null; // Store session for token-based features like file access
-  let isEditingPostId = null; // Track if we are editing a post
-
-  // --- Quill Rich Text Initialization ---
-  let postQuill;
-  try {
-    postQuill = new Quill("#modal-post-content", {
-      theme: "snow",
-      modules: {
-        toolbar: [
-          [{ header: [1, 2, 3, false] }],
-          ["bold", "italic", "underline", "strike"],
-          [{ color: [] }, { background: [] }],
-          [{ list: "ordered" }, { list: "bullet" }],
-          [{ align: [] }],
-          ["link"],
-          ["clean"],
-        ],
-      },
-      placeholder: "メッセージを入力...",
-    });
-  } catch (e) {
-    console.error("Quill Post Init Error:", e);
-  }
-
-  // --- Auth Check (PWA: セッション自動更新) ---
-  if (isPWA) {
-    // PWAではセッションを自動更新して維持する (失敗しても即座にログアウトしない)
-    const { data, error } = await supabase.auth.refreshSession();
-    if (error || !data.session) {
-      console.log(
-        "Session refresh failed, using local session (Offline mode safe)",
-      );
-      // リフレッシュ失敗 → ローカルセッションがあるか確認
-      const { data: fallback } = await supabase.auth.getSession();
-      if (!fallback.session) {
-        // 完全にセッションがない場合のみログイン画面へ
-        window.location.replace("login.html");
-        return;
-      }
-      currentSession = fallback.session;
-    } else {
-      currentSession = data.session;
-    }
-  } else {
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
-    if (sessionError || !session) {
-      window.location.replace("login.html");
-      return;
-    }
-    currentSession = session;
-  }
-  const user = currentSession.user;
-
-  supabase.auth.onAuthStateChange((event, newSession) => {
-    if (event === "SIGNED_OUT") {
-      window.location.replace("login.html");
-    } else if (newSession) {
-      currentSession = newSession; // Update session
-    }
-  });
-
-  loadProfile(user.id);
-
-  // --- PWA Session Persistence (Wake-up Handler) ---
-  if (isPWA) {
-    const forceSessionRefresh = async () => {
-      console.log("App wake-up: Checking session...");
-      const { data, error } = await supabase.auth.getSession();
-
-      // If session is missing or about to expire (optional check), try refresh
-      // For now, just rely on getSession returning null if invalid, or refreshSession if we want to be aggressive
-
-      if (!data.session) {
-        console.log("Session missing on wake-up, attempting refresh...");
-        const { data: refreshData, error: refreshError } =
-          await supabase.auth.refreshSession();
-        if (refreshError || !refreshData.session) {
-          console.warn("Wake-up refresh failed:", refreshError);
-          // Do not logout immediately to avoid disruption if offline,
-          // but next API call might fail (406).
-          // We can try to redirect if we are sure it's fatal?
-          // For now, let's just log.
-        } else {
-          console.log("Session refreshed successfully on wake-up");
-          currentSession = refreshData.session;
-        }
-      } else {
-        console.log("Session valid on wake-up");
-        currentSession = data.session;
-      }
-    };
-
-    // Debounce logic to prevent multiple calls
-    let refreshTimeout;
-    const debouncedRefresh = () => {
-      if (refreshTimeout) clearTimeout(refreshTimeout);
-      refreshTimeout = setTimeout(forceSessionRefresh, 1000);
-    };
-
-    // --- IndexedDB Helper for Badge Reset ---
-    const clearBadgeCount = () => {
-      if (navigator.clearAppBadge) {
-        navigator.clearAppBadge().catch(console.error);
-      }
-      const request = indexedDB.open("SodreAppDB", 1);
-      request.onsuccess = (event) => {
-        const db = event.target.result;
-        if (db.objectStoreNames.contains("badge_store")) {
-          const transaction = db.transaction(["badge_store"], "readwrite");
-          const store = transaction.objectStore("badge_store");
-          store.put({ id: "unread_count", value: 0 });
-        }
-      };
-    };
-
-    // Clear badge on initial load
-    clearBadgeCount();
-
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") {
-        debouncedRefresh();
-        clearBadgeCount();
-      }
-    });
-
-    window.addEventListener("online", () => {
-      console.log("Network online: refreshing session...");
-      debouncedRefresh();
-    });
-    window.addEventListener("online", () => {
-      console.log("Network online: refreshing session...");
-      debouncedRefresh();
-    });
-  }
-
-  // --- Periodic Credential Verification (Security Check) ---
-  // Removed: Plain text password polling has been replaced by Supabase session management.
-
-  // --- Firebase: Token refresh & Foreground message handling (after session is ready) ---
-  async function refreshFCMToken() {
-    if (!messaging || Notification.permission !== "granted") return;
-    if (localStorage.getItem("sodre_notifications_disabled") === "true") return; // User opted out
-    try {
-      let registration = await navigator.serviceWorker.getRegistration();
-      if (!registration) registration = await navigator.serviceWorker.ready;
-
-      // Get current token from Firebase
-      const token = await messaging.getToken({
-        vapidKey: window.FIREBASE_VAPID_KEY,
-        serviceWorkerRegistration: registration,
-      });
-
-      if (token) {
-        // Optimization: Check if token is already synced
-        const storageKey = `sodre_fcm_token_${user.id}`;
-        const lastSynced = localStorage.getItem(`${storageKey}_time`);
-        const lastToken = localStorage.getItem(storageKey);
-        const now = Date.now();
-        const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
-
-        // Condition to update DB:
-        // 1. Token changed
-        // 2. Not synced yet
-        // 3. Synced more than 24 hours ago (to keep "last_updated" fresh)
-        const needsUpdate =
-          !lastToken ||
-          lastToken !== token ||
-          !lastSynced ||
-          now - parseInt(lastSynced) > TWENTY_FOUR_HOURS;
-
-        if (needsUpdate) {
-          const ua = navigator.userAgent;
-          let deviceType = "web";
-          if (/android/i.test(ua)) deviceType = "android";
-          else if (/iPad|iPhone|iPod/.test(ua)) deviceType = "ios";
-
-          const { error } = await supabase.from("user_fcm_tokens").upsert(
-            {
-              user_id: currentSession.user.id,
-              token: token,
-              device_type: deviceType,
-              last_updated: new Date().toISOString(), // Ensure column exists or defaults to now()
-            },
-            { onConflict: "user_id,token" },
-          );
-
-          if (!error) {
-            localStorage.setItem(storageKey, token);
-            localStorage.setItem(`${storageKey}_time`, now.toString());
-            console.log("FCM token synced to DB");
-          } else {
-            console.error("FCM sync error:", error);
-          }
-        } else {
-          console.log("FCM token already up to date");
-        }
-      }
-    } catch (err) {
-      console.error("FCM token refresh error:", err);
-    }
-  }
-
-  // Token refresh (permission is managed on login.js)
-  await refreshFCMToken();
-
-  // Periodic check (every 30 minutes, but will only write to DB if needed)
-  setInterval(refreshFCMToken, 30 * 60 * 1000);
-
-  // Handle foreground messages as proper push notifications
-  if (messaging) {
-    messaging.onMessage((payload) => {
-      if (localStorage.getItem("sodre_notifications_disabled") === "true")
-        return;
-      console.log("Foreground message received:", payload);
-      const title = payload.data?.title || "SoDRé";
-      const body = payload.data?.body || "";
-      if (Notification.permission === "granted") {
-        const notif = new Notification(title, {
-          body: body,
-          icon: "https://lh3.googleusercontent.com/a/ACg8ocKrevxxn-jyPFTJ3zy5r6EFRGmv0Tp8-qWyb3bMaXduuMzHS0Y=s400-c",
-          data: payload.data,
-        });
-        notif.onclick = () => {
-          window.focus();
-          const url = payload.data?.url;
-          if (url) window.location.href = url;
-        };
-      }
-    });
-  }
-
-  // --- Profile Logic ---
-  async function loadProfile(uid) {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select(
-        "display_name, is_admin, is_superadmin, app_lock_enabled, app_lock_credential_id",
-      )
-      .eq("id", uid)
-      .maybeSingle();
-
-    if (data && data.display_name) {
-      displayNameEl.textContent = `ようこそ、 ${data.display_name} さん`;
-    } else {
-      // Prioritize Display Name but fallback to email if empty
-      displayNameEl.textContent = `ようこそ、 ${user.email} さん`;
-      // If display_name is retrieved but empty, logic holds.
-    }
-
-    if (data) {
-      if (data.is_admin) {
-        isAdmin = true;
-        console.log("User is Admin");
-      }
-      if (data.is_superadmin) {
-        isSuperAdmin = true;
-        console.log("User is Superadmin");
-      }
-
-      // Sync App Lock security from server to prevent localStorage bypass
-      if (data.app_lock_enabled) {
-        if (localStorage.getItem("sodre_app_lock_enabled") !== "true") {
-          console.log("Restoring App Lock from server profile...");
-          localStorage.setItem("sodre_app_lock_enabled", "true");
-          if (data.app_lock_credential_id) {
-            localStorage.setItem(
-              "sodre_app_lock_cred_id",
-              data.app_lock_credential_id,
-            );
-          }
-          if (isPWA && typeof lockAppVisually === "function") {
-            lockAppVisually();
-            if (typeof triggerAppUnlock === "function") triggerAppUnlock();
-          }
-        }
-
-        // Initialize toggle UI state
-        const appLockToggle = document.getElementById("app-lock-toggle");
-        if (appLockToggle) appLockToggle.checked = true;
-      } else {
-        // Ensure App Lock is disabled locally if DB says it is disabled
+    let supabase = window.supabaseClient;
+    if (!supabase) {
+        const provider = window.supabase || window.Supabase;
         if (
-          localStorage.getItem("sodre_app_lock_enabled") === "true" ||
-          localStorage.getItem("sodre_app_lock_cred_id")
+            provider &&
+            provider.createClient &&
+            window.SUPABASE_URL &&
+            window.SUPABASE_KEY
         ) {
-          console.log("Removing outdated App Lock from local storage sync...");
-          localStorage.removeItem("sodre_app_lock_enabled");
-          localStorage.removeItem("sodre_app_lock_cred_id");
-
-          const appLockOverlay = document.getElementById("app-lock-overlay");
-          if (appLockOverlay) {
-            appLockOverlay.style.display = "none";
-            document.body.style.overflow = "";
-          }
+            try {
+                window.supabaseClient = provider.createClient(
+                    window.SUPABASE_URL,
+                    window.SUPABASE_KEY,
+                );
+                supabase = window.supabaseClient;
+            } catch (e) {
+                console.error(e);
+            }
         }
-
-        // Initialize toggle UI state
-        const appLockToggle = document.getElementById("app-lock-toggle");
-        if (appLockToggle) appLockToggle.checked = false;
-      }
     }
+    if (!supabase) return;
 
-    // セッションタイムアウト設定 (PWA以外のみ)
-    if (!isPWA) {
-      setupSessionTimeout();
-    }
-  }
-
-  // --- Session Expiration Logic (60 mins) - PWAでは無効 ---
-  function setupSessionTimeout() {
-    const TIMEOUT_DURATION = 60 * 60 * 1000; // 60 minutes
-    const STORAGE_KEY = "sodre_last_activity";
-
-    // Initialize or update last activity
-    const updateActivity = () => {
-      localStorage.setItem(STORAGE_KEY, Date.now().toString());
-    };
-
-    // Check timeout
-    const checkTimeout = async () => {
-      // PWA Safety Check: Absolutely no auto-logout for PWA
-      const checkIsPWA =
+    // --- PWA Standalone Detection ---
+    // --- PWA Standalone Detection (Enhanced) ---
+    const isPWA =
         window.matchMedia("(display-mode: standalone)").matches ||
         window.navigator.standalone === true ||
         document.referrer.includes("android-app://");
-      if (checkIsPWA) return;
 
-      // If already on login page, do nothing (safety)
-      if (window.location.pathname.endsWith("login.html")) return;
+    const isIOS =
+        /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
-      const lastActivity = parseInt(localStorage.getItem(STORAGE_KEY) || "0");
-      const now = Date.now();
+    // PWA初回起動: 強制ログアウトしてログイン画面へ
+    if (isPWA && !localStorage.getItem("sodre_pwa_initialized")) {
+        localStorage.setItem("sodre_pwa_initialized", "true");
+        try {
+            await supabase.auth.signOut();
+        } catch (e) {
+            /* ignore */
+        }
+        window.location.replace("login.html");
+        return;
+    }
 
-      // If lastActivity is 0 (not set) or difference > duration
-      if (lastActivity > 0 && now - lastActivity > TIMEOUT_DURATION) {
-        console.log("Session expired due to inactivity");
-        // Clear storage to prevent loops
-        localStorage.removeItem(STORAGE_KEY);
+    // --- DOM Elements ---
+    const displayNameEl = document.getElementById("user-display-name");
+    const logoutBtn = document.getElementById("logout-btn");
+    const tabBtns = document.querySelectorAll(".m-tab-btn");
+    const viewAll = document.getElementById("view-all");
+    const viewGroups = document.getElementById("view-groups");
+
+    // Feeds
+    const allFeed = document.getElementById("all-board-feed");
+    const groupFeed = document.getElementById("group-board-feed");
+    const groupsList = document.getElementById("my-groups-list");
+    const groupBoardView = document.getElementById("group-board-view");
+    const currentGroupName = document.getElementById("current-group-name");
+    const backToGroupsBtn = document.getElementById("back-to-groups-btn");
+
+    // FAB & Modal Elements
+    const fabPost = document.getElementById("fab-post");
+    const postModal = document.getElementById("post-modal");
+    const modalClose = document.getElementById("modal-close");
+    const modalTitle = document.getElementById("modal-title");
+    const modalPostContent = document.getElementById("modal-post-content");
+    const modalSubmitBtn = document.getElementById("modal-submit-btn");
+    // --- Firebase & Notifications ---
+    // Initialize Firebase (Compat)
+    let messaging = null;
+    try {
+        if (firebase.messaging.isSupported()) {
+            firebase.initializeApp(window.FIREBASE_CONFIG);
+            messaging = firebase.messaging();
+        }
+    } catch (e) {
+        console.error("Firebase Init Error:", e);
+    }
+
+    // New Schedule Elements
+    const scheduleToggle = document.getElementById("schedule-toggle");
+    const scheduleOptions = document.getElementById("schedule-options");
+    const scheduleDateInput = document.getElementById("schedule-date");
+    const scheduleTimeInput = document.getElementById("schedule-time");
+
+    // --- State ---
+    let currentPostContext = "all"; // 'all' or 'group'
+    let currentGroupId = null;
+    let currentGroupCanPost = false;
+    // Pagination State
+    let allPostsOffset = 0;
+    let groupPostsOffset = 0;
+    const POST_LIMIT = 50;
+    let selectedFiles = []; // Store selected files for upload
+    let isAdmin = false; // Admin State
+    let isSuperAdmin = false; // Superadmin State
+    let currentSession = null; // Store session for token-based features like file access
+    let isEditingPostId = null; // Track if we are editing a post
+
+    // --- Quill Rich Text Initialization ---
+    let postQuill;
+    try {
+        postQuill = new Quill("#modal-post-content", {
+            theme: "snow",
+            modules: {
+                toolbar: [
+                    [{ header: [1, 2, 3, false] }],
+                    ["bold", "italic", "underline", "strike"],
+                    [{ color: [] }, { background: [] }],
+                    [{ list: "ordered" }, { list: "bullet" }],
+                    [{ align: [] }],
+                    ["link"],
+                    ["clean"],
+                ],
+            },
+            placeholder: "メッセージを入力...",
+        });
+    } catch (e) {
+        console.error("Quill Post Init Error:", e);
+    }
+
+    // --- Auth Check (PWA: セッション自動更新) ---
+    if (isPWA) {
+        // PWAではセッションを自動更新して維持する (失敗しても即座にログアウトしない)
+        const { data, error } = await supabase.auth.refreshSession();
+        if (error || !data.session) {
+            console.log(
+                "Session refresh failed, using local session (Offline mode safe)",
+            );
+            // リフレッシュ失敗 → ローカルセッションがあるか確認
+            const { data: fallback } = await supabase.auth.getSession();
+            if (!fallback.session) {
+                // 完全にセッションがない場合のみログイン画面へ
+                window.location.replace("login.html");
+                return;
+            }
+            currentSession = fallback.session;
+        } else {
+            currentSession = data.session;
+        }
+    } else {
+        const {
+            data: { session },
+            error: sessionError,
+        } = await supabase.auth.getSession();
+        if (sessionError || !session) {
+            window.location.replace("login.html");
+            return;
+        }
+        currentSession = session;
+    }
+    const user = currentSession.user;
+
+    supabase.auth.onAuthStateChange((event, newSession) => {
+        if (event === "SIGNED_OUT") {
+            window.location.replace("login.html");
+        } else if (newSession) {
+            currentSession = newSession; // Update session
+        }
+    });
+
+    loadProfile(user.id);
+
+    // --- PWA Session Persistence (Wake-up Handler) ---
+    if (isPWA) {
+        const forceSessionRefresh = async () => {
+            console.log("App wake-up: Checking session...");
+            const { data, error } = await supabase.auth.getSession();
+
+            // If session is missing or about to expire (optional check), try refresh
+            // For now, just rely on getSession returning null if invalid, or refreshSession if we want to be aggressive
+
+            if (!data.session) {
+                console.log("Session missing on wake-up, attempting refresh...");
+                const { data: refreshData, error: refreshError } =
+                    await supabase.auth.refreshSession();
+                if (refreshError || !refreshData.session) {
+                    console.warn("Wake-up refresh failed:", refreshError);
+                    // Do not logout immediately to avoid disruption if offline,
+                    // but next API call might fail (406).
+                    // We can try to redirect if we are sure it's fatal?
+                    // For now, let's just log.
+                } else {
+                    console.log("Session refreshed successfully on wake-up");
+                    currentSession = refreshData.session;
+                }
+            } else {
+                console.log("Session valid on wake-up");
+                currentSession = data.session;
+            }
+        };
+
+        // Debounce logic to prevent multiple calls
+        let refreshTimeout;
+        const debouncedRefresh = () => {
+            if (refreshTimeout) clearTimeout(refreshTimeout);
+            refreshTimeout = setTimeout(forceSessionRefresh, 1000);
+        };
+
+        // --- IndexedDB Helper for Badge Reset ---
+        const clearBadgeCount = () => {
+            if (navigator.clearAppBadge) {
+                navigator.clearAppBadge().catch(console.error);
+            }
+            const request = indexedDB.open("SodreAppDB", 1);
+            request.onsuccess = (event) => {
+                const db = event.target.result;
+                if (db.objectStoreNames.contains("badge_store")) {
+                    const transaction = db.transaction(["badge_store"], "readwrite");
+                    const store = transaction.objectStore("badge_store");
+                    store.put({ id: "unread_count", value: 0 });
+                }
+            };
+        };
+
+        // Clear badge on initial load
+        clearBadgeCount();
+
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible") {
+                debouncedRefresh();
+                clearBadgeCount();
+            }
+        });
+
+        window.addEventListener("online", () => {
+            console.log("Network online: refreshing session...");
+            debouncedRefresh();
+        });
+        window.addEventListener("online", () => {
+            console.log("Network online: refreshing session...");
+            debouncedRefresh();
+        });
+    }
+
+    // --- Periodic Credential Verification (Security Check) ---
+    // Removed: Plain text password polling has been replaced by Supabase session management.
+
+    // --- Firebase: Token refresh & Foreground message handling (after session is ready) ---
+    async function refreshFCMToken() {
+        if (!messaging || Notification.permission !== "granted") return;
+        if (localStorage.getItem("sodre_notifications_disabled") === "true") return; // User opted out
+        try {
+            let registration = await navigator.serviceWorker.getRegistration();
+            if (!registration) registration = await navigator.serviceWorker.ready;
+
+            // Get current token from Firebase
+            const token = await messaging.getToken({
+                vapidKey: window.FIREBASE_VAPID_KEY,
+                serviceWorkerRegistration: registration,
+            });
+
+            if (token) {
+                // Optimization: Check if token is already synced
+                const storageKey = `sodre_fcm_token_${user.id}`;
+                const lastSynced = localStorage.getItem(`${storageKey}_time`);
+                const lastToken = localStorage.getItem(storageKey);
+                const now = Date.now();
+                const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
+                // Condition to update DB:
+                // 1. Token changed
+                // 2. Not synced yet
+                // 3. Synced more than 24 hours ago (to keep "last_updated" fresh)
+                const needsUpdate =
+                    !lastToken ||
+                    lastToken !== token ||
+                    !lastSynced ||
+                    now - parseInt(lastSynced) > TWENTY_FOUR_HOURS;
+
+                if (needsUpdate) {
+                    const ua = navigator.userAgent;
+                    let deviceType = "web";
+                    if (/android/i.test(ua)) deviceType = "android";
+                    else if (/iPad|iPhone|iPod/.test(ua)) deviceType = "ios";
+
+                    const { error } = await supabase.from("user_fcm_tokens").upsert(
+                        {
+                            user_id: currentSession.user.id,
+                            token: token,
+                            device_type: deviceType,
+                            last_updated: new Date().toISOString(), // Ensure column exists or defaults to now()
+                        },
+                        { onConflict: "user_id,token" },
+                    );
+
+                    if (!error) {
+                        localStorage.setItem(storageKey, token);
+                        localStorage.setItem(`${storageKey}_time`, now.toString());
+                        console.log("FCM token synced to DB");
+                    } else {
+                        console.error("FCM sync error:", error);
+                    }
+                } else {
+                    console.log("FCM token already up to date");
+                }
+            }
+        } catch (err) {
+            console.error("FCM token refresh error:", err);
+        }
+    }
+
+    // Token refresh (permission is managed on login.js)
+    await refreshFCMToken();
+
+    // Periodic check (every 30 minutes, but will only write to DB if needed)
+    setInterval(refreshFCMToken, 30 * 60 * 1000);
+
+    // Handle foreground messages as proper push notifications
+    if (messaging) {
+        messaging.onMessage((payload) => {
+            if (localStorage.getItem("sodre_notifications_disabled") === "true")
+                return;
+            console.log("Foreground message received:", payload);
+            const title = payload.data?.title || "SoDRé";
+            const body = payload.data?.body || "";
+            if (Notification.permission === "granted") {
+                const notif = new Notification(title, {
+                    body: body,
+                    icon: "https://lh3.googleusercontent.com/a/ACg8ocKrevxxn-jyPFTJ3zy5r6EFRGmv0Tp8-qWyb3bMaXduuMzHS0Y=s400-c",
+                    data: payload.data,
+                });
+                notif.onclick = () => {
+                    window.focus();
+                    const url = payload.data?.url;
+                    if (url) window.location.href = url;
+                };
+            }
+        });
+    }
+
+    // --- Profile Logic ---
+    async function loadProfile(uid) {
+        const { data, error } = await supabase
+            .from("profiles")
+            .select(
+                "display_name, is_admin, is_superadmin, app_lock_enabled, app_lock_credential_id",
+            )
+            .eq("id", uid)
+            .maybeSingle();
+
+        if (data && data.display_name) {
+            displayNameEl.textContent = `ようこそ、 ${data.display_name} さん`;
+        } else {
+            // Prioritize Display Name but fallback to email if empty
+            displayNameEl.textContent = `ようこそ、 ${user.email} さん`;
+            // If display_name is retrieved but empty, logic holds.
+        }
+
+        if (data) {
+            if (data.is_admin) {
+                isAdmin = true;
+                console.log("User is Admin");
+            }
+            if (data.is_superadmin) {
+                isSuperAdmin = true;
+                console.log("User is Superadmin");
+            }
+
+            // Sync App Lock security from server to prevent localStorage bypass
+            if (data.app_lock_enabled) {
+                if (localStorage.getItem("sodre_app_lock_enabled") !== "true") {
+                    console.log("Restoring App Lock from server profile...");
+                    localStorage.setItem("sodre_app_lock_enabled", "true");
+                    if (data.app_lock_credential_id) {
+                        localStorage.setItem(
+                            "sodre_app_lock_cred_id",
+                            data.app_lock_credential_id,
+                        );
+                    }
+                    if (isPWA && typeof lockAppVisually === "function") {
+                        lockAppVisually();
+                        if (typeof triggerAppUnlock === "function") triggerAppUnlock();
+                    }
+                }
+
+                // Initialize toggle UI state
+                const appLockToggle = document.getElementById("app-lock-toggle");
+                if (appLockToggle) appLockToggle.checked = true;
+            } else {
+                // Ensure App Lock is disabled locally if DB says it is disabled
+                if (
+                    localStorage.getItem("sodre_app_lock_enabled") === "true" ||
+                    localStorage.getItem("sodre_app_lock_cred_id")
+                ) {
+                    console.log("Removing outdated App Lock from local storage sync...");
+                    localStorage.removeItem("sodre_app_lock_enabled");
+                    localStorage.removeItem("sodre_app_lock_cred_id");
+
+                    const appLockOverlay = document.getElementById("app-lock-overlay");
+                    if (appLockOverlay) {
+                        appLockOverlay.style.display = "none";
+                        document.body.style.overflow = "";
+                    }
+                }
+
+                // Initialize toggle UI state
+                const appLockToggle = document.getElementById("app-lock-toggle");
+                if (appLockToggle) appLockToggle.checked = false;
+            }
+        }
+
+        // セッションタイムアウト設定 (PWA以外のみ)
+        if (!isPWA) {
+            setupSessionTimeout();
+        }
+    }
+
+    // --- Session Expiration Logic (60 mins) - PWAでは無効 ---
+    function setupSessionTimeout() {
+        const TIMEOUT_DURATION = 60 * 60 * 1000; // 60 minutes
+        const STORAGE_KEY = "sodre_last_activity";
+
+        // Initialize or update last activity
+        const updateActivity = () => {
+            localStorage.setItem(STORAGE_KEY, Date.now().toString());
+        };
+
+        // Check timeout
+        const checkTimeout = async () => {
+            // PWA Safety Check: Absolutely no auto-logout for PWA
+            const checkIsPWA =
+                window.matchMedia("(display-mode: standalone)").matches ||
+                window.navigator.standalone === true ||
+                document.referrer.includes("android-app://");
+            if (checkIsPWA) return;
+
+            // If already on login page, do nothing (safety)
+            if (window.location.pathname.endsWith("login.html")) return;
+
+            const lastActivity = parseInt(localStorage.getItem(STORAGE_KEY) || "0");
+            const now = Date.now();
+
+            // If lastActivity is 0 (not set) or difference > duration
+            if (lastActivity > 0 && now - lastActivity > TIMEOUT_DURATION) {
+                console.log("Session expired due to inactivity");
+                // Clear storage to prevent loops
+                localStorage.removeItem(STORAGE_KEY);
+                localStorage.removeItem("sodre_user_email");
+                localStorage.removeItem("sodre_user_password");
+
+                try {
+                    await supabase.auth.signOut();
+                } catch (e) {
+                    console.error("SignOut error", e);
+                }
+
+                alert("一定時間操作がなかったため、ログアウトしました。");
+                window.location.href = "login.html";
+            }
+        };
+
+        // Set initial time if not set
+        if (!localStorage.getItem(STORAGE_KEY)) {
+            updateActivity();
+        }
+
+        // Periodic check (every 1 minute)
+        // This is still needed for desktop/active users
+        setInterval(checkTimeout, 60 * 1000);
+
+        // Immediate check on visibility change (Mobile wake up)
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible") {
+                checkTimeout();
+                // Optionally update activity here if simply looking counts as activity
+                // But safer to wait for interaction
+            }
+        });
+
+        // Also check on pageshow (Back/Forward cache restore)
+        window.addEventListener("pageshow", () => {
+            checkTimeout();
+        });
+
+        // Listen for user activity to update timestamp
+        // Throttle to avoid excessive writes
+        let throttleTimer;
+        const events = ["mousemove", "keydown", "click", "scroll", "touchstart"];
+        const throttledUpdate = () => {
+            if (!throttleTimer) {
+                // Update and reset timer
+                updateActivity();
+                throttleTimer = setTimeout(() => {
+                    throttleTimer = null;
+                }, 30000); // Update max once per 30 seconds
+            }
+        };
+
+        events.forEach((event) => {
+            document.addEventListener(event, throttledUpdate);
+        });
+
+        // Initial update
+        updateActivity();
+    }
+
+    // --- Logout ---
+    logoutBtn.addEventListener("click", async () => {
+        // Delete FCM Token from DB before logout
+        try {
+            if (messaging) {
+                let registration = await navigator.serviceWorker.getRegistration();
+                if (!registration) registration = await navigator.serviceWorker.ready;
+                if (registration) {
+                    const token = await messaging.getToken({
+                        vapidKey: window.FIREBASE_VAPID_KEY,
+                        serviceWorkerRegistration: registration,
+                    });
+                    if (token) {
+                        await supabase.from("user_fcm_tokens").delete().eq("token", token);
+                    }
+                }
+            }
+        } catch (e) {
+            console.error("Token cleanup error:", e);
+        }
+
+        // Clear stored credentials to prevent auto-login
         localStorage.removeItem("sodre_user_email");
         localStorage.removeItem("sodre_user_password");
+        localStorage.removeItem("sodre_last_activity");
 
-        try {
-          await supabase.auth.signOut();
-        } catch (e) {
-          console.error("SignOut error", e);
-        }
-
-        alert("一定時間操作がなかったため、ログアウトしました。");
+        await supabase.auth.signOut();
         window.location.href = "login.html";
-      }
-    };
-
-    // Set initial time if not set
-    if (!localStorage.getItem(STORAGE_KEY)) {
-      updateActivity();
-    }
-
-    // Periodic check (every 1 minute)
-    // This is still needed for desktop/active users
-    setInterval(checkTimeout, 60 * 1000);
-
-    // Immediate check on visibility change (Mobile wake up)
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") {
-        checkTimeout();
-        // Optionally update activity here if simply looking counts as activity
-        // But safer to wait for interaction
-      }
     });
 
-    // Also check on pageshow (Back/Forward cache restore)
-    window.addEventListener("pageshow", () => {
-      checkTimeout();
-    });
-
-    // Listen for user activity to update timestamp
-    // Throttle to avoid excessive writes
-    let throttleTimer;
-    const events = ["mousemove", "keydown", "click", "scroll", "touchstart"];
-    const throttledUpdate = () => {
-      if (!throttleTimer) {
-        // Update and reset timer
-        updateActivity();
-        throttleTimer = setTimeout(() => {
-          throttleTimer = null;
-        }, 30000); // Update max once per 30 seconds
-      }
-    };
-
-    events.forEach((event) => {
-      document.addEventListener(event, throttledUpdate);
-    });
-
-    // Initial update
-    updateActivity();
-  }
-
-  // --- Logout ---
-  logoutBtn.addEventListener("click", async () => {
-    // Delete FCM Token from DB before logout
-    try {
-      if (messaging) {
-        let registration = await navigator.serviceWorker.getRegistration();
-        if (!registration) registration = await navigator.serviceWorker.ready;
-        if (registration) {
-          const token = await messaging.getToken({
-            vapidKey: window.FIREBASE_VAPID_KEY,
-            serviceWorkerRegistration: registration,
-          });
-          if (token) {
-            await supabase.from("user_fcm_tokens").delete().eq("token", token);
-          }
-        }
-      }
-    } catch (e) {
-      console.error("Token cleanup error:", e);
-    }
-
-    // Clear stored credentials to prevent auto-login
-    localStorage.removeItem("sodre_user_email");
-    localStorage.removeItem("sodre_user_password");
-    localStorage.removeItem("sodre_last_activity");
-
-    await supabase.auth.signOut();
-    window.location.href = "login.html";
-  });
-
-  // --- Tab Switching ---
-  tabBtns.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      // Ignore settings button which is also a tab btn class for styling
-      if (btn.id === "settings-btn") return;
-
-      tabBtns.forEach((b) => {
-        if (b.id !== "settings-btn") b.classList.remove("active");
-      });
-      btn.classList.add("active");
-
-      const tab = btn.dataset.tab;
-      if (tab === "all") {
-        viewAll.style.display = "block";
-        viewGroups.style.display = "none";
-
-        // Update Context
-        currentPostContext = "all";
-        fabPost.style.display = "flex"; // Show FAB for All Board
-        loadAllPosts();
-      } else if (tab === "groups") {
-        viewAll.style.display = "none";
-        viewGroups.style.display = "block";
-
-        // Explicitly Reset View to List
-        groupsList.style.display = "grid"; // or block/flex depending on css, grid seems used in loadMyGroups
-        groupBoardView.style.display = "none";
-        currentGroupId = null;
-
-        // Update Context (Initially Group List)
-        currentPostContext = "group_list";
-        fabPost.style.display = "none"; // Hide FAB in Group List
-        loadMyGroups();
-      }
-    });
-  });
-
-  // --- Router Logic ---
-  async function handleRouting(urlString) {
-    // Parse URL to get params
-    // If urlString is provided (from SW), use it. Otherwise use window.location
-    const urlObj = urlString
-      ? new URL(urlString, window.location.origin)
-      : window.location;
-    const urlParams = new URLSearchParams(urlObj.search);
-
-    const tabParam = urlParams.get("tab");
-    const groupIdParam = urlParams.get("group_id");
-
-    if (tabParam === "group" && groupIdParam) {
-      // Check if we are already seeing this group to avoid re-fetching if not needed?
-      // For now, just follow logic to ensure consistency.
-
-      // Switch to Group Tab UI
-      viewAll.style.display = "none";
-      viewGroups.style.display = "block";
-      tabBtns.forEach((b) => {
-        b.classList.toggle("active", b.dataset.tab === "groups");
-      });
-
-      // If we are already viewing this group, maybe we just reload posts?
-      // But let's run the full open logic to be safe (permission checks etc)
-
-      // Fetch membership/group info
-      const { data: membership } = await supabase
-        .from("group_members")
-        .select("can_post, groups(id, name)")
-        .eq("group_id", groupIdParam)
-        .eq("user_id", user.id)
-        .single();
-
-      if (membership && membership.groups) {
-        window.openGroup(
-          membership.groups.id,
-          membership.groups.name,
-          membership.can_post,
-        );
-      } else {
-        // Not a member, check if admin
-        if (isAdmin) {
-          const { data: grp } = await supabase
-            .from("groups")
-            .select("id, name")
-            .eq("id", groupIdParam)
-            .single();
-          if (grp) {
-            window.openGroup(grp.id, grp.name, true);
-          } else {
-            // Group not found or error, fallback to All
-            loadAllPosts();
-          }
-        } else {
-          // Access denied, fallback to All
-          loadAllPosts();
-        }
-      }
-    } else {
-      // Default: All Posts
-      // Ensure UI is correct
-      viewAll.style.display = "block";
-      viewGroups.style.display = "none";
-      tabBtns.forEach((b) => {
-        b.classList.toggle("active", b.dataset.tab === "all");
-      });
-      currentPostContext = "all";
-      fabPost.style.display = "flex";
-
-      loadAllPosts();
-    }
-
-    // Clean URL if it's the current window location
-    if (!urlString) {
-      if (tabParam) {
-        window.history.replaceState({}, "", window.location.pathname);
-      }
-    }
-  }
-
-  // --- Service Worker Message Listener (for Notification Clicks) ---
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.addEventListener("message", (event) => {
-      if (event.data && event.data.type === "NOTIFICATION_CLICK") {
-        console.log("Notification clicked (SW Message):", event.data.url);
-        handleRouting(event.data.url);
-      }
-    });
-  }
-
-  // --- Initial Load ---
-  handleRouting();
-
-  // --- Modal / FAB Logic ---
-  fabPost.addEventListener("click", () => {
-    openPostModal();
-  });
-
-  function openPostModal(postToEdit = null) {
-    // Reset State
-    selectedFiles = [];
-    document.getElementById("modal-post-image").value = "";
-    document.getElementById("modal-image-preview").innerHTML = "";
-
-    if (postToEdit) {
-      // Edit Mode
-      isEditingPostId = postToEdit.id;
-      modalTitle.textContent = "投稿を編集";
-
-      if (postQuill) {
-        // Paste HTML content directly to Quill root
-        postQuill.root.innerHTML = postToEdit.content;
-      } else {
-        modalPostContent.value = postToEdit.content; // Fallback
-      }
-
-      document.getElementById("modal-allow-comments").checked =
-        postToEdit.allow_comments;
-
-      // Handle Schedule - only enable toggle if actually scheduled in future
-      if (
-        postToEdit.scheduled_at &&
-        new Date(postToEdit.scheduled_at) > new Date()
-      ) {
-        const d = new Date(postToEdit.scheduled_at);
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, "0");
-        const dd = String(d.getDate()).padStart(2, "0");
-        const hh = String(d.getHours()).padStart(2, "0");
-        const min = String(d.getMinutes()).padStart(2, "0");
-
-        scheduleDateInput.value = `${yyyy}-${mm}-${dd}`;
-        scheduleTimeInput.value = `${hh}:${min}`;
-
-        scheduleToggle.checked = true;
-        scheduleOptions.classList.add("active");
-      } else {
-        scheduleToggle.checked = false;
-        scheduleOptions.classList.remove("active");
-        scheduleDateInput.value = "";
-        scheduleTimeInput.value = "";
-      }
-
-      // Existing images
-      if (postToEdit.images && postToEdit.images.length > 0) {
-        const previewArea = document.getElementById("modal-image-preview");
-        postToEdit.images.forEach((url) => {
-          const container = document.createElement("div");
-          container.style.position = "relative";
-          container.style.display = "inline-block";
-          container.style.marginRight = "5px";
-
-          if (isImageUrl(url)) {
-            const img = document.createElement("img");
-            img.src = getSecureUrl(url);
-            img.style.width = "80px";
-            img.style.height = "80px";
-            img.style.objectFit = "cover";
-            img.style.borderRadius = "4px";
-            container.appendChild(img);
-          } else {
-            container.innerHTML = createFilePreviewHTML(url);
-          }
-
-          previewArea.appendChild(container);
-        });
-      }
-      modalSubmitBtn.textContent = "更新する";
-    } else {
-      // New Post Mode
-      isEditingPostId = null;
-      if (postQuill) {
-        postQuill.setContents([]); // Clear Quill editor
-      } else {
-        modalPostContent.value = "";
-      }
-
-      if (currentPostContext === "all") {
-        modalTitle.textContent = "全体掲示板に投稿";
-      } else if (currentPostContext === "group") {
-        modalTitle.textContent = `${currentGroupName.innerText} に投稿`;
-      }
-
-      document.getElementById("modal-allow-comments").checked = true; // Default to true
-
-      // Reset Schedule
-      scheduleToggle.checked = false;
-      scheduleOptions.classList.remove("active");
-      scheduleDateInput.value = "";
-      scheduleTimeInput.value = "";
-
-      modalSubmitBtn.textContent = "投稿する";
-    }
-
-    postModal.classList.add("show"); // .show for standard modal
-    setTimeout(() => {
-      if (postQuill) postQuill.focus();
-      else modalPostContent.focus();
-    }, 100);
-  }
-
-  modalClose.addEventListener("click", () => {
-    postModal.classList.remove("show");
-  });
-
-  // Schedule Toggle Logic
-  scheduleToggle.addEventListener("change", (e) => {
-    if (e.target.checked) {
-      scheduleOptions.classList.add("active");
-      // Set default date/time to now + 1 hour approx if empty
-      if (!scheduleDateInput.value) {
-        const now = new Date();
-        scheduleDateInput.valueAsDate = now;
-      }
-    } else {
-      scheduleOptions.classList.remove("active");
-      // Clear inputs when toggled off to be explicit
-      scheduleDateInput.value = "";
-      scheduleTimeInput.value = "";
-    }
-  });
-
-  // File Selection
-  document
-    .getElementById("modal-post-image")
-    .addEventListener("change", (e) => {
-      const files = Array.from(e.target.files);
-      if (files.length > 0) {
-        const previewArea = document.getElementById("modal-image-preview");
-        files.forEach((file) => {
-          const container = document.createElement("div");
-          container.style.position = "relative";
-          container.style.display = "inline-block";
-          container.style.marginRight = "8px";
-          container.style.marginBottom = "8px";
-
-          if (file.type.startsWith("image/")) {
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-              const img = document.createElement("img");
-              img.src = ev.target.result;
-              img.style.width = "80px";
-              img.style.height = "80px";
-              img.style.objectFit = "cover";
-              img.style.borderRadius = "4px";
-              container.appendChild(img);
-            };
-            reader.readAsDataURL(file);
-          } else {
-            const filePreview = document.createElement("div");
-            filePreview.style.display = "inline-flex";
-            filePreview.style.alignItems = "center";
-            filePreview.style.gap = "5px";
-            filePreview.style.padding = "8px 12px";
-            filePreview.style.background = "#f5f5f5";
-            filePreview.style.borderRadius = "6px";
-            filePreview.style.fontSize = "0.85rem";
-            filePreview.innerHTML = `<i class="${getFileIcon(file.name)}" style="color:var(--primary-color);"></i> <span style="max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(file.name)}</span>`;
-            container.appendChild(filePreview);
-          }
-
-          // Add cancel button
-          const cancelBtn = document.createElement("span");
-          cancelBtn.innerHTML = "&times;";
-          cancelBtn.style.position = "absolute";
-          cancelBtn.style.top = "-8px";
-          cancelBtn.style.right = "-8px";
-          cancelBtn.style.background = "rgba(0,0,0,0.6)";
-          cancelBtn.style.color = "white";
-          cancelBtn.style.borderRadius = "50%";
-          cancelBtn.style.width = "20px";
-          cancelBtn.style.height = "20px";
-          cancelBtn.style.display = "flex";
-          cancelBtn.style.alignItems = "center";
-          cancelBtn.style.justifyContent = "center";
-          cancelBtn.style.cursor = "pointer";
-          cancelBtn.style.fontSize = "14px";
-          cancelBtn.style.lineHeight = "1";
-          cancelBtn.style.zIndex = "10";
-
-          cancelBtn.addEventListener("click", () => {
-            const index = selectedFiles.indexOf(file);
-            if (index > -1) {
-              selectedFiles.splice(index, 1);
-            }
-            container.remove();
-          });
-
-          container.appendChild(cancelBtn);
-          previewArea.appendChild(container);
-          selectedFiles.push(file);
-        });
-        // Clear input so selecting same file again works
-        e.target.value = "";
-      }
-    });
-
-  // Close on click outside
-  postModal.addEventListener("click", (e) => {
-    if (e.target === postModal) {
-      postModal.classList.remove("show");
-    }
-  });
-
-  modalSubmitBtn.addEventListener("click", async () => {
-    let content = "";
-    if (postQuill) {
-      if (
-        postQuill.getText().trim().length === 0 &&
-        !postQuill.root.innerHTML.includes("<img")
-      ) {
-        // Empty message, ignore. (Quill returns `<p><br></p>` when visually empty)
-        return;
-      }
-      content = postQuill.root.innerHTML;
-    } else {
-      content = modalPostContent.value.trim();
-      if (!content) return;
-    }
-
-    const allowComments = document.getElementById(
-      "modal-allow-comments",
-    ).checked;
-    const isScheduled = scheduleToggle.checked;
-    let scheduledAt = new Date().toISOString(); // Default to now
-
-    if (isScheduled) {
-      const dateVal = scheduleDateInput.value;
-      const timeVal = scheduleTimeInput.value;
-      if (!dateVal || !timeVal) {
-        alert("予約日時を設定してください。");
-        return;
-      }
-      scheduledAt = new Date(`${dateVal}T${timeVal}`).toISOString();
-
-      // Validate future date ONLY for NEW posts
-      if (!isEditingPostId && new Date(scheduledAt) <= new Date()) {
-        alert("予約日時は現在より未来の日時を指定してください。");
-        return;
-      }
-    }
-
-    modalSubmitBtn.disabled = true;
-    modalSubmitBtn.textContent = "送信中...";
-
-    // Upload Files via PHP API
-    let imageUrls = [];
-    if (selectedFiles.length > 0) {
-      const formData = new FormData();
-      for (const file of selectedFiles) {
-        formData.append("files[]", file);
-      }
-      try {
-        const uploadRes = await fetch(window.UPLOAD_API_URL, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${currentSession?.access_token}` },
-          body: formData,
-        });
-        const uploadData = await uploadRes.json();
-        if (uploadData.success && uploadData.urls) {
-          // Append original filename to URL for display/download
-          imageUrls = uploadData.urls.map((url, index) => {
-            const file = selectedFiles[index];
-            if (file) {
-              // Use encodeURIComponent for Japanese characters
-              return `${url}?name=${encodeURIComponent(file.name)}`;
-            }
-            return url;
-          });
-        } else {
-          console.error("Upload error:", uploadData.error);
-          alert(
-            "ファイルのアップロードに失敗しました: " +
-              (uploadData.error || "不明なエラー"),
-          );
-          modalSubmitBtn.disabled = false;
-          modalSubmitBtn.textContent = isEditingPostId
-            ? "更新する"
-            : "投稿する";
-          return; // Abort post creation
-        }
-      } catch (uploadErr) {
-        console.error("Upload fetch error:", uploadErr);
-        alert("ファイルのアップロードに失敗しました。");
-        modalSubmitBtn.disabled = false;
-        modalSubmitBtn.textContent = isEditingPostId ? "更新する" : "投稿する";
-        return; // Abort post creation
-      }
-    }
-
-    if (isEditingPostId) {
-      // UPDATE
-      let updateData = {
-        content: content,
-        allow_comments: allowComments,
-        scheduled_at: scheduledAt,
-      };
-
-      if (imageUrls.length > 0) {
-        const { data: currentPost } = await supabase
-          .from("board_posts")
-          .select("images")
-          .eq("id", isEditingPostId)
-          .single();
-        const currentImages = currentPost?.images || [];
-        updateData.images = [...currentImages, ...imageUrls];
-      }
-
-      const { error } = await supabase
-        .from("board_posts")
-        .update(updateData)
-        .eq("id", isEditingPostId);
-
-      modalSubmitBtn.disabled = false;
-      modalSubmitBtn.textContent = "送信";
-
-      if (error) {
-        alert("更新に失敗しました: " + error.message);
-      } else {
-        postModal.classList.remove("show");
-        if (currentPostContext === "all") loadAllPosts();
-        else loadGroupPosts(currentGroupId);
-      }
-    } else {
-      // INSERT
-      let insertData = {
-        user_id: user.id,
-        content: content,
-        allow_comments: allowComments,
-        scheduled_at: scheduledAt,
-      };
-
-      if (currentPostContext === "all") {
-        insertData.group_id = null;
-      } else if (currentPostContext === "group") {
-        if (!currentGroupId) return;
-        insertData.group_id = currentGroupId;
-      } else {
-        return; // Should not happen
-      }
-
-      insertData.images = imageUrls;
-
-      const { error } = await supabase.from("board_posts").insert([insertData]);
-
-      modalSubmitBtn.disabled = false;
-      modalSubmitBtn.textContent = "送信";
-
-      if (error) {
-        alert("投稿に失敗しました: " + error.message);
-      } else {
-        postModal.classList.remove("show");
-        if (currentPostContext === "all") {
-          loadAllPosts();
-        } else {
-          loadGroupPosts(currentGroupId);
-        }
-
-        // --- Auto Notification ---
-        if (window.GAS_NOTIFICATION_URL) {
-          try {
-            const truncatedContent =
-              content.length > 50 ? content.substring(0, 50) + "..." : content;
-            let notifPayload;
-
-            if (currentPostContext === "group" && currentGroupId) {
-              // グループ投稿 → グループメンバーのみに通知
-              notifPayload = {
-                group_id: currentGroupId,
-                exclude_user_id: user.id,
-                title: "グループに新しい投稿があります",
-                body: truncatedContent,
-                url: `/members-area.html?tab=group&group_id=${currentGroupId}`,
-              };
-            } else {
-              // 全体掲示板 → 全ユーザーに通知
-              notifPayload = {
-                broadcast: true,
-                exclude_user_id: user.id,
-                title: "新しい投稿があります",
-                body: truncatedContent,
-                url: "/members-area.html?tab=all",
-              };
-            }
-
-            fetch(window.GAS_NOTIFICATION_URL, {
-              method: "POST",
-              body: JSON.stringify(notifPayload),
-              mode: "no-cors",
-              headers: { "Content-Type": "text/plain" },
+    // --- Tab Switching ---
+    tabBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+            // Ignore settings button which is also a tab btn class for styling
+            if (btn.id === "settings-btn") return;
+
+            tabBtns.forEach((b) => {
+                if (b.id !== "settings-btn") b.classList.remove("active");
             });
-          } catch (notifErr) {
-            console.error("Auto notification error:", notifErr);
-          }
+            btn.classList.add("active");
+
+            const tab = btn.dataset.tab;
+            if (tab === "all") {
+                viewAll.style.display = "block";
+                viewGroups.style.display = "none";
+
+                // Update Context
+                currentPostContext = "all";
+                fabPost.style.display = "flex"; // Show FAB for All Board
+                loadAllPosts();
+            } else if (tab === "groups") {
+                viewAll.style.display = "none";
+                viewGroups.style.display = "block";
+
+                // Explicitly Reset View to List
+                groupsList.style.display = "grid"; // or block/flex depending on css, grid seems used in loadMyGroups
+                groupBoardView.style.display = "none";
+                currentGroupId = null;
+
+                // Update Context (Initially Group List)
+                currentPostContext = "group_list";
+                fabPost.style.display = "none"; // Hide FAB in Group List
+                loadMyGroups();
+            }
+        });
+    });
+
+    // --- Router Logic ---
+    async function handleRouting(urlString) {
+        // Parse URL to get params
+        // If urlString is provided (from SW), use it. Otherwise use window.location
+        const urlObj = urlString
+            ? new URL(urlString, window.location.origin)
+            : window.location;
+        const urlParams = new URLSearchParams(urlObj.search);
+
+        const tabParam = urlParams.get("tab");
+        const groupIdParam = urlParams.get("group_id");
+
+        if (tabParam === "group" && groupIdParam) {
+            // Check if we are already seeing this group to avoid re-fetching if not needed?
+            // For now, just follow logic to ensure consistency.
+
+            // Switch to Group Tab UI
+            viewAll.style.display = "none";
+            viewGroups.style.display = "block";
+            tabBtns.forEach((b) => {
+                b.classList.toggle("active", b.dataset.tab === "groups");
+            });
+
+            // If we are already viewing this group, maybe we just reload posts?
+            // But let's run the full open logic to be safe (permission checks etc)
+
+            // Fetch membership/group info
+            const { data: membership } = await supabase
+                .from("group_members")
+                .select("can_post, groups(id, name)")
+                .eq("group_id", groupIdParam)
+                .eq("user_id", user.id)
+                .single();
+
+            if (membership && membership.groups) {
+                window.openGroup(
+                    membership.groups.id,
+                    membership.groups.name,
+                    membership.can_post,
+                );
+            } else {
+                // Not a member, check if admin
+                if (isAdmin) {
+                    const { data: grp } = await supabase
+                        .from("groups")
+                        .select("id, name")
+                        .eq("id", groupIdParam)
+                        .single();
+                    if (grp) {
+                        window.openGroup(grp.id, grp.name, true);
+                    } else {
+                        // Group not found or error, fallback to All
+                        loadAllPosts();
+                    }
+                } else {
+                    // Access denied, fallback to All
+                    loadAllPosts();
+                }
+            }
+        } else {
+            // Default: All Posts
+            // Ensure UI is correct
+            viewAll.style.display = "block";
+            viewGroups.style.display = "none";
+            tabBtns.forEach((b) => {
+                b.classList.toggle("active", b.dataset.tab === "all");
+            });
+            currentPostContext = "all";
+            fabPost.style.display = "flex";
+
+            loadAllPosts();
         }
-      }
-    }
-  });
 
-  // --- All Board Logic ---
-  async function loadAllPosts(isSilent = false, offset = 0) {
-    if (offset === 0) {
-      allPostsOffset = 0;
-      if (!isSilent) allFeed.innerHTML = "<p>読み込み中...</p>";
+        // Clean URL if it's the current window location
+        if (!urlString) {
+            if (tabParam) {
+                window.history.replaceState({}, "", window.location.pathname);
+            }
+        }
     }
 
-    const { data, error } = await supabase
-      .from("board_posts")
-      .select(
-        `
+    // --- Service Worker Message Listener (for Notification Clicks) ---
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.addEventListener("message", (event) => {
+            if (event.data && event.data.type === "NOTIFICATION_CLICK") {
+                console.log("Notification clicked (SW Message):", event.data.url);
+                handleRouting(event.data.url);
+            }
+        });
+    }
+
+    // --- Initial Load ---
+    handleRouting();
+
+    // --- Modal / FAB Logic ---
+    fabPost.addEventListener("click", () => {
+        openPostModal();
+    });
+
+    function openPostModal(postToEdit = null) {
+        // Reset State
+        selectedFiles = [];
+        document.getElementById("modal-post-image").value = "";
+        document.getElementById("modal-image-preview").innerHTML = "";
+
+        if (postToEdit) {
+            // Edit Mode
+            isEditingPostId = postToEdit.id;
+            modalTitle.textContent = "投稿を編集";
+
+            if (postQuill) {
+                // Paste HTML content directly to Quill root
+                postQuill.root.innerHTML = postToEdit.content;
+            } else {
+                modalPostContent.value = postToEdit.content; // Fallback
+            }
+
+            document.getElementById("modal-allow-comments").checked =
+                postToEdit.allow_comments;
+
+            // Handle Schedule - only enable toggle if actually scheduled in future
+            if (
+                postToEdit.scheduled_at &&
+                new Date(postToEdit.scheduled_at) > new Date()
+            ) {
+                const d = new Date(postToEdit.scheduled_at);
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, "0");
+                const dd = String(d.getDate()).padStart(2, "0");
+                const hh = String(d.getHours()).padStart(2, "0");
+                const min = String(d.getMinutes()).padStart(2, "0");
+
+                scheduleDateInput.value = `${yyyy}-${mm}-${dd}`;
+                scheduleTimeInput.value = `${hh}:${min}`;
+
+                scheduleToggle.checked = true;
+                scheduleOptions.classList.add("active");
+            } else {
+                scheduleToggle.checked = false;
+                scheduleOptions.classList.remove("active");
+                scheduleDateInput.value = "";
+                scheduleTimeInput.value = "";
+            }
+
+            // Existing images
+            if (postToEdit.images && postToEdit.images.length > 0) {
+                const previewArea = document.getElementById("modal-image-preview");
+                postToEdit.images.forEach((url) => {
+                    const container = document.createElement("div");
+                    container.style.position = "relative";
+                    container.style.display = "inline-block";
+                    container.style.marginRight = "5px";
+
+                    if (isImageUrl(url)) {
+                        const img = document.createElement("img");
+                        img.src = getSecureUrl(url);
+                        img.style.width = "80px";
+                        img.style.height = "80px";
+                        img.style.objectFit = "cover";
+                        img.style.borderRadius = "4px";
+                        container.appendChild(img);
+                    } else {
+                        container.innerHTML = createFilePreviewHTML(url);
+                    }
+
+                    previewArea.appendChild(container);
+                });
+            }
+            modalSubmitBtn.textContent = "更新する";
+        } else {
+            // New Post Mode
+            isEditingPostId = null;
+            if (postQuill) {
+                postQuill.setContents([]); // Clear Quill editor
+            } else {
+                modalPostContent.value = "";
+            }
+
+            if (currentPostContext === "all") {
+                modalTitle.textContent = "全体掲示板に投稿";
+            } else if (currentPostContext === "group") {
+                modalTitle.textContent = `${currentGroupName.innerText} に投稿`;
+            }
+
+            document.getElementById("modal-allow-comments").checked = true; // Default to true
+
+            // Reset Schedule
+            scheduleToggle.checked = false;
+            scheduleOptions.classList.remove("active");
+            scheduleDateInput.value = "";
+            scheduleTimeInput.value = "";
+
+            modalSubmitBtn.textContent = "投稿する";
+        }
+
+        postModal.classList.add("show"); // .show for standard modal
+        setTimeout(() => {
+            if (postQuill) postQuill.focus();
+            else modalPostContent.focus();
+        }, 100);
+    }
+
+    modalClose.addEventListener("click", () => {
+        postModal.classList.remove("show");
+    });
+
+    // Schedule Toggle Logic
+    scheduleToggle.addEventListener("change", (e) => {
+        if (e.target.checked) {
+            scheduleOptions.classList.add("active");
+            // Set default date/time to now + 1 hour approx if empty
+            if (!scheduleDateInput.value) {
+                const now = new Date();
+                scheduleDateInput.valueAsDate = now;
+            }
+        } else {
+            scheduleOptions.classList.remove("active");
+            // Clear inputs when toggled off to be explicit
+            scheduleDateInput.value = "";
+            scheduleTimeInput.value = "";
+        }
+    });
+
+    // File Selection
+    document
+        .getElementById("modal-post-image")
+        .addEventListener("change", (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length > 0) {
+                const previewArea = document.getElementById("modal-image-preview");
+                files.forEach((file) => {
+                    const container = document.createElement("div");
+                    container.style.position = "relative";
+                    container.style.display = "inline-block";
+                    container.style.marginRight = "8px";
+                    container.style.marginBottom = "8px";
+
+                    if (file.type.startsWith("image/")) {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                            const img = document.createElement("img");
+                            img.src = ev.target.result;
+                            img.style.width = "80px";
+                            img.style.height = "80px";
+                            img.style.objectFit = "cover";
+                            img.style.borderRadius = "4px";
+                            container.appendChild(img);
+                        };
+                        reader.readAsDataURL(file);
+                    } else {
+                        const filePreview = document.createElement("div");
+                        filePreview.style.display = "inline-flex";
+                        filePreview.style.alignItems = "center";
+                        filePreview.style.gap = "5px";
+                        filePreview.style.padding = "8px 12px";
+                        filePreview.style.background = "#f5f5f5";
+                        filePreview.style.borderRadius = "6px";
+                        filePreview.style.fontSize = "0.85rem";
+                        filePreview.innerHTML = `<i class="${getFileIcon(file.name)}" style="color:var(--primary-color);"></i> <span style="max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(file.name)}</span>`;
+                        container.appendChild(filePreview);
+                    }
+
+                    // Add cancel button
+                    const cancelBtn = document.createElement("span");
+                    cancelBtn.innerHTML = "&times;";
+                    cancelBtn.style.position = "absolute";
+                    cancelBtn.style.top = "-8px";
+                    cancelBtn.style.right = "-8px";
+                    cancelBtn.style.background = "rgba(0,0,0,0.6)";
+                    cancelBtn.style.color = "white";
+                    cancelBtn.style.borderRadius = "50%";
+                    cancelBtn.style.width = "20px";
+                    cancelBtn.style.height = "20px";
+                    cancelBtn.style.display = "flex";
+                    cancelBtn.style.alignItems = "center";
+                    cancelBtn.style.justifyContent = "center";
+                    cancelBtn.style.cursor = "pointer";
+                    cancelBtn.style.fontSize = "14px";
+                    cancelBtn.style.lineHeight = "1";
+                    cancelBtn.style.zIndex = "10";
+
+                    cancelBtn.addEventListener("click", () => {
+                        const index = selectedFiles.indexOf(file);
+                        if (index > -1) {
+                            selectedFiles.splice(index, 1);
+                        }
+                        container.remove();
+                    });
+
+                    container.appendChild(cancelBtn);
+                    previewArea.appendChild(container);
+                    selectedFiles.push(file);
+                });
+                // Clear input so selecting same file again works
+                e.target.value = "";
+            }
+        });
+
+    // Close on click outside
+    postModal.addEventListener("click", (e) => {
+        if (e.target === postModal) {
+            postModal.classList.remove("show");
+        }
+    });
+
+    modalSubmitBtn.addEventListener("click", async () => {
+        let content = "";
+        if (postQuill) {
+            if (
+                postQuill.getText().trim().length === 0 &&
+                !postQuill.root.innerHTML.includes("<img")
+            ) {
+                // Empty message, ignore. (Quill returns `<p><br></p>` when visually empty)
+                return;
+            }
+            content = postQuill.root.innerHTML;
+        } else {
+            content = modalPostContent.value.trim();
+            if (!content) return;
+        }
+
+        const allowComments = document.getElementById(
+            "modal-allow-comments",
+        ).checked;
+        const isScheduled = scheduleToggle.checked;
+        let scheduledAt = new Date().toISOString(); // Default to now
+
+        if (isScheduled) {
+            const dateVal = scheduleDateInput.value;
+            const timeVal = scheduleTimeInput.value;
+            if (!dateVal || !timeVal) {
+                alert("予約日時を設定してください。");
+                return;
+            }
+            scheduledAt = new Date(`${dateVal}T${timeVal}`).toISOString();
+
+            // Validate future date ONLY for NEW posts
+            if (!isEditingPostId && new Date(scheduledAt) <= new Date()) {
+                alert("予約日時は現在より未来の日時を指定してください。");
+                return;
+            }
+        }
+
+        modalSubmitBtn.disabled = true;
+        modalSubmitBtn.textContent = "送信中...";
+
+        // Upload Files via PHP API
+        let imageUrls = [];
+        if (selectedFiles.length > 0) {
+            const formData = new FormData();
+            for (const file of selectedFiles) {
+                formData.append("files[]", file);
+            }
+            try {
+                const uploadRes = await fetch(window.UPLOAD_API_URL, {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${currentSession?.access_token}` },
+                    body: formData,
+                });
+                const uploadData = await uploadRes.json();
+                if (uploadData.success && uploadData.urls) {
+                    // Append original filename to URL for display/download
+                    imageUrls = uploadData.urls.map((url, index) => {
+                        const file = selectedFiles[index];
+                        if (file) {
+                            // Use encodeURIComponent for Japanese characters
+                            return `${url}?name=${encodeURIComponent(file.name)}`;
+                        }
+                        return url;
+                    });
+                } else {
+                    console.error("Upload error:", uploadData.error);
+                    alert(
+                        "ファイルのアップロードに失敗しました: " +
+                        (uploadData.error || "不明なエラー"),
+                    );
+                    modalSubmitBtn.disabled = false;
+                    modalSubmitBtn.textContent = isEditingPostId
+                        ? "更新する"
+                        : "投稿する";
+                    return; // Abort post creation
+                }
+            } catch (uploadErr) {
+                console.error("Upload fetch error:", uploadErr);
+                alert("ファイルのアップロードに失敗しました。");
+                modalSubmitBtn.disabled = false;
+                modalSubmitBtn.textContent = isEditingPostId ? "更新する" : "投稿する";
+                return; // Abort post creation
+            }
+        }
+
+        if (isEditingPostId) {
+            // UPDATE
+            let updateData = {
+                content: content,
+                allow_comments: allowComments,
+                scheduled_at: scheduledAt,
+            };
+
+            if (imageUrls.length > 0) {
+                const { data: currentPost } = await supabase
+                    .from("board_posts")
+                    .select("images")
+                    .eq("id", isEditingPostId)
+                    .single();
+                const currentImages = currentPost?.images || [];
+                updateData.images = [...currentImages, ...imageUrls];
+            }
+
+            const { error } = await supabase
+                .from("board_posts")
+                .update(updateData)
+                .eq("id", isEditingPostId);
+
+            modalSubmitBtn.disabled = false;
+            modalSubmitBtn.textContent = "送信";
+
+            if (error) {
+                alert("更新に失敗しました: " + error.message);
+            } else {
+                postModal.classList.remove("show");
+                if (currentPostContext === "all") loadAllPosts();
+                else loadGroupPosts(currentGroupId);
+            }
+        } else {
+            // INSERT
+            let insertData = {
+                user_id: user.id,
+                content: content,
+                allow_comments: allowComments,
+                scheduled_at: scheduledAt,
+            };
+
+            if (currentPostContext === "all") {
+                insertData.group_id = null;
+            } else if (currentPostContext === "group") {
+                if (!currentGroupId) return;
+                insertData.group_id = currentGroupId;
+            } else {
+                return; // Should not happen
+            }
+
+            insertData.images = imageUrls;
+
+            const { error } = await supabase.from("board_posts").insert([insertData]);
+
+            modalSubmitBtn.disabled = false;
+            modalSubmitBtn.textContent = "送信";
+
+            if (error) {
+                alert("投稿に失敗しました: " + error.message);
+            } else {
+                postModal.classList.remove("show");
+                if (currentPostContext === "all") {
+                    loadAllPosts();
+                } else {
+                    loadGroupPosts(currentGroupId);
+                }
+
+                // --- Auto Notification ---
+                if (window.GAS_NOTIFICATION_URL) {
+                    try {
+                        const truncatedContent =
+                            content.length > 50 ? content.substring(0, 50) + "..." : content;
+                        let notifPayload;
+
+                        if (currentPostContext === "group" && currentGroupId) {
+                            // グループ投稿 → グループメンバーのみに通知
+                            notifPayload = {
+                                group_id: currentGroupId,
+                                exclude_user_id: user.id,
+                                title: "グループに新しい投稿があります",
+                                body: truncatedContent,
+                                url: `/members-area.html?tab=group&group_id=${currentGroupId}`,
+                            };
+                        } else {
+                            // 全体掲示板 → 全ユーザーに通知
+                            notifPayload = {
+                                broadcast: true,
+                                exclude_user_id: user.id,
+                                title: "新しい投稿があります",
+                                body: truncatedContent,
+                                url: "/members-area.html?tab=all",
+                            };
+                        }
+
+                        fetch(window.GAS_NOTIFICATION_URL, {
+                            method: "POST",
+                            body: JSON.stringify(notifPayload),
+                            mode: "no-cors",
+                            headers: { "Content-Type": "text/plain" },
+                        });
+                    } catch (notifErr) {
+                        console.error("Auto notification error:", notifErr);
+                    }
+                }
+            }
+        }
+    });
+
+    // --- All Board Logic ---
+    async function loadAllPosts(isSilent = false, offset = 0) {
+        if (offset === 0) {
+            allPostsOffset = 0;
+            if (!isSilent) allFeed.innerHTML = "<p>読み込み中...</p>";
+        }
+
+        const { data, error } = await supabase
+            .from("board_posts")
+            .select(
+                `
                 *,
                 profiles(display_name),
                 board_comments(count)
             `,
-      )
-      .is("group_id", null)
-      .or(`scheduled_at.lte.${new Date().toISOString()},user_id.eq.${user.id}`)
-      .order("is_pinned", { ascending: false })
-      .order("scheduled_at", { ascending: false })
-      .order("created_at", { ascending: false })
-      .range(offset, offset + POST_LIMIT - 1);
+            )
+            .is("group_id", null)
+            .or(`scheduled_at.lte.${new Date().toISOString()},user_id.eq.${user.id}`)
+            .order("is_pinned", { ascending: false })
+            .order("scheduled_at", { ascending: false })
+            .order("created_at", { ascending: false })
+            .range(offset, offset + POST_LIMIT - 1);
 
-    if (error) {
-      console.error(error);
-      allFeed.innerHTML = "<p>投稿の読み込みに失敗しました。</p>";
-      return;
+        if (error) {
+            console.error(error);
+            allFeed.innerHTML = "<p>投稿の読み込みに失敗しました。</p>";
+            return;
+        }
+
+        if (offset === 0) allFeed.innerHTML = ""; // Clear for fresh load (if silent was used, innerHTML might be old or blank)
+
+        renderPosts(data, allFeed, offset > 0);
+
+        // Load More Button
+        const hasMore = data && data.length === POST_LIMIT;
+        updateLoadMoreButton(allFeed, hasMore, () => {
+            allPostsOffset += POST_LIMIT;
+            loadAllPosts(true, allPostsOffset);
+        });
     }
 
-    if (offset === 0) allFeed.innerHTML = ""; // Clear for fresh load (if silent was used, innerHTML might be old or blank)
+    // --- Group Logic ---
+    backToGroupsBtn.addEventListener("click", () => {
+        groupBoardView.style.display = "none";
+        groupsList.style.display = "grid";
+        currentGroupId = null;
 
-    renderPosts(data, allFeed, offset > 0);
-
-    // Load More Button
-    const hasMore = data && data.length === POST_LIMIT;
-    updateLoadMoreButton(allFeed, hasMore, () => {
-      allPostsOffset += POST_LIMIT;
-      loadAllPosts(true, allPostsOffset);
+        // Context Update
+        currentPostContext = "group_list";
+        fabPost.style.display = "none"; // Hide FAB
     });
-  }
 
-  // --- Group Logic ---
-  backToGroupsBtn.addEventListener("click", () => {
-    groupBoardView.style.display = "none";
-    groupsList.style.display = "grid";
-    currentGroupId = null;
+    async function loadMyGroups() {
+        let data = [];
+        let error = null;
 
-    // Context Update
-    currentPostContext = "group_list";
-    fabPost.style.display = "none"; // Hide FAB
-  });
+        if (isAdmin) {
+            // Admin sees ALL groups
+            const { data: groupsData, error: groupsError } = await supabase
+                .from("groups")
+                .select("id, name, description")
+                .order("created_at", { ascending: false });
 
-  async function loadMyGroups() {
-    let data = [];
-    let error = null;
-
-    if (isAdmin) {
-      // Admin sees ALL groups
-      const { data: groupsData, error: groupsError } = await supabase
-        .from("groups")
-        .select("id, name, description")
-        .order("created_at", { ascending: false });
-
-      if (groupsData) {
-        // Map to same structure as group_members query for template compatibility
-        data = groupsData.map((g) => ({
-          groups: g,
-          can_post: true, // Admins can always post
-        }));
-      }
-      error = groupsError;
-    } else {
-      // Normal user: fetch joined groups
-      const response = await supabase
-        .from("group_members")
-        .select(
-          `
+            if (groupsData) {
+                // Map to same structure as group_members query for template compatibility
+                data = groupsData.map((g) => ({
+                    groups: g,
+                    can_post: true, // Admins can always post
+                }));
+            }
+            error = groupsError;
+        } else {
+            // Normal user: fetch joined groups
+            const response = await supabase
+                .from("group_members")
+                .select(
+                    `
                     group_id,
                     can_post,
                     groups (
                         id, name, description
                     )
                 `,
-        )
-        .eq("user_id", user.id);
-      data = response.data;
-      error = response.error;
-    }
+                )
+                .eq("user_id", user.id);
+            data = response.data;
+            error = response.error;
+        }
 
-    if (error) {
-      console.error(error);
-      groupsList.innerHTML = "<p>グループの読み込みに失敗しました。</p>";
-      return;
-    }
+        if (error) {
+            console.error(error);
+            groupsList.innerHTML = "<p>グループの読み込みに失敗しました。</p>";
+            return;
+        }
 
-    if (data.length === 0) {
-      groupsList.innerHTML = "<p>参加しているグループはありません。</p>";
-      return;
-    }
+        if (data.length === 0) {
+            groupsList.innerHTML = "<p>参加しているグループはありません。</p>";
+            return;
+        }
 
-    groupsList.innerHTML = data
-      .map(
-        (item) => `
+        groupsList.innerHTML = data
+            .map(
+                (item) => `
             <div class="group-card" onclick="openGroup('${item.groups.id}', '${item.groups.name}', ${item.can_post})">
                 <h4 style="color:var(--primary-color); font-size:1.1rem; margin-bottom:0.5rem;">${item.groups.name}</h4>
                 <p style="font-size:0.9rem; color:#666;">${item.groups.description || ""}</p>
             </div>
         `,
-      )
-      .join("");
-  }
-
-  // Expose to window for onclick
-  function openGroup(gid, gname, canPost) {
-    currentGroupId = gid;
-    currentGroupCanPost = canPost;
-
-    groupsList.style.display = "none";
-    groupBoardView.style.display = "block";
-    currentGroupName.innerText = gname;
-
-    // Context Update
-    currentPostContext = "group";
-
-    if (canPost) {
-      fabPost.style.display = "flex"; // Show FAB
-    } else {
-      fabPost.style.display = "none"; // Hide FAB if read-only
+            )
+            .join("");
     }
 
-    loadGroupPosts(gid);
-  }
-  // Expose to window for onclick
-  window.openGroup = openGroup;
+    // Expose to window for onclick
+    function openGroup(gid, gname, canPost) {
+        currentGroupId = gid;
+        currentGroupCanPost = canPost;
 
-  async function loadGroupPosts(gid, isSilent = false, offset = 0) {
-    if (offset === 0) {
-      groupPostsOffset = 0;
-      if (!isSilent) groupFeed.innerHTML = "<p>読み込み中...</p>";
+        groupsList.style.display = "none";
+        groupBoardView.style.display = "block";
+        currentGroupName.innerText = gname;
+
+        // Context Update
+        currentPostContext = "group";
+
+        if (canPost) {
+            fabPost.style.display = "flex"; // Show FAB
+        } else {
+            fabPost.style.display = "none"; // Hide FAB if read-only
+        }
+
+        loadGroupPosts(gid);
     }
+    // Expose to window for onclick
+    window.openGroup = openGroup;
 
-    const { data, error } = await supabase
-      .from("board_posts")
-      .select(
-        `
+    async function loadGroupPosts(gid, isSilent = false, offset = 0) {
+        if (offset === 0) {
+            groupPostsOffset = 0;
+            if (!isSilent) groupFeed.innerHTML = "<p>読み込み中...</p>";
+        }
+
+        const { data, error } = await supabase
+            .from("board_posts")
+            .select(
+                `
                 *,
                 profiles(display_name),
                 board_comments(count)
             `,
-      )
-      .eq("group_id", gid)
-      .or(`scheduled_at.lte.${new Date().toISOString()},user_id.eq.${user.id}`)
-      .order("is_pinned", { ascending: false })
-      .order("scheduled_at", { ascending: false })
-      .order("created_at", { ascending: false })
-      .range(offset, offset + POST_LIMIT - 1);
+            )
+            .eq("group_id", gid)
+            .or(`scheduled_at.lte.${new Date().toISOString()},user_id.eq.${user.id}`)
+            .order("is_pinned", { ascending: false })
+            .order("scheduled_at", { ascending: false })
+            .order("created_at", { ascending: false })
+            .range(offset, offset + POST_LIMIT - 1);
 
-    if (error) {
-      // renderPosts([], groupFeed); // This would clear errors. Better to show error or empty.
-      if (offset === 0) renderPosts([], groupFeed);
-      return;
-    }
-
-    if (offset === 0) groupFeed.innerHTML = "";
-
-    renderPosts(data, groupFeed, offset > 0);
-
-    // Load More Button View
-    const hasMore = data && data.length === POST_LIMIT;
-    updateLoadMoreButton(groupFeed, hasMore, () => {
-      groupPostsOffset += POST_LIMIT;
-      loadGroupPosts(gid, true, groupPostsOffset);
-    });
-  }
-
-  // --- Header Scroll Logic ---
-  const header = document.getElementById("global-header");
-  let lastScrollTop = 0;
-
-  if (header) {
-    const headerHeight = header.offsetHeight;
-    window.addEventListener("scroll", () => {
-      let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      if (scrollTop > lastScrollTop && scrollTop > headerHeight) {
-        // Scroll Down -> Hide
-        header.classList.add("hide");
-      } else {
-        // Scroll Up -> Show
-        header.classList.remove("hide");
-      }
-      lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
-    });
-  }
-
-  // --- Lightbox Logic ---
-  const lightboxModal = document.getElementById("lightbox-modal");
-  const lightboxImg = document.getElementById("lightbox-img");
-  const lightboxClose = document.getElementById("lightbox-close");
-
-  window.openLightbox = (url) => {
-    lightboxImg.src = url;
-    lightboxModal.style.display = "flex";
-    setTimeout(() => (lightboxModal.style.opacity = "1"), 10);
-  };
-
-  const closeLightbox = () => {
-    lightboxModal.style.opacity = "0";
-    setTimeout(() => {
-      lightboxModal.style.display = "none";
-      lightboxImg.src = "";
-    }, 300);
-  };
-
-  lightboxClose.addEventListener("click", closeLightbox);
-  lightboxModal.addEventListener("click", (e) => {
-    if (e.target === lightboxModal) {
-      closeLightbox();
-    }
-  });
-
-  window.deleteMemberPost = async (postId) => {
-    if (!confirm("この投稿を削除しますか？")) return;
-
-    try {
-      // 1. Get post data to find images
-      const { data: post, error: fetchError } = await supabase
-        .from("board_posts")
-        .select("images")
-        .eq("id", postId)
-        .single();
-
-      if (fetchError) {
-        console.error("Error fetching post for deletion:", fetchError);
-        // Continue to delete from DB even if fetch fails, to avoid zombie posts
-      } else if (post && post.images && post.images.length > 0) {
-        // 2. Delete files from X-server
-        try {
-          await fetch("https://data.sodre.jp/api/delete.php", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${currentSession?.access_token}`,
-            },
-            body: JSON.stringify({ urls: post.images }),
-          });
-        } catch (deleteErr) {
-          console.error("Physical file delete error:", deleteErr);
-          // Continue to delete from DB
+        if (error) {
+            // renderPosts([], groupFeed); // This would clear errors. Better to show error or empty.
+            if (offset === 0) renderPosts([], groupFeed);
+            return;
         }
-      }
 
-      // 3. Delete from DB
-      const { error } = await supabase
-        .from("board_posts")
-        .delete()
-        .eq("id", postId);
+        if (offset === 0) groupFeed.innerHTML = "";
 
-      if (error) {
-        alert("削除に失敗しました: " + error.message);
-      } else {
-        if (currentPostContext === "all") loadAllPosts(true);
-        else if (currentPostContext === "group" && currentGroupId)
-          loadGroupPosts(currentGroupId, true);
-      }
-    } catch (err) {
-      console.error("Delete error:", err);
-      alert("削除中にエラーが発生しました。");
+        renderPosts(data, groupFeed, offset > 0);
+
+        // Load More Button View
+        const hasMore = data && data.length === POST_LIMIT;
+        updateLoadMoreButton(groupFeed, hasMore, () => {
+            groupPostsOffset += POST_LIMIT;
+            loadGroupPosts(gid, true, groupPostsOffset);
+        });
     }
-  };
 
-  window.togglePin = async (postId, currentPinState) => {
-    const newState = !currentPinState;
-    const { error } = await supabase.rpc("toggle_post_pin", {
-      post_id: postId,
-      pin_state: newState,
+    // --- Header Scroll Logic ---
+    const header = document.getElementById("global-header");
+    let lastScrollTop = 0;
+
+    if (header) {
+        const headerHeight = header.offsetHeight;
+        window.addEventListener("scroll", () => {
+            let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            if (scrollTop > lastScrollTop && scrollTop > headerHeight) {
+                // Scroll Down -> Hide
+                header.classList.add("hide");
+            } else {
+                // Scroll Up -> Show
+                header.classList.remove("hide");
+            }
+            lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
+        });
+    }
+
+    // --- Lightbox Logic ---
+    const lightboxModal = document.getElementById("lightbox-modal");
+    const lightboxImg = document.getElementById("lightbox-img");
+    const lightboxClose = document.getElementById("lightbox-close");
+
+    window.openLightbox = (url) => {
+        lightboxImg.src = url;
+        lightboxModal.style.display = "flex";
+        setTimeout(() => (lightboxModal.style.opacity = "1"), 10);
+    };
+
+    const closeLightbox = () => {
+        lightboxModal.style.opacity = "0";
+        setTimeout(() => {
+            lightboxModal.style.display = "none";
+            lightboxImg.src = "";
+        }, 300);
+    };
+
+    lightboxClose.addEventListener("click", closeLightbox);
+    lightboxModal.addEventListener("click", (e) => {
+        if (e.target === lightboxModal) {
+            closeLightbox();
+        }
     });
 
-    if (error) {
-      alert("ピン留めの変更に失敗しました: " + error.message);
-    } else {
-      if (currentPostContext === "all") loadAllPosts(true);
-      else if (currentPostContext === "group" && currentGroupId)
-        loadGroupPosts(currentGroupId, true);
-    }
-  };
+    window.deleteMemberPost = async (postId) => {
+        if (!confirm("この投稿を削除しますか？")) return;
 
-  // Edit function attached to window
-  window.editMemberPost = async (postId) => {
-    // Fetch full post details to populate modal
-    const { data, error } = await supabase
-      .from("board_posts")
-      .select("*")
-      .eq("id", postId)
-      .single();
+        try {
+            // 1. Get post data to find images
+            const { data: post, error: fetchError } = await supabase
+                .from("board_posts")
+                .select("images")
+                .eq("id", postId)
+                .single();
 
-    if (error || !data) {
-      alert("投稿情報の取得に失敗しました。");
-      return;
-    }
-    openPostModal(data);
-  };
-
-  // --- Components ---
-  function updateLoadMoreButton(container, hasMore, onClick) {
-    // Remove existing button if any
-    let existing = container.querySelector(".load-more-container");
-    if (existing) existing.remove();
-
-    if (hasMore) {
-      const wrapper = document.createElement("div");
-      wrapper.className = "load-more-container";
-      const btn = document.createElement("button");
-      btn.className = "load-more-btn";
-      btn.innerText = "さらに表示";
-      btn.onclick = onClick;
-      wrapper.appendChild(btn);
-      container.appendChild(wrapper);
-    }
-  }
-
-  function renderPosts(posts, container, append = false) {
-    if (!append) {
-      container.innerHTML = ""; // Clear if not appending
-    } else {
-      // If appending, remove "No posts" message if it exists (unlikely if appending but good safety)
-      const noPosts = container.querySelector(".no-posts-msg");
-      if (noPosts) noPosts.remove();
-
-      // Remove old Load More button before appending new posts
-      // (It will be re-added by updateLoadMoreButton)
-      const oldBtn = container.querySelector(".load-more-container");
-      if (oldBtn) oldBtn.remove();
-    }
-
-    if ((!posts || posts.length === 0) && !append) {
-      container.innerHTML =
-        '<p class="no-posts-msg">まだ投稿はありません。</p>';
-      return;
-    }
-
-    if (!posts || posts.length === 0) return; // Nothing to append
-
-    const now = new Date();
-
-    const html = posts
-      .map((post) => {
-        const scheduledDate = new Date(post.scheduled_at);
-        const isScheduledFuture = scheduledDate > now;
-        const isMyPost = post.user_id === user.id;
-
-        // If it's a future post but NOT mine (shouldn't happen via API but safety), hide it
-        if (isScheduledFuture && !isMyPost && !isAdmin) return "";
-
-        // Edit Permission: Own post OR Superadmin
-        const canEdit = isMyPost || isSuperAdmin;
-        const canDelete = isMyPost || isAdmin; // Admin can delete any post (existing logic)
-
-        return `
-            <div class="board-post ${isScheduledFuture ? "scheduled-post-container" : ""}" style="position:relative;">
-                ${
-                  isScheduledFuture
-                    ? `<div class="scheduled-badge"><i class="far fa-clock"></i> 予約投稿: ${scheduledDate.toLocaleString()}</div>`
-                    : ""
+            if (fetchError) {
+                console.error("Error fetching post for deletion:", fetchError);
+                // Continue to delete from DB even if fetch fails, to avoid zombie posts
+            } else if (post && post.images && post.images.length > 0) {
+                // 2. Delete files from X-server
+                try {
+                    await fetch("https://data.sodre.jp/api/delete.php", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${currentSession?.access_token}`,
+                        },
+                        body: JSON.stringify({ urls: post.images }),
+                    });
+                } catch (deleteErr) {
+                    console.error("Physical file delete error:", deleteErr);
+                    // Continue to delete from DB
                 }
+            }
+
+            // 3. Delete from DB
+            const { error } = await supabase
+                .from("board_posts")
+                .delete()
+                .eq("id", postId);
+
+            if (error) {
+                alert("削除に失敗しました: " + error.message);
+            } else {
+                if (currentPostContext === "all") loadAllPosts(true);
+                else if (currentPostContext === "group" && currentGroupId)
+                    loadGroupPosts(currentGroupId, true);
+            }
+        } catch (err) {
+            console.error("Delete error:", err);
+            alert("削除中にエラーが発生しました。");
+        }
+    };
+
+    window.togglePin = async (postId, currentPinState) => {
+        const newState = !currentPinState;
+        const { error } = await supabase.rpc("toggle_post_pin", {
+            post_id: postId,
+            pin_state: newState,
+        });
+
+        if (error) {
+            alert("ピン留めの変更に失敗しました: " + error.message);
+        } else {
+            if (currentPostContext === "all") loadAllPosts(true);
+            else if (currentPostContext === "group" && currentGroupId)
+                loadGroupPosts(currentGroupId, true);
+        }
+    };
+
+    // Edit function attached to window
+    window.editMemberPost = async (postId) => {
+        // Fetch full post details to populate modal
+        const { data, error } = await supabase
+            .from("board_posts")
+            .select("*")
+            .eq("id", postId)
+            .single();
+
+        if (error || !data) {
+            alert("投稿情報の取得に失敗しました。");
+            return;
+        }
+        openPostModal(data);
+    };
+
+    // --- Components ---
+    function updateLoadMoreButton(container, hasMore, onClick) {
+        // Remove existing button if any
+        let existing = container.querySelector(".load-more-container");
+        if (existing) existing.remove();
+
+        if (hasMore) {
+            const wrapper = document.createElement("div");
+            wrapper.className = "load-more-container";
+            const btn = document.createElement("button");
+            btn.className = "load-more-btn";
+            btn.innerText = "さらに表示";
+            btn.onclick = onClick;
+            wrapper.appendChild(btn);
+            container.appendChild(wrapper);
+        }
+    }
+
+    function renderPosts(posts, container, append = false) {
+        if (!append) {
+            container.innerHTML = ""; // Clear if not appending
+        } else {
+            // If appending, remove "No posts" message if it exists (unlikely if appending but good safety)
+            const noPosts = container.querySelector(".no-posts-msg");
+            if (noPosts) noPosts.remove();
+
+            // Remove old Load More button before appending new posts
+            // (It will be re-added by updateLoadMoreButton)
+            const oldBtn = container.querySelector(".load-more-container");
+            if (oldBtn) oldBtn.remove();
+        }
+
+        if ((!posts || posts.length === 0) && !append) {
+            container.innerHTML =
+                '<p class="no-posts-msg">まだ投稿はありません。</p>';
+            return;
+        }
+
+        if (!posts || posts.length === 0) return; // Nothing to append
+
+        const now = new Date();
+
+        const html = posts
+            .map((post) => {
+                const scheduledDate = new Date(post.scheduled_at);
+                const isScheduledFuture = scheduledDate > now;
+                const isMyPost = post.user_id === user.id;
+
+                // If it's a future post but NOT mine (shouldn't happen via API but safety), hide it
+                if (isScheduledFuture && !isMyPost && !isAdmin) return "";
+
+                // Edit Permission: Own post OR Superadmin
+                const canEdit = isMyPost || isSuperAdmin;
+                const canDelete = isMyPost || isAdmin; // Admin can delete any post (existing logic)
+
+                return `
+            <div class="board-post ${isScheduledFuture ? "scheduled-post-container" : ""}" style="position:relative;">
+                ${isScheduledFuture
+                        ? `<div class="scheduled-badge"><i class="far fa-clock"></i> 予約投稿: ${scheduledDate.toLocaleString()}</div>`
+                        : ""
+                    }
                 <div class="bp-header" style="justify-content:space-between; align-items:center;">
                     <span class="bp-author">${post.profiles?.display_name || "Unknown"}</span>
                     <div style="display:flex; align-items:center; gap:10px;">
@@ -1434,70 +1433,66 @@ document.addEventListener("DOMContentLoaded", async () => {
                         
                         ${post.is_pinned ? `<i class="fas fa-thumbtack" style="color:var(--primary-color); margin-right:5px;" title="固定された投稿"></i>` : ""}
 
-                        ${
-                          isAdmin
-                            ? `<button onclick="togglePin('${post.id}', ${post.is_pinned})" style="background:none; border:none; color:${post.is_pinned ? "#666" : "var(--primary-color)"}; cursor:pointer; font-size:0.8rem; text-decoration:underline;">
+                        ${isAdmin
+                        ? `<button onclick="togglePin('${post.id}', ${post.is_pinned})" style="background:none; border:none; color:${post.is_pinned ? "#666" : "var(--primary-color)"}; cursor:pointer; font-size:0.8rem; text-decoration:underline;">
                                 ${post.is_pinned ? "固定解除" : "固定する"}
                             </button>`
-                            : ""
-                        }
+                        : ""
+                    }
 
-                        ${
-                          canEdit
-                            ? `<button onclick="editMemberPost('${post.id}')" style="background:none; border:none; color:var(--primary-color); cursor:pointer; font-size:0.8rem; text-decoration:underline;">編集</button>`
-                            : ""
-                        }
+                        ${canEdit
+                        ? `<button onclick="editMemberPost('${post.id}')" style="background:none; border:none; color:var(--primary-color); cursor:pointer; font-size:0.8rem; text-decoration:underline;">編集</button>`
+                        : ""
+                    }
                         
-                        ${
-                          canDelete
-                            ? `<button onclick="deleteMemberPost('${post.id}')" style="background:none; border:none; color:#ff4d4d; cursor:pointer; font-size:0.8rem; text-decoration:underline;">削除</button>`
-                            : ""
-                        }
+                        ${canDelete
+                        ? `<button onclick="deleteMemberPost('${post.id}')" style="background:none; border:none; color:#ff4d4d; cursor:pointer; font-size:0.8rem; text-decoration:underline;">削除</button>`
+                        : ""
+                    }
                     </div>
                 </div>
-                ${
-                  post.images && post.images.length > 0
-                    ? `
+                ${post.images && post.images.length > 0
+                        ? `
                     <div style="display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
                         ${post.images
-                          .map((url) => {
-                            const secureUrl = getSecureUrl(url);
-                            if (isImageUrl(url)) {
-                              return `<img src="${secureUrl}" 
+                            .map((url) => {
+                                const secureUrl = getSecureUrl(url);
+                                if (isImageUrl(url)) {
+                                    return `<img src="${secureUrl}" 
                                     loading="lazy"
                                     onclick="openLightbox('${secureUrl}')"
                                     style="max-width:100%; height:auto; max-height:200px; border-radius:4px; cursor:pointer; transition:opacity 0.2s; object-fit: contain;" 
                                     onmouseover="this.style.opacity=0.8" 
                                     onmouseout="this.style.opacity=1"
                                 >`;
-                            } else {
-                              // Extract original name from query param if available
-                              let fname = url.split("/").pop();
-                              try {
-                                const urlObj = new URL(url);
-                                const originalName =
-                                  urlObj.searchParams.get("name");
-                                if (originalName) {
-                                  fname = originalName;
                                 } else {
-                                  // Fallback: strip query string from physical filename
-                                  fname = fname.split("?")[0];
-                                }
-                              } catch (e) {
-                                fname = fname.split("?")[0];
-                              }
+                                    // Extract original name from query param if available
+                                    let fname = url.split("/").pop();
+                                    try {
+                                        const urlObj = new URL(url);
+                                        const originalName =
+                                            urlObj.searchParams.get("name");
+                                        if (originalName) {
+                                            fname = originalName;
+                                        } else {
+                                            // Fallback: strip query string from physical filename
+                                            fname = fname.split("?")[0];
+                                        }
+                                    } catch (e) {
+                                        fname = fname.split("?")[0];
+                                    }
 
-                              const isPreviewable = isPreviewableFile(fname);
-                              if (isPreviewable) {
-                                return `<a href="${secureUrl}" target="_blank" rel="noopener noreferrer" 
+                                    const isPreviewable = isPreviewableFile(fname);
+                                    if (isPreviewable) {
+                                        return `<a href="${secureUrl}" target="_blank" rel="noopener noreferrer" 
                                         style="display:inline-flex; align-items:center; gap:6px; padding:8px 14px; background:#f5f5f5; border-radius:6px; text-decoration:none; color:#333; font-size:0.85rem; transition:background 0.2s;"
                                         onmouseover="this.style.background='#eee'" onmouseout="this.style.background='#f5f5f5'">
                                         <i class="${getFileIconFromUrl(url)}" style="color:var(--primary-color); font-size:1.1rem;"></i>
                                         <span>${decodeURIComponent(fname)}</span>
                                         <i class="fas fa-external-link-alt" style="color:#999; font-size:0.8rem;"></i>
                                     </a>`;
-                              } else {
-                                return `<a href="javascript:void(0)" 
+                                    } else {
+                                        return `<a href="javascript:void(0)" 
                                         onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(fname)}')"
                                         style="display:inline-flex; align-items:center; gap:6px; padding:8px 14px; background:#f5f5f5; border-radius:6px; text-decoration:none; color:#333; font-size:0.85rem; transition:background 0.2s;"
                                         onmouseover="this.style.background='#eee'" onmouseout="this.style.background='#f5f5f5'">
@@ -1505,35 +1500,34 @@ document.addEventListener("DOMContentLoaded", async () => {
                                         <span>${decodeURIComponent(fname)}</span>
                                         <i class="fas fa-download" style="color:#999; font-size:0.8rem;"></i>
                                     </a>`;
-                              }
-                            }
-                          })
-                          .join("")}
+                                    }
+                                }
+                            })
+                            .join("")}
                     </div>`
-                    : ""
-                }
+                        : ""
+                    }
                 <div class="bp-content ql-snow"><div class="ql-editor" style="padding:0;">${DOMPurify.sanitize(formatContent(post.content))}</div></div>
                 
                 <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
-                    ${
-                      post.allow_comments
+                    ${post.allow_comments
                         ? (() => {
                             const commentCount =
-                              post.board_comments && post.board_comments[0]
-                                ? post.board_comments[0].count
-                                : 0;
+                                post.board_comments && post.board_comments[0]
+                                    ? post.board_comments[0].count
+                                    : 0;
                             const btnStyle =
-                              commentCount > 0
-                                ? "color:var(--primary-color); font-weight:bold;"
-                                : "color:#666;";
+                                commentCount > 0
+                                    ? "color:var(--primary-color); font-weight:bold;"
+                                    : "color:#666;";
                             const iconClass =
-                              commentCount > 0
-                                ? "fas fa-comment"
-                                : "far fa-comment";
+                                commentCount > 0
+                                    ? "fas fa-comment"
+                                    : "far fa-comment";
                             return `<button onclick="toggleComments('${post.id}')" style="background:none; border:none; cursor:pointer; font-size:0.9rem; ${btnStyle}">
                             <i class="${iconClass}"></i> コメント ${commentCount > 0 ? `(${commentCount})` : ""}
                         </button>`;
-                          })()
+                        })()
                         : '<span style="color:#999; font-size:0.8rem;">コメント無効</span>'
                     }
                 </div>
@@ -1545,8 +1539,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <p style="font-size:0.8rem; color:#999;">読み込み中...</p>
                     </div>
                     
-                    ${
-                      post.allow_comments
+                    ${post.allow_comments
                         ? `
                         <div class="comment-form" style="flex-direction: column; align-items: stretch;">
                             <div id="comment-input-container-${post.id}" style="margin-bottom: 10px;">
@@ -1567,171 +1560,169 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </div>
             </div>
             `;
-      })
-      .join("");
+            })
+            .join("");
 
-    container.insertAdjacentHTML("beforeend", html);
-  }
-
-  // --- Comment Quill State ---
-  const commentQuillInstances = {};
-  const commentEditQuillInstances = {};
-
-  function initCommentQuill(postId) {
-    if (!commentQuillInstances[postId]) {
-      try {
-        commentQuillInstances[postId] = new Quill(`#comment-input-${postId}`, {
-          theme: "snow",
-          modules: {
-            toolbar: [
-              ["bold", "italic", "underline", "strike"],
-              [{ color: [] }, { background: [] }],
-              ["link", "clean"],
-            ], // Simplified toolbar for comments
-          },
-          placeholder: "コメントを書く...",
-        });
-      } catch (e) {
-        console.error("Comment Quill Init Error", e);
-      }
+        container.insertAdjacentHTML("beforeend", html);
     }
-  }
 
-  // --- Comment Logic ---
-  window.toggleComments = async (postId) => {
-    const section = document.getElementById(`comments-${postId}`);
-    if (section.style.display === "block") {
-      section.style.display = "none";
-    } else {
-      section.style.display = "block";
-      await loadComments(postId);
-      // Initialize Quill when section is opened
-      initCommentQuill(postId);
+    // --- Comment Quill State ---
+    const commentQuillInstances = {};
+    const commentEditQuillInstances = {};
+
+    function initCommentQuill(postId) {
+        if (!commentQuillInstances[postId]) {
+            try {
+                commentQuillInstances[postId] = new Quill(`#comment-input-${postId}`, {
+                    theme: "snow",
+                    modules: {
+                        toolbar: [
+                            ["bold", "italic", "underline", "strike"],
+                            [{ color: [] }, { background: [] }],
+                            ["link", "clean"],
+                        ], // Simplified toolbar for comments
+                    },
+                    placeholder: "コメントを書く...",
+                });
+            } catch (e) {
+                console.error("Comment Quill Init Error", e);
+            }
+        }
     }
-  };
 
-  // --- Secure URL Helper ---
-  function getSecureUrl(url) {
-    if (!url || !url.startsWith("https://data.sodre.jp/uploads/")) {
-      return url;
+    // --- Comment Logic ---
+    window.toggleComments = async (postId) => {
+        const section = document.getElementById(`comments-${postId}`);
+        if (section.style.display === "block") {
+            section.style.display = "none";
+        } else {
+            section.style.display = "block";
+            await loadComments(postId);
+            // Initialize Quill when section is opened
+            initCommentQuill(postId);
+        }
+    };
+
+    // --- Secure URL Helper ---
+    function getSecureUrl(url) {
+        if (!url || !url.startsWith("https://data.sodre.jp/uploads/")) {
+            return url;
+        }
+        if (currentSession && currentSession.access_token) {
+            const separator = url.includes("?") ? "&" : "?";
+            const newUrl = `${url}${separator}token=${currentSession.access_token}`;
+            console.log("getSecureUrl(Debug): Appending token to", url);
+            return newUrl;
+        } else {
+            console.warn(
+                "getSecureUrl(Debug): Session/Token missing!",
+                currentSession,
+            );
+        }
+        return url;
     }
-    if (currentSession && currentSession.access_token) {
-      const separator = url.includes("?") ? "&" : "?";
-      const newUrl = `${url}${separator}token=${currentSession.access_token}`;
-      console.log("getSecureUrl(Debug): Appending token to", url);
-      return newUrl;
-    } else {
-      console.warn(
-        "getSecureUrl(Debug): Session/Token missing!",
-        currentSession,
-      );
-    }
-    return url;
-  }
 
-  window.loadComments = async (postId) => {
-    const listEl = document.getElementById(`comments-list-${postId}`);
+    window.loadComments = async (postId) => {
+        const listEl = document.getElementById(`comments-list-${postId}`);
 
-    const { data, error } = await supabase
-      .from("board_comments")
-      .select(
-        `
+        const { data, error } = await supabase
+            .from("board_comments")
+            .select(
+                `
                 *,
                 profiles(display_name)
             `,
-      )
-      .eq("post_id", postId)
-      .order("created_at", { ascending: true });
+            )
+            .eq("post_id", postId)
+            .order("created_at", { ascending: true });
 
-    if (error) {
-      console.error(error);
-      listEl.innerHTML =
-        '<p style="color:red;">コメントの読み込みに失敗しました。</p>';
-      return;
-    }
+        if (error) {
+            console.error(error);
+            listEl.innerHTML =
+                '<p style="color:red;">コメントの読み込みに失敗しました。</p>';
+            return;
+        }
 
-    renderComments(postId, data);
-  };
+        renderComments(postId, data);
+    };
 
-  function renderComments(postId, comments) {
-    const listEl = document.getElementById(`comments-list-${postId}`);
-    if (!comments || comments.length === 0) {
-      listEl.innerHTML =
-        '<p style="font-size:0.8rem; color:#999;">まだコメントはありません。</p>';
-      return;
-    }
+    function renderComments(postId, comments) {
+        const listEl = document.getElementById(`comments-list-${postId}`);
+        if (!comments || comments.length === 0) {
+            listEl.innerHTML =
+                '<p style="font-size:0.8rem; color:#999;">まだコメントはありません。</p>';
+            return;
+        }
 
-    listEl.innerHTML = comments
-      .map((comment) => {
-        const canEditComment = comment.user_id === user.id || isSuperAdmin;
-        const canDeleteComment = comment.user_id === user.id || isAdmin;
-        return `
+        listEl.innerHTML = comments
+            .map((comment) => {
+                const canEditComment = comment.user_id === user.id || isSuperAdmin;
+                const canDeleteComment = comment.user_id === user.id || isAdmin;
+                return `
             <div class="comment-item" id="comment-item-${comment.id}">
                 <div class="comment-header">
                     <span class="comment-author">${comment.profiles?.display_name || "Unknown"}</span>
                     <div class="comment-actions">
                         <span>${new Date(comment.created_at).toLocaleString()}</span>
                         ${canEditComment ? `<button onclick="editComment('${comment.id}', '${postId}')" title="編集" style="background:none;border:none;cursor:pointer;color:var(--primary-color);"><i class="fas fa-edit"></i></button>` : ""}
-                        ${
-                          canDeleteComment
-                            ? `<button onclick="deleteComment('${comment.id}', '${postId}')" title="削除"><i class="fas fa-trash"></i></button>`
-                            : ""
-                        }
+                        ${canDeleteComment
+                        ? `<button onclick="deleteComment('${comment.id}', '${postId}')" title="削除"><i class="fas fa-trash"></i></button>`
+                        : ""
+                    }
                     </div>
                 </div>
-                ${
-                  comment.images && comment.images.length > 0
-                    ? `
+                ${comment.images && comment.images.length > 0
+                        ? `
                     <div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
                         ${comment.images
-                          .map((url) => {
-                            const secureUrl = getSecureUrl(url);
-                            if (isImageUrl(url)) {
-                              return `<img src="${secureUrl}" 
+                            .map((url) => {
+                                const secureUrl = getSecureUrl(url);
+                                if (isImageUrl(url)) {
+                                    return `<img src="${secureUrl}" 
                                     loading="lazy"
                                     onclick="openLightbox('${secureUrl}')"
                                     style="max-width:100px; height:auto; max-height:100px; border-radius:4px; cursor:pointer; transition:opacity 0.2s; object-fit: contain;" 
                                     onmouseover="this.style.opacity=0.8" 
                                     onmouseout="this.style.opacity=1"
                                 >`;
-                            } else {
-                              let fname = url.split("/").pop();
-                              try {
-                                const urlObj = new URL(url);
-                                const originalName =
-                                  urlObj.searchParams.get("name");
-                                if (originalName) {
-                                  fname = originalName;
                                 } else {
-                                  fname = fname.split("?")[0];
-                                }
-                              } catch (e) {
-                                fname = fname.split("?")[0];
-                              }
+                                    let fname = url.split("/").pop();
+                                    try {
+                                        const urlObj = new URL(url);
+                                        const originalName =
+                                            urlObj.searchParams.get("name");
+                                        if (originalName) {
+                                            fname = originalName;
+                                        } else {
+                                            fname = fname.split("?")[0];
+                                        }
+                                    } catch (e) {
+                                        fname = fname.split("?")[0];
+                                    }
 
-                              const isPreviewable = isPreviewableFile(fname);
-                              if (isPreviewable) {
-                                return `<a href="${secureUrl}" target="_blank" rel="noopener noreferrer" 
+                                    const isPreviewable = isPreviewableFile(fname);
+                                    if (isPreviewable) {
+                                        return `<a href="${secureUrl}" target="_blank" rel="noopener noreferrer" 
                                         style="display:inline-flex; align-items:center; gap:6px; padding:6px 10px; background:#f5f5f5; border-radius:6px; text-decoration:none; color:#333; font-size:0.8rem; transition:background 0.2s;"
                                         onmouseover="this.style.background='#eee'" onmouseout="this.style.background='#f5f5f5'">
                                         <i class="${getFileIconFromUrl(url)}" style="color:var(--primary-color); font-size:1rem;"></i>
                                         <span style="max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${decodeURIComponent(fname)}</span>
                                     </a>`;
-                              } else {
-                                return `<a href="javascript:void(0)" 
+                                    } else {
+                                        return `<a href="javascript:void(0)" 
                                         onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(fname)}')"
                                         style="display:inline-flex; align-items:center; gap:6px; padding:6px 10px; background:#f5f5f5; border-radius:6px; text-decoration:none; color:#333; font-size:0.8rem; transition:background 0.2s;"
                                         onmouseover="this.style.background='#eee'" onmouseout="this.style.background='#f5f5f5'">
                                         <i class="${getFileIconFromUrl(url)}" style="color:var(--primary-color); font-size:1rem;"></i>
                                         <span style="max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${decodeURIComponent(fname)}</span>
                                     </a>`;
-                              }
-                            }
-                          })
-                          .join("")}
+                                    }
+                                }
+                            })
+                            .join("")}
                     </div>`
-                    : ""
-                }
+                        : ""
+                    }
                 <div id="comment-content-${comment.id}" class="ql-snow"><div class="ql-editor" style="padding:0; font-size:0.9rem;">${DOMPurify.sanitize(formatCommentContent(comment.content))}</div></div>
                 <div id="comment-edit-form-${comment.id}" style="display:none; margin-top:8px;">
                     <div id="comment-edit-input-container-${comment.id}" style="margin-bottom: 5px;">
@@ -1744,1019 +1735,1020 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </div>
             </div>
         `;
-      })
-      .join("");
-  }
-
-  function initCommentEditQuill(commentId, existingContent) {
-    if (!commentEditQuillInstances[commentId]) {
-      try {
-        const quill = new Quill(`#comment-edit-input-${commentId}`, {
-          theme: "snow",
-          modules: {
-            toolbar: [
-              ["bold", "italic", "underline", "strike"],
-              [{ color: [] }, { background: [] }],
-              ["link", "clean"],
-            ],
-          },
-          placeholder: "コメントを編集...",
-        });
-        commentEditQuillInstances[commentId] = quill;
-        quill.root.innerHTML = existingContent || "";
-      } catch (e) {
-        console.error("Comment Edit Quill Init Error", e);
-      }
-    }
-  }
-
-  // --- Comment Edit Functions ---
-  window.editComment = (commentId, postId) => {
-    const contentDiv = document.getElementById(`comment-content-${commentId}`);
-    const editForm = document.getElementById(`comment-edit-form-${commentId}`);
-
-    contentDiv.style.display = "none";
-    editForm.style.display = "block";
-
-    // Read raw DOMPurify sanitized content dynamically or maintain in JS state.
-    // For simple case, we extract what's in the DOM since DOMPurify maintains Quill integrity.
-    const existingContent = contentDiv.innerHTML;
-    initCommentEditQuill(commentId, existingContent);
-  };
-
-  window.cancelCommentEdit = (commentId) => {
-    document.getElementById(`comment-content-${commentId}`).style.display =
-      "block";
-    document.getElementById(`comment-edit-form-${commentId}`).style.display =
-      "none";
-  };
-
-  window.saveCommentEdit = async (commentId, postId) => {
-    const quill = commentEditQuillInstances[commentId];
-    let content = "";
-
-    if (quill) {
-      if (
-        quill.getText().trim().length === 0 &&
-        !quill.root.innerHTML.includes("<img")
-      ) {
-        content = ""; // Treat as empty
-      } else {
-        content = quill.root.innerHTML;
-      }
-    } else {
-      // Unlikely fallback
-      const fallbackEl = document.getElementById(
-        `comment-edit-input-${commentId}`,
-      );
-      if (fallbackEl) content = fallbackEl.innerText || "";
+            })
+            .join("");
     }
 
-    if (!content) return;
-
-    const { error } = await supabase
-      .from("board_comments")
-      .update({ content: content })
-      .eq("id", commentId);
-
-    if (error) {
-      alert("コメントの更新に失敗しました: " + error.message);
-    } else {
-      await loadComments(postId);
-    }
-  };
-
-  // --- Comment File Handling State ---
-  const commentFiles = {}; // Structure: { [postId]: [File, File, ...] }
-
-  window.handleCommentFileSelect = (event, postId) => {
-    const files = Array.from(event.target.files);
-    if (!files || files.length === 0) return;
-
-    if (!commentFiles[postId]) {
-      commentFiles[postId] = [];
-    }
-
-    const previewArea = document.getElementById(
-      `comment-media-preview-${postId}`,
-    );
-
-    files.forEach((file) => {
-      const container = document.createElement("div");
-      container.style.position = "relative";
-      container.style.display = "inline-block";
-
-      if (file.type.startsWith("image/")) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const img = document.createElement("img");
-          img.src = ev.target.result;
-          img.style.width = "60px";
-          img.style.height = "60px";
-          img.style.objectFit = "cover";
-          img.style.borderRadius = "4px";
-          container.appendChild(img);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        const filePreview = document.createElement("div");
-        filePreview.style.display = "inline-flex";
-        filePreview.style.alignItems = "center";
-        filePreview.style.gap = "5px";
-        filePreview.style.padding = "4px 8px";
-        filePreview.style.background = "#f5f5f5";
-        filePreview.style.borderRadius = "4px";
-        filePreview.style.fontSize = "0.75rem";
-        filePreview.innerHTML = `<i class="${getFileIcon(file.name)}" style="color:var(--primary-color);"></i> <span style="max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(file.name)}</span>`;
-        container.appendChild(filePreview);
-      }
-
-      const cancelBtn = document.createElement("span");
-      cancelBtn.innerHTML = "&times;";
-      cancelBtn.style.position = "absolute";
-      cancelBtn.style.top = "-6px";
-      cancelBtn.style.right = "-6px";
-      cancelBtn.style.background = "rgba(0,0,0,0.6)";
-      cancelBtn.style.color = "white";
-      cancelBtn.style.borderRadius = "50%";
-      cancelBtn.style.width = "16px";
-      cancelBtn.style.height = "16px";
-      cancelBtn.style.display = "flex";
-      cancelBtn.style.alignItems = "center";
-      cancelBtn.style.justifyContent = "center";
-      cancelBtn.style.cursor = "pointer";
-      cancelBtn.style.fontSize = "12px";
-      cancelBtn.style.lineHeight = "1";
-      cancelBtn.style.zIndex = "10";
-
-      cancelBtn.addEventListener("click", () => {
-        const index = commentFiles[postId].indexOf(file);
-        if (index > -1) {
-          commentFiles[postId].splice(index, 1);
-        }
-        container.remove();
-      });
-
-      container.appendChild(cancelBtn);
-      previewArea.appendChild(container);
-      commentFiles[postId].push(file);
-    });
-
-    // Clear input
-    event.target.value = "";
-  };
-
-  window.submitComment = async (postId) => {
-    const quill = commentQuillInstances[postId];
-    let content = "";
-
-    if (quill) {
-      if (
-        quill.getText().trim().length === 0 &&
-        !quill.root.innerHTML.includes("<img")
-      ) {
-        content = "";
-      } else {
-        content = quill.root.innerHTML;
-      }
-    } else {
-      // Fallback just in case quill didn't init
-      const inputEl = document.getElementById(`comment-input-${postId}`);
-      if (inputEl) {
-        // If fallback element is a div (which it should be), textContent or innerText could be used.
-        // But typically if Quill failed to init we just can't submit properly.
-        // Adding basic graceful fail here.
-        content = inputEl.innerText || "";
-      }
-    }
-
-    const filesToUpload = commentFiles[postId] || [];
-
-    if (!content && filesToUpload.length === 0) return;
-
-    // Visual feedback based on DOM structure
-    const commentSection = document.getElementById(`comments-${postId}`);
-    const submitBtn = commentSection.querySelector(".btn-comment-submit");
-
-    if (submitBtn) {
-      submitBtn.disabled = true;
-      submitBtn.textContent = "送信中...";
-    }
-
-    let imageUrls = [];
-
-    // Upload files if any exist
-    if (filesToUpload.length > 0) {
-      const formData = new FormData();
-      for (const file of filesToUpload) {
-        formData.append("files[]", file);
-      }
-      try {
-        const uploadRes = await fetch(window.UPLOAD_API_URL, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${currentSession?.access_token}` },
-          body: formData,
-        });
-        const uploadData = await uploadRes.json();
-        if (uploadData.success && uploadData.urls) {
-          imageUrls = uploadData.urls.map((url, index) => {
-            const file = filesToUpload[index];
-            if (file) {
-              return `${url}?name=${encodeURIComponent(file.name)}`;
+    function initCommentEditQuill(commentId, existingContent) {
+        if (!commentEditQuillInstances[commentId]) {
+            try {
+                const quill = new Quill(`#comment-edit-input-${commentId}`, {
+                    theme: "snow",
+                    modules: {
+                        toolbar: [
+                            ["bold", "italic", "underline", "strike"],
+                            [{ color: [] }, { background: [] }],
+                            ["link", "clean"],
+                        ],
+                    },
+                    placeholder: "コメントを編集...",
+                });
+                commentEditQuillInstances[commentId] = quill;
+                quill.root.innerHTML = existingContent || "";
+            } catch (e) {
+                console.error("Comment Edit Quill Init Error", e);
             }
-            return url;
-          });
+        }
+    }
+
+    // --- Comment Edit Functions ---
+    window.editComment = (commentId, postId) => {
+        const contentDiv = document.getElementById(`comment-content-${commentId}`);
+        const editForm = document.getElementById(`comment-edit-form-${commentId}`);
+
+        contentDiv.style.display = "none";
+        editForm.style.display = "block";
+
+        // Read raw DOMPurify sanitized content dynamically or maintain in JS state.
+        // For simple case, we extract what's in the DOM since DOMPurify maintains Quill integrity.
+        const existingContent = contentDiv.innerHTML;
+        initCommentEditQuill(commentId, existingContent);
+    };
+
+    window.cancelCommentEdit = (commentId) => {
+        document.getElementById(`comment-content-${commentId}`).style.display =
+            "block";
+        document.getElementById(`comment-edit-form-${commentId}`).style.display =
+            "none";
+    };
+
+    window.saveCommentEdit = async (commentId, postId) => {
+        const quill = commentEditQuillInstances[commentId];
+        let content = "";
+
+        if (quill) {
+            if (
+                quill.getText().trim().length === 0 &&
+                !quill.root.innerHTML.includes("<img")
+            ) {
+                content = ""; // Treat as empty
+            } else {
+                content = quill.root.innerHTML;
+            }
         } else {
-          console.error("Comment upload error:", uploadData.error);
-          alert(
-            "ファイルのアップロードに失敗しました: " +
-              (uploadData.error || "不明なエラー"),
-          );
-          if (submitBtn) {
+            // Unlikely fallback
+            const fallbackEl = document.getElementById(
+                `comment-edit-input-${commentId}`,
+            );
+            if (fallbackEl) content = fallbackEl.innerText || "";
+        }
+
+        if (!content) return;
+
+        const { error } = await supabase
+            .from("board_comments")
+            .update({ content: content })
+            .eq("id", commentId);
+
+        if (error) {
+            alert("コメントの更新に失敗しました: " + error.message);
+        } else {
+            await loadComments(postId);
+        }
+    };
+
+    // --- Comment File Handling State ---
+    const commentFiles = {}; // Structure: { [postId]: [File, File, ...] }
+
+    window.handleCommentFileSelect = (event, postId) => {
+        const files = Array.from(event.target.files);
+        if (!files || files.length === 0) return;
+
+        if (!commentFiles[postId]) {
+            commentFiles[postId] = [];
+        }
+
+        const previewArea = document.getElementById(
+            `comment-media-preview-${postId}`,
+        );
+
+        files.forEach((file) => {
+            const container = document.createElement("div");
+            container.style.position = "relative";
+            container.style.display = "inline-block";
+
+            if (file.type.startsWith("image/")) {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const img = document.createElement("img");
+                    img.src = ev.target.result;
+                    img.style.width = "60px";
+                    img.style.height = "60px";
+                    img.style.objectFit = "cover";
+                    img.style.borderRadius = "4px";
+                    container.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                const filePreview = document.createElement("div");
+                filePreview.style.display = "inline-flex";
+                filePreview.style.alignItems = "center";
+                filePreview.style.gap = "5px";
+                filePreview.style.padding = "4px 8px";
+                filePreview.style.background = "#f5f5f5";
+                filePreview.style.borderRadius = "4px";
+                filePreview.style.fontSize = "0.75rem";
+                filePreview.innerHTML = `<i class="${getFileIcon(file.name)}" style="color:var(--primary-color);"></i> <span style="max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(file.name)}</span>`;
+                container.appendChild(filePreview);
+            }
+
+            const cancelBtn = document.createElement("span");
+            cancelBtn.innerHTML = "&times;";
+            cancelBtn.style.position = "absolute";
+            cancelBtn.style.top = "-6px";
+            cancelBtn.style.right = "-6px";
+            cancelBtn.style.background = "rgba(0,0,0,0.6)";
+            cancelBtn.style.color = "white";
+            cancelBtn.style.borderRadius = "50%";
+            cancelBtn.style.width = "16px";
+            cancelBtn.style.height = "16px";
+            cancelBtn.style.display = "flex";
+            cancelBtn.style.alignItems = "center";
+            cancelBtn.style.justifyContent = "center";
+            cancelBtn.style.cursor = "pointer";
+            cancelBtn.style.fontSize = "12px";
+            cancelBtn.style.lineHeight = "1";
+            cancelBtn.style.zIndex = "10";
+
+            cancelBtn.addEventListener("click", () => {
+                const index = commentFiles[postId].indexOf(file);
+                if (index > -1) {
+                    commentFiles[postId].splice(index, 1);
+                }
+                container.remove();
+            });
+
+            container.appendChild(cancelBtn);
+            previewArea.appendChild(container);
+            commentFiles[postId].push(file);
+        });
+
+        // Clear input
+        event.target.value = "";
+    };
+
+    window.submitComment = async (postId) => {
+        const quill = commentQuillInstances[postId];
+        let content = "";
+
+        if (quill) {
+            if (
+                quill.getText().trim().length === 0 &&
+                !quill.root.innerHTML.includes("<img")
+            ) {
+                content = "";
+            } else {
+                content = quill.root.innerHTML;
+            }
+        } else {
+            // Fallback just in case quill didn't init
+            const inputEl = document.getElementById(`comment-input-${postId}`);
+            if (inputEl) {
+                // If fallback element is a div (which it should be), textContent or innerText could be used.
+                // But typically if Quill failed to init we just can't submit properly.
+                // Adding basic graceful fail here.
+                content = inputEl.innerText || "";
+            }
+        }
+
+        const filesToUpload = commentFiles[postId] || [];
+
+        if (!content && filesToUpload.length === 0) return;
+
+        // Visual feedback based on DOM structure
+        const commentSection = document.getElementById(`comments-${postId}`);
+        const submitBtn = commentSection.querySelector(".btn-comment-submit");
+
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = "送信中...";
+        }
+
+        let imageUrls = [];
+
+        // Upload files if any exist
+        if (filesToUpload.length > 0) {
+            const formData = new FormData();
+            for (const file of filesToUpload) {
+                formData.append("files[]", file);
+            }
+            try {
+                const uploadRes = await fetch(window.UPLOAD_API_URL, {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${currentSession?.access_token}` },
+                    body: formData,
+                });
+                const uploadData = await uploadRes.json();
+                if (uploadData.success && uploadData.urls) {
+                    imageUrls = uploadData.urls.map((url, index) => {
+                        const file = filesToUpload[index];
+                        if (file) {
+                            return `${url}?name=${encodeURIComponent(file.name)}`;
+                        }
+                        return url;
+                    });
+                } else {
+                    console.error("Comment upload error:", uploadData.error);
+                    alert(
+                        "ファイルのアップロードに失敗しました: " +
+                        (uploadData.error || "不明なエラー"),
+                    );
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = "送信";
+                    }
+                    return;
+                }
+            } catch (uploadErr) {
+                console.error("Comment upload fetch error:", uploadErr);
+                alert("ファイルのアップロードに失敗しました。");
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = "送信";
+                }
+                return;
+            }
+        }
+
+        const { error } = await supabase.from("board_comments").insert([
+            {
+                post_id: postId,
+                user_id: user.id,
+                content: content,
+                images: imageUrls,
+            },
+        ]);
+
+        if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.textContent = "送信";
-          }
-          return;
         }
-      } catch (uploadErr) {
-        console.error("Comment upload fetch error:", uploadErr);
-        alert("ファイルのアップロードに失敗しました。");
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.textContent = "送信";
+
+        if (error) {
+            alert("コメントの送信に失敗しました: " + error.message);
+        } else {
+            // Reset Quill
+            if (quill) {
+                quill.setContents([]);
+            }
+
+            // Clear files
+            commentFiles[postId] = [];
+            const previewArea = document.getElementById(
+                `comment-media-preview-${postId}`,
+            );
+            if (previewArea) previewArea.innerHTML = "";
+
+            await loadComments(postId); // Reload comments
         }
-        return;
-      }
-    }
-
-    const { error } = await supabase.from("board_comments").insert([
-      {
-        post_id: postId,
-        user_id: user.id,
-        content: content,
-        images: imageUrls,
-      },
-    ]);
-
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.textContent = "送信";
-    }
-
-    if (error) {
-      alert("コメントの送信に失敗しました: " + error.message);
-    } else {
-      // Reset Quill
-      if (quill) {
-        quill.setContents([]);
-      }
-
-      // Clear files
-      commentFiles[postId] = [];
-      const previewArea = document.getElementById(
-        `comment-media-preview-${postId}`,
-      );
-      if (previewArea) previewArea.innerHTML = "";
-
-      await loadComments(postId); // Reload comments
-    }
-  };
-
-  window.deleteComment = async (commentId, postId) => {
-    if (!confirm("本当に削除しますか？")) return;
-
-    try {
-      // 1. Get comment data to find images
-      const { data: comment, error: fetchError } = await supabase
-        .from("board_comments")
-        .select("images")
-        .eq("id", commentId)
-        .single();
-
-      if (fetchError) {
-        console.error("Error fetching comment for deletion:", fetchError);
-      } else if (comment && comment.images && comment.images.length > 0) {
-        // 2. Delete files from X-server
-        try {
-          await fetch("https://data.sodre.jp/api/delete.php", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${currentSession?.access_token}`,
-            },
-            body: JSON.stringify({ urls: comment.images }),
-          });
-        } catch (deleteErr) {
-          console.error("Physical file delete error for comment:", deleteErr);
-        }
-      }
-
-      // 3. Delete from DB
-      const { error } = await supabase
-        .from("board_comments")
-        .delete()
-        .eq("id", commentId);
-
-      if (error) {
-        alert("削除に失敗しました: " + error.message);
-      } else {
-        await loadComments(postId); // Reload
-      }
-    } catch (err) {
-      console.error("Delete comment error:", err);
-      alert("削除中にエラーが発生しました。");
-    }
-  };
-
-  // --- File Type Helpers ---
-  function isImageUrl(url) {
-    const ext = url.split(".").pop().split("?")[0].toLowerCase();
-    return ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext);
-  }
-
-  function getFileIcon(filename) {
-    const ext = filename.split(".").pop().toLowerCase();
-    const iconMap = {
-      pdf: "fas fa-file-pdf",
-      doc: "fas fa-file-word",
-      docx: "fas fa-file-word",
-      xls: "fas fa-file-excel",
-      xlsx: "fas fa-file-excel",
-      csv: "fas fa-file-excel",
-      ppt: "fas fa-file-powerpoint",
-      pptx: "fas fa-file-powerpoint",
-      txt: "fas fa-file-alt",
-      zip: "fas fa-file-archive",
-      rar: "fas fa-file-archive",
-      mp3: "fas fa-file-audio",
-      wav: "fas fa-file-audio",
-      ogg: "fas fa-file-audio",
-      m4a: "fas fa-file-audio",
-      mp4: "fas fa-file-video",
-      mov: "fas fa-file-video",
-      avi: "fas fa-file-video",
-      webm: "fas fa-file-video",
     };
-    return iconMap[ext] || "fas fa-file";
-  }
 
-  function getFileIconFromUrl(url) {
-    const filename = url.split("/").pop().split("?")[0];
-    return getFileIcon(filename);
-  }
+    window.deleteComment = async (commentId, postId) => {
+        if (!confirm("本当に削除しますか？")) return;
 
-  // --- File Download Handler (iOS PWA Fallback) ---
-  function isPreviewableFile(filenameOrUrl) {
-    const ext = filenameOrUrl.split(".").pop().toLowerCase().split("?")[0];
-    const previewableExts = [
-      "pdf",
-      "jpg",
-      "jpeg",
-      "png",
-      "gif",
-      "webp",
-      "svg",
-      "mp3",
-      "wav",
-      "ogg",
-      "m4a",
-      "mp4",
-      "mov",
-      "avi",
-      "webm",
-    ];
-    return previewableExts.includes(ext);
-  }
-  window.handleFileDownload = async (event, url, encodedFilename) => {
-    event.preventDefault();
-    const filename = decodeURIComponent(encodedFilename);
+        try {
+            // 1. Get comment data to find images
+            const { data: comment, error: fetchError } = await supabase
+                .from("board_comments")
+                .select("images")
+                .eq("id", commentId)
+                .single();
 
-    const isIOS =
-      /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            if (fetchError) {
+                console.error("Error fetching comment for deletion:", fetchError);
+            } else if (comment && comment.images && comment.images.length > 0) {
+                // 2. Delete files from X-server
+                try {
+                    await fetch("https://data.sodre.jp/api/delete.php", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${currentSession?.access_token}`,
+                        },
+                        body: JSON.stringify({ urls: comment.images }),
+                    });
+                } catch (deleteErr) {
+                    console.error("Physical file delete error for comment:", deleteErr);
+                }
+            }
 
-    if (isIOS) {
-      // iOS PWA: サーバー側で Content-Disposition: attachment が設定されているため、
-      // 単純にURLへ遷移するだけでiOSのダウンロードダイアログが表示される
-      window.location.href = url;
-    } else {
-      // Non-iOS: Blob経由でダウンロード（download属性が動作する）
-      try {
-        const response = await fetch(url, { cache: "no-store" });
-        if (!response.ok) throw new Error("HTTP " + response.status);
-        const blob = await response.blob();
-        const downloadUrl = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = downloadUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(downloadUrl);
-      } catch (err) {
-        console.error("File download error:", err);
-        window.open(url, "_blank");
-      }
-    }
-  };
-  // Helper for file preview
-  function createFilePreviewHTML(url) {
-    let filename = "Attachment";
-    try {
-      const urlObj = new URL(url);
-      const params = new URLSearchParams(urlObj.search);
-      if (params.has("name")) {
-        filename = decodeURIComponent(params.get("name"));
-      } else {
-        filename = url.split("/").pop().split("?")[0];
-      }
-    } catch (e) {
-      filename = url.split("/").pop().split("?")[0];
+            // 3. Delete from DB
+            const { error } = await supabase
+                .from("board_comments")
+                .delete()
+                .eq("id", commentId);
+
+            if (error) {
+                alert("削除に失敗しました: " + error.message);
+            } else {
+                await loadComments(postId); // Reload
+            }
+        } catch (err) {
+            console.error("Delete comment error:", err);
+            alert("削除中にエラーが発生しました。");
+        }
+    };
+
+    // --- File Type Helpers ---
+    function isImageUrl(url) {
+        const ext = url.split(".").pop().split("?")[0].toLowerCase();
+        return ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext);
     }
 
-    const iconClass = getFileIcon(filename); // Assume getFileIcon is global or defined nearby
-    const secureUrl = getSecureUrl(url);
+    function getFileIcon(filename) {
+        const ext = filename.split(".").pop().toLowerCase();
+        const iconMap = {
+            pdf: "fas fa-file-pdf",
+            doc: "fas fa-file-word",
+            docx: "fas fa-file-word",
+            xls: "fas fa-file-excel",
+            xlsx: "fas fa-file-excel",
+            csv: "fas fa-file-excel",
+            ppt: "fas fa-file-powerpoint",
+            pptx: "fas fa-file-powerpoint",
+            txt: "fas fa-file-alt",
+            zip: "fas fa-file-archive",
+            rar: "fas fa-file-archive",
+            mp3: "fas fa-file-audio",
+            wav: "fas fa-file-audio",
+            ogg: "fas fa-file-audio",
+            m4a: "fas fa-file-audio",
+            mp4: "fas fa-file-video",
+            mov: "fas fa-file-video",
+            avi: "fas fa-file-video",
+            webm: "fas fa-file-video",
+        };
+        return iconMap[ext] || "fas fa-file";
+    }
 
-    const isPreviewable = isPreviewableFile(filename);
-    if (isPreviewable) {
-      return `
+    function getFileIconFromUrl(url) {
+        const filename = url.split("/").pop().split("?")[0];
+        return getFileIcon(filename);
+    }
+
+    // --- File Download Handler (iOS PWA Fallback) ---
+    function isPreviewableFile(filenameOrUrl) {
+        const ext = filenameOrUrl.split(".").pop().toLowerCase().split("?")[0];
+        const previewableExts = [
+            "pdf",
+            "jpg",
+            "jpeg",
+            "png",
+            "gif",
+            "webp",
+            "svg",
+            "mp3",
+            "wav",
+            "ogg",
+            "m4a",
+            "mp4",
+            "mov",
+            "avi",
+            "webm",
+        ];
+        return previewableExts.includes(ext);
+    }
+    window.handleFileDownload = async (event, url, encodedFilename) => {
+        event.preventDefault();
+        const filename = decodeURIComponent(encodedFilename);
+
+        const isIOS =
+            /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+        if (isIOS) {
+            // iOS PWA: サーバー側で Content-Disposition: attachment が設定されているため、
+            // window.openでSafariの内蔵ブラウザが開き、ダウンロードダイアログが表示される
+            // window.location.hrefだとPWAのページ自体が遷移してしまい副作用が出る
+            window.open(url, "_blank");
+        } else {
+            // Non-iOS: Blob経由でダウンロード（download属性が動作する）
+            try {
+                const response = await fetch(url, { cache: "no-store" });
+                if (!response.ok) throw new Error("HTTP " + response.status);
+                const blob = await response.blob();
+                const downloadUrl = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = downloadUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(downloadUrl);
+            } catch (err) {
+                console.error("File download error:", err);
+                window.open(url, "_blank");
+            }
+        }
+    };
+    // Helper for file preview
+    function createFilePreviewHTML(url) {
+        let filename = "Attachment";
+        try {
+            const urlObj = new URL(url);
+            const params = new URLSearchParams(urlObj.search);
+            if (params.has("name")) {
+                filename = decodeURIComponent(params.get("name"));
+            } else {
+                filename = url.split("/").pop().split("?")[0];
+            }
+        } catch (e) {
+            filename = url.split("/").pop().split("?")[0];
+        }
+
+        const iconClass = getFileIcon(filename); // Assume getFileIcon is global or defined nearby
+        const secureUrl = getSecureUrl(url);
+
+        const isPreviewable = isPreviewableFile(filename);
+        if (isPreviewable) {
+            return `
             <a href="${secureUrl}" target="_blank" rel="noopener noreferrer" class="file-attachment-link">
                 <i class="${iconClass}"></i>
                 <span class="filename">${escapeHtml(filename)}</span>
             </a>
         `;
-    } else {
-      return `
+        } else {
+            return `
             <a href="javascript:void(0)" class="file-attachment-link" onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(filename)}'); event.stopPropagation();">
                 <i class="${iconClass}"></i>
                 <span class="filename">${escapeHtml(filename)}</span>
             </a>
         `;
-    }
-  }
-  function escapeHtml(text) {
-    if (!text) return "";
-    return text
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-  }
-
-  function formatContent(text) {
-    if (!text) return "";
-
-    // Removed escapeHtml since we now trust Quill's HTML output via DOMPurify
-    let content = text;
-
-    // Linkify external URLs (Not handled perfectly by Quill if pasted as plain text sometimes)
-    // We only linkify if it's not already in an href tag, but standard simple regex is okay for now if DOMPurify cleans up broken tags
-    const urlRegex = /(?<!href=")(https?:\/\/[^\s<]+)/g;
-    let linked = content.replace(urlRegex, function (url) {
-      if (url.startsWith("https://data.sodre.jp/uploads/")) {
-        const secureUrl = getSecureUrl(url);
-        let fname = url.split("/").pop().split("?")[0];
-        const isPreviewable = isPreviewableFile(fname);
-        if (isPreviewable) {
-          return `<a href="${secureUrl}" target="_blank" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
-        } else {
-          return `<a href="javascript:void(0)" onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(fname)}'); event.stopPropagation();" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
         }
-      }
-      return `<a href="${url}" class="external-link" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
-    });
-
-    return linked;
-  }
-
-  function formatCommentContent(text) {
-    if (!text) return "";
-
-    let content = text;
-
-    const urlRegex = /(?<!href=")(https?:\/\/[^\s<]+)/g;
-    let linked = content.replace(urlRegex, function (url) {
-      if (url.startsWith("https://data.sodre.jp/uploads/")) {
-        const secureUrl = getSecureUrl(url);
-        let fname = url.split("/").pop().split("?")[0];
-        const isPreviewable = isPreviewableFile(fname);
-        if (isPreviewable) {
-          return `<a href="${secureUrl}" target="_blank" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
-        } else {
-          return `<a href="javascript:void(0)" onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(fname)}'); event.stopPropagation();" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
-        }
-      }
-      return `<a href="${url}" class="external-link" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
-    });
-
-    // Removed explicit \n to <br> because Quill HTML uses <p> and <br> natively
-    return linked;
-  }
-
-  // --- External Link Warning Logic ---
-  const extModal = document.getElementById("external-link-modal");
-  const extUrlDisplay = document.getElementById("external-link-url");
-  const extCancelBtn = document.getElementById("external-link-cancel");
-  const extProceedBtn = document.getElementById("external-link-proceed");
-  let targetExternalUrl = "";
-
-  // Delegate click event for dynamically added links
-  document.addEventListener("click", (e) => {
-    if (e.target.classList.contains("external-link")) {
-      e.preventDefault();
-      targetExternalUrl = e.target.href;
-      extUrlDisplay.textContent = targetExternalUrl;
-      extModal.classList.add("show");
     }
-  });
-
-  extCancelBtn.addEventListener("click", () => {
-    extModal.classList.remove("show");
-    targetExternalUrl = "";
-  });
-
-  extProceedBtn.addEventListener("click", () => {
-    if (targetExternalUrl) {
-      window.open(targetExternalUrl, "_blank", "noopener,noreferrer");
-      extModal.classList.remove("show");
-      targetExternalUrl = "";
+    function escapeHtml(text) {
+        if (!text) return "";
+        return text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
     }
-  });
 
-  // --- Realtime Subscription ---
-  // --- Realtime Subscription ---
-  const channel = supabase
-    .channel("board_changes")
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "board_posts" },
-      (payload) => {
-        const eventType = payload.eventType; // INSERT, UPDATE, DELETE
-        const newPost = payload.new;
+    function formatContent(text) {
+        if (!text) return "";
 
-        // Logic to decide whether to reload posts
-        if (eventType === "INSERT") {
-          // Check if the new post is relevant to current view
-          if (currentPostContext === "all") {
-            if (!newPost.group_id) {
-              loadAllPosts(true);
+        // Removed escapeHtml since we now trust Quill's HTML output via DOMPurify
+        let content = text;
+
+        // Linkify external URLs (Not handled perfectly by Quill if pasted as plain text sometimes)
+        // We only linkify if it's not already in an href tag, but standard simple regex is okay for now if DOMPurify cleans up broken tags
+        const urlRegex = /(?<!href=")(https?:\/\/[^\s<]+)/g;
+        let linked = content.replace(urlRegex, function (url) {
+            if (url.startsWith("https://data.sodre.jp/uploads/")) {
+                const secureUrl = getSecureUrl(url);
+                let fname = url.split("/").pop().split("?")[0];
+                const isPreviewable = isPreviewableFile(fname);
+                if (isPreviewable) {
+                    return `<a href="${secureUrl}" target="_blank" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
+                } else {
+                    return `<a href="javascript:void(0)" onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(fname)}'); event.stopPropagation();" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
+                }
             }
-          } else if (currentPostContext === "group") {
-            if (newPost.group_id === currentGroupId) {
-              loadGroupPosts(currentGroupId, true);
-            }
-          }
-        } else {
-          // UPDATE or DELETE - safer to just reload
-          if (currentPostContext === "all") loadAllPosts(true);
-          else if (currentPostContext === "group" && currentGroupId)
-            loadGroupPosts(currentGroupId, true);
-        }
-      },
-    )
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "board_comments" },
-      (payload) => {
-        // When comments change, reload comments if the section is open
-        // And ideally update the comment count on the post
-        const newComment = payload.new;
-        const oldComment = payload.old;
-        const postId = newComment?.post_id || oldComment?.post_id;
-
-        if (postId) {
-          // 1. Reload comments if open
-          const commentsList = document.getElementById(
-            `comments-list-${postId}`,
-          );
-          if (commentsList && commentsList.offsetParent !== null) {
-            // visible check
-            loadComments(postId);
-          }
-
-          // 2. Reload posts to update comment count (Silent)
-          // This might be heavy, but ensures consistency
-          if (currentPostContext === "all") loadAllPosts(true);
-          else if (currentPostContext === "group" && currentGroupId)
-            loadGroupPosts(currentGroupId, true);
-        }
-      },
-    )
-    .subscribe();
-
-  // --- Personal Action Realtime Subscription ---
-  if (typeof currentSession !== "undefined" && currentSession?.user) {
-    supabase
-      .channel(`user_actions_${currentSession.user.id}`)
-      .on("broadcast", { event: "force_unlock" }, (payload) => {
-        console.log("Received force unlock command", payload);
-        // Wipe local lock state
-        localStorage.removeItem("sodre_app_lock_enabled");
-        localStorage.removeItem("sodre_app_lock_cred_id");
-
-        // Immediately disable UI protections
-        const overlay = document.getElementById("app-lock-overlay");
-        if (overlay) overlay.style.display = "none";
-        document.body.style.overflow = "";
-
-        // Uncheck the toggle visually if settings are open
-        const toggle = document.getElementById("app-lock-toggle");
-        if (toggle) toggle.checked = false;
-
-        alert("管理者によってApp Lock（生体認証ロック）が強制解除されました。");
-      })
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "profiles",
-          filter: `id=eq.${currentSession.user.id}`,
-        },
-        (payload) => {
-          const newLockState = payload.new.app_lock_enabled === true;
-          const localLockState =
-            localStorage.getItem("sodre_app_lock_enabled") === "true";
-
-          // If the database toggled App Lock on/off and it disagrees with our current browser state,
-          // reload the page so loadProfile() can properly sync UI, localStorage, and WebAuthn checks.
-          if (newLockState !== localLockState) {
-            console.log(
-              "Detected remote App Lock settings change. Reloading to sync state.",
-            );
-            window.location.reload();
-          }
-        },
-      )
-      .subscribe();
-  }
-
-  // --- Settings Modal & App Lock (WebAuthn) Logic ---
-  const settingsBtn = document.getElementById("settings-btn");
-  const settingsModal = document.getElementById("settings-modal");
-  const settingsModalClose = document.getElementById("settings-modal-close");
-  const appLockToggle = document.getElementById("app-lock-toggle");
-  const notificationToggle = document.getElementById("notification-toggle");
-  const appLockOverlay = document.getElementById("app-lock-overlay");
-  const btnUnlockApp = document.getElementById("btn-unlock-app");
-
-  // Load initial settings
-  const isAppLockEnabled =
-    localStorage.getItem("sodre_app_lock_enabled") === "true";
-  appLockToggle.checked = isAppLockEnabled;
-
-  if (notificationToggle) {
-    notificationToggle.checked =
-      Notification.permission === "granted" &&
-      localStorage.getItem("sodre_notifications_disabled") !== "true";
-
-    notificationToggle.addEventListener("change", async (e) => {
-      const enable = e.target.checked;
-      if (enable) {
-        if (!messaging) {
-          alert("お使いのブラウザはプッシュ通知をサポートしていません。");
-          notificationToggle.checked = false;
-          return;
-        }
-
-        if (Notification.permission !== "granted") {
-          const permission = await Notification.requestPermission();
-          if (permission !== "granted") {
-            alert(
-              "プッシュ通知が許可されませんでした。ブラウザの設定から許可してください。",
-            );
-            notificationToggle.checked = false;
-            return;
-          }
-        }
-
-        localStorage.removeItem("sodre_notifications_disabled");
-        alert("プッシュ通知をオンにしました。");
-        refreshFCMToken(); // Force refresh and sync to DB
-      } else {
-        localStorage.setItem("sodre_notifications_disabled", "true");
-        try {
-          if (messaging) {
-            let registration = await navigator.serviceWorker.getRegistration();
-            if (!registration)
-              registration = await navigator.serviceWorker.ready;
-            if (registration) {
-              const token = await messaging.getToken({
-                vapidKey: window.FIREBASE_VAPID_KEY,
-                serviceWorkerRegistration: registration,
-              });
-              if (token) {
-                await supabase
-                  .from("user_fcm_tokens")
-                  .delete()
-                  .eq("token", token);
-                localStorage.removeItem(`sodre_fcm_token_${user.id}`);
-              }
-            }
-          }
-          alert("プッシュ通知をオフにしました。");
-        } catch (err) {
-          console.error("Failed to remove token", err);
-        }
-      }
-    });
-  }
-
-  if (settingsBtn) {
-    settingsBtn.addEventListener("click", () => {
-      settingsModal.classList.add("show");
-    });
-  }
-
-  if (settingsModalClose) {
-    settingsModalClose.addEventListener("click", () => {
-      settingsModal.classList.remove("show");
-    });
-  }
-
-  // Close settings modal on outside click
-  window.addEventListener("click", (e) => {
-    if (e.target === settingsModal) {
-      settingsModal.classList.remove("show");
-    }
-  });
-
-  // Handle App Lock Toggle
-  appLockToggle.addEventListener("change", async (e) => {
-    const enable = e.target.checked;
-    if (enable) {
-      // Attempt to register WebAuthn
-      try {
-        if (!window.PublicKeyCredential) {
-          throw new Error(
-            "お使いのブラウザは生体認証(WebAuthn)をサポートしていません。",
-          );
-        }
-
-        appLockToggle.disabled = true;
-        const challenge = new Uint8Array(32);
-        window.crypto.getRandomValues(challenge);
-
-        const userId = new Uint8Array(16);
-        window.crypto.getRandomValues(userId);
-
-        let rpId = window.location.hostname;
-        // WebAuthn spec requires rpId to be a valid domain.
-        // IPs like 127.0.0.1 or 'localhost' can cause SecurityError in some browsers if explicitly set as rpId.
-        // Omitting rp.id makes the browser default to the current effective domain.
-        const isLocalIP =
-          /^(127\.0\.0\.1|localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.test(
-            rpId,
-          );
-
-        const createOptions = {
-          publicKey: {
-            challenge: challenge,
-            rp: {
-              name: "SoDRé App Lock",
-            },
-            user: {
-              id: userId,
-              name: currentSession.user.email,
-              displayName:
-                currentSession.user.user_metadata?.display_name ||
-                currentSession.user.email,
-            },
-            pubKeyCredParams: [
-              { type: "public-key", alg: -7 }, // ES256
-              { type: "public-key", alg: -257 }, // RS256
-            ],
-            authenticatorSelection: {
-              authenticatorAttachment: "platform", // FaceID/TouchID/Windows Hello
-              userVerification: "required",
-            },
-            timeout: 60000,
-            attestation: "none",
-          },
-        };
-
-        // Only set rpId explicitly if it's a real domain
-        if (!isLocalIP) {
-          createOptions.publicKey.rp.id = rpId;
-        }
-
-        const credential = await navigator.credentials.create(createOptions);
-
-        if (credential) {
-          // Store the credential ID locally
-          const credIdBase64 = btoa(
-            String.fromCharCode.apply(null, new Uint8Array(credential.rawId)),
-          );
-          localStorage.setItem("sodre_app_lock_cred_id", credIdBase64);
-          localStorage.setItem("sodre_app_lock_enabled", "true");
-
-          // Sync with DB
-          await supabase
-            .from("profiles")
-            .update({
-              app_lock_enabled: true,
-              app_lock_credential_id: credIdBase64,
-            })
-            .eq("id", currentSession.user.id);
-
-          alert(
-            "App Lock を有効にしました。次回PWA復帰時より生体認証が要求されます。",
-          );
-        } else {
-          throw new Error("認証デバイストークンの作成に失敗しました。");
-        }
-      } catch (err) {
-        console.error("WebAuthn Create Error:", err);
-        alert("App Lock の設定に失敗しました: " + err.message);
-        appLockToggle.checked = false; // Revert
-      } finally {
-        appLockToggle.disabled = false;
-      }
-    } else {
-      // Require authentication to disable App Lock
-      try {
-        const credIdBase64 = localStorage.getItem("sodre_app_lock_cred_id");
-        if (!credIdBase64) throw new Error("No credential ID");
-
-        const credIdBytes = Uint8Array.from(atob(credIdBase64), (c) =>
-          c.charCodeAt(0),
-        );
-        const challenge = new Uint8Array(32);
-        window.crypto.getRandomValues(challenge);
-
-        let rpId = window.location.hostname;
-        const isLocalIP =
-          /^(127\.0\.0\.1|localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.test(
-            rpId,
-          );
-
-        const getOptions = {
-          publicKey: {
-            challenge: challenge,
-            allowCredentials: [
-              {
-                type: "public-key",
-                id: credIdBytes,
-              },
-            ],
-            userVerification: "required",
-            timeout: 60000,
-          },
-        };
-
-        if (!isLocalIP) {
-          getOptions.publicKey.rpId = rpId;
-        }
-
-        appLockToggle.disabled = true;
-        const assertion = await navigator.credentials.get(getOptions);
-
-        if (assertion) {
-          localStorage.removeItem("sodre_app_lock_enabled");
-          localStorage.removeItem("sodre_app_lock_cred_id");
-
-          // Sync with DB
-          await supabase
-            .from("profiles")
-            .update({
-              app_lock_enabled: false,
-              app_lock_credential_id: null,
-            })
-            .eq("id", currentSession.user.id);
-
-          alert("App Lock を無効にしました。");
-        } else {
-          throw new Error("解除キャンセル");
-        }
-      } catch (err) {
-        console.error("WebAuthn Disable Error:", err);
-        appLockToggle.checked = true; // Revert visually
-      } finally {
-        appLockToggle.disabled = false;
-      }
-    }
-  });
-
-  let isUnlockPending = false;
-
-  // App Lock Unlock Function
-  async function triggerAppUnlock() {
-    const isEnabled = localStorage.getItem("sodre_app_lock_enabled") === "true";
-    const credIdBase64 = localStorage.getItem("sodre_app_lock_cred_id");
-
-    // Only trigger if enabled and in PWA mode
-    if (isEnabled && isPWA && credIdBase64) {
-      appLockOverlay.style.display = "flex";
-      document.body.style.overflow = "hidden"; // Ensure no scrolling while locked
-
-      if (isUnlockPending) return; // Prevent concurrent WebAuthn prompts
-
-      try {
-        isUnlockPending = true;
-        const credIdBytes = Uint8Array.from(atob(credIdBase64), (c) =>
-          c.charCodeAt(0),
-        );
-        const challenge = new Uint8Array(32);
-        window.crypto.getRandomValues(challenge);
-
-        let rpId = window.location.hostname;
-        const isLocalIP =
-          /^(127\.0\.0\.1|localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.test(
-            rpId,
-          );
-
-        const getOptions = {
-          publicKey: {
-            challenge: challenge,
-            allowCredentials: [
-              {
-                type: "public-key",
-                id: credIdBytes,
-              },
-            ],
-            userVerification: "required",
-            timeout: 60000,
-          },
-        };
-
-        if (!isLocalIP) {
-          getOptions.publicKey.rpId = rpId;
-        }
-
-        const assertion = await navigator.credentials.get(getOptions);
-        if (assertion) {
-          // Success
-          appLockOverlay.style.display = "none";
-          document.body.style.overflow = ""; // Restore scrolling
-        }
-      } catch (err) {
-        console.error("WebAuthn Get Error:", err);
-        // Failed or cancelled - leave overlay up
-        // The unlock button handles retries
-      } finally {
-        isUnlockPending = false;
-      }
-    } else if (
-      isPWA &&
-      !credIdBase64 &&
-      document.getElementById("app-lock-overlay").style.display === "flex"
-    ) {
-      // Edge case: User clicked unlock but cleared localStorage.
-      // Do NOT hide the overlay. Let the session timeout/refresh logic handle logging them out to login.html.
-      console.warn(
-        "App lock active but credentials missing. Waiting for session validation...",
-      );
-      // Optional: force session check here to speed up redirect
-      if (typeof supabase !== "undefined") {
-        supabase.auth.getSession().then(({ data }) => {
-          if (!data.session) window.location.replace("login.html");
+            return `<a href="${url}" class="external-link" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
         });
-      }
-    } else if (
-      !isPWA ||
-      (!isEnabled &&
-        document.getElementById("app-lock-overlay").style.display !== "flex")
-    ) {
-      // Normal unlocked state: ensure it's hidden. Do not carelessly hide if it's already showing.
-      appLockOverlay.style.display = "none";
-      document.body.style.overflow = "";
+
+        return linked;
     }
-  }
 
-  // Manual unlock button retry
-  btnUnlockApp.addEventListener("click", triggerAppUnlock);
+    function formatCommentContent(text) {
+        if (!text) return "";
 
-  // Aggressive Visual Lock
-  function lockAppVisually() {
-    const isEnabled = localStorage.getItem("sodre_app_lock_enabled") === "true";
-    if (isEnabled && isPWA) {
-      appLockOverlay.style.display = "flex";
-      document.body.style.overflow = "hidden";
+        let content = text;
 
-      // Force a synchronous layout/reflow.
-      // This forces the browser to paint the display:flex immediately,
-      // catching the screen BEFORE the OS takes the background snapshot for the App Switcher.
-      void appLockOverlay.offsetHeight;
+        const urlRegex = /(?<!href=")(https?:\/\/[^\s<]+)/g;
+        let linked = content.replace(urlRegex, function (url) {
+            if (url.startsWith("https://data.sodre.jp/uploads/")) {
+                const secureUrl = getSecureUrl(url);
+                let fname = url.split("/").pop().split("?")[0];
+                const isPreviewable = isPreviewableFile(fname);
+                if (isPreviewable) {
+                    return `<a href="${secureUrl}" target="_blank" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
+                } else {
+                    return `<a href="javascript:void(0)" onclick="handleFileDownload(event, '${secureUrl}', '${encodeURIComponent(fname)}'); event.stopPropagation();" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
+                }
+            }
+            return `<a href="${url}" class="external-link" style="color: var(--primary-color); text-decoration: underline; word-break: break-all;">${url}</a>`;
+        });
+
+        // Removed explicit \n to <br> because Quill HTML uses <p> and <br> natively
+        return linked;
     }
-  }
 
-  // Trigger on visibility change
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") {
-      lockAppVisually();
-    } else if (document.visibilityState === "visible") {
-      triggerAppUnlock();
+    // --- External Link Warning Logic ---
+    const extModal = document.getElementById("external-link-modal");
+    const extUrlDisplay = document.getElementById("external-link-url");
+    const extCancelBtn = document.getElementById("external-link-cancel");
+    const extProceedBtn = document.getElementById("external-link-proceed");
+    let targetExternalUrl = "";
+
+    // Delegate click event for dynamically added links
+    document.addEventListener("click", (e) => {
+        if (e.target.classList.contains("external-link")) {
+            e.preventDefault();
+            targetExternalUrl = e.target.href;
+            extUrlDisplay.textContent = targetExternalUrl;
+            extModal.classList.add("show");
+        }
+    });
+
+    extCancelBtn.addEventListener("click", () => {
+        extModal.classList.remove("show");
+        targetExternalUrl = "";
+    });
+
+    extProceedBtn.addEventListener("click", () => {
+        if (targetExternalUrl) {
+            window.open(targetExternalUrl, "_blank", "noopener,noreferrer");
+            extModal.classList.remove("show");
+            targetExternalUrl = "";
+        }
+    });
+
+    // --- Realtime Subscription ---
+    // --- Realtime Subscription ---
+    const channel = supabase
+        .channel("board_changes")
+        .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "board_posts" },
+            (payload) => {
+                const eventType = payload.eventType; // INSERT, UPDATE, DELETE
+                const newPost = payload.new;
+
+                // Logic to decide whether to reload posts
+                if (eventType === "INSERT") {
+                    // Check if the new post is relevant to current view
+                    if (currentPostContext === "all") {
+                        if (!newPost.group_id) {
+                            loadAllPosts(true);
+                        }
+                    } else if (currentPostContext === "group") {
+                        if (newPost.group_id === currentGroupId) {
+                            loadGroupPosts(currentGroupId, true);
+                        }
+                    }
+                } else {
+                    // UPDATE or DELETE - safer to just reload
+                    if (currentPostContext === "all") loadAllPosts(true);
+                    else if (currentPostContext === "group" && currentGroupId)
+                        loadGroupPosts(currentGroupId, true);
+                }
+            },
+        )
+        .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "board_comments" },
+            (payload) => {
+                // When comments change, reload comments if the section is open
+                // And ideally update the comment count on the post
+                const newComment = payload.new;
+                const oldComment = payload.old;
+                const postId = newComment?.post_id || oldComment?.post_id;
+
+                if (postId) {
+                    // 1. Reload comments if open
+                    const commentsList = document.getElementById(
+                        `comments-list-${postId}`,
+                    );
+                    if (commentsList && commentsList.offsetParent !== null) {
+                        // visible check
+                        loadComments(postId);
+                    }
+
+                    // 2. Reload posts to update comment count (Silent)
+                    // This might be heavy, but ensures consistency
+                    if (currentPostContext === "all") loadAllPosts(true);
+                    else if (currentPostContext === "group" && currentGroupId)
+                        loadGroupPosts(currentGroupId, true);
+                }
+            },
+        )
+        .subscribe();
+
+    // --- Personal Action Realtime Subscription ---
+    if (typeof currentSession !== "undefined" && currentSession?.user) {
+        supabase
+            .channel(`user_actions_${currentSession.user.id}`)
+            .on("broadcast", { event: "force_unlock" }, (payload) => {
+                console.log("Received force unlock command", payload);
+                // Wipe local lock state
+                localStorage.removeItem("sodre_app_lock_enabled");
+                localStorage.removeItem("sodre_app_lock_cred_id");
+
+                // Immediately disable UI protections
+                const overlay = document.getElementById("app-lock-overlay");
+                if (overlay) overlay.style.display = "none";
+                document.body.style.overflow = "";
+
+                // Uncheck the toggle visually if settings are open
+                const toggle = document.getElementById("app-lock-toggle");
+                if (toggle) toggle.checked = false;
+
+                alert("管理者によってApp Lock（生体認証ロック）が強制解除されました。");
+            })
+            .on(
+                "postgres_changes",
+                {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "profiles",
+                    filter: `id=eq.${currentSession.user.id}`,
+                },
+                (payload) => {
+                    const newLockState = payload.new.app_lock_enabled === true;
+                    const localLockState =
+                        localStorage.getItem("sodre_app_lock_enabled") === "true";
+
+                    // If the database toggled App Lock on/off and it disagrees with our current browser state,
+                    // reload the page so loadProfile() can properly sync UI, localStorage, and WebAuthn checks.
+                    if (newLockState !== localLockState) {
+                        console.log(
+                            "Detected remote App Lock settings change. Reloading to sync state.",
+                        );
+                        window.location.reload();
+                    }
+                },
+            )
+            .subscribe();
     }
-  });
 
-  // Aggressive lock on blur (app switcher) and pagehide (app closing)
-  window.addEventListener("blur", lockAppVisually);
-  window.addEventListener("pagehide", lockAppVisually);
-  document.addEventListener("freeze", lockAppVisually); // Page Lifecycle API fallback
+    // --- Settings Modal & App Lock (WebAuthn) Logic ---
+    const settingsBtn = document.getElementById("settings-btn");
+    const settingsModal = document.getElementById("settings-modal");
+    const settingsModalClose = document.getElementById("settings-modal-close");
+    const appLockToggle = document.getElementById("app-lock-toggle");
+    const notificationToggle = document.getElementById("notification-toggle");
+    const appLockOverlay = document.getElementById("app-lock-overlay");
+    const btnUnlockApp = document.getElementById("btn-unlock-app");
 
-  // Initial Trigger if locked
-  if (localStorage.getItem("sodre_app_lock_enabled") === "true" && isPWA) {
-    lockAppVisually();
-    triggerAppUnlock();
-  }
+    // Load initial settings
+    const isAppLockEnabled =
+        localStorage.getItem("sodre_app_lock_enabled") === "true";
+    appLockToggle.checked = isAppLockEnabled;
+
+    if (notificationToggle) {
+        notificationToggle.checked =
+            Notification.permission === "granted" &&
+            localStorage.getItem("sodre_notifications_disabled") !== "true";
+
+        notificationToggle.addEventListener("change", async (e) => {
+            const enable = e.target.checked;
+            if (enable) {
+                if (!messaging) {
+                    alert("お使いのブラウザはプッシュ通知をサポートしていません。");
+                    notificationToggle.checked = false;
+                    return;
+                }
+
+                if (Notification.permission !== "granted") {
+                    const permission = await Notification.requestPermission();
+                    if (permission !== "granted") {
+                        alert(
+                            "プッシュ通知が許可されませんでした。ブラウザの設定から許可してください。",
+                        );
+                        notificationToggle.checked = false;
+                        return;
+                    }
+                }
+
+                localStorage.removeItem("sodre_notifications_disabled");
+                alert("プッシュ通知をオンにしました。");
+                refreshFCMToken(); // Force refresh and sync to DB
+            } else {
+                localStorage.setItem("sodre_notifications_disabled", "true");
+                try {
+                    if (messaging) {
+                        let registration = await navigator.serviceWorker.getRegistration();
+                        if (!registration)
+                            registration = await navigator.serviceWorker.ready;
+                        if (registration) {
+                            const token = await messaging.getToken({
+                                vapidKey: window.FIREBASE_VAPID_KEY,
+                                serviceWorkerRegistration: registration,
+                            });
+                            if (token) {
+                                await supabase
+                                    .from("user_fcm_tokens")
+                                    .delete()
+                                    .eq("token", token);
+                                localStorage.removeItem(`sodre_fcm_token_${user.id}`);
+                            }
+                        }
+                    }
+                    alert("プッシュ通知をオフにしました。");
+                } catch (err) {
+                    console.error("Failed to remove token", err);
+                }
+            }
+        });
+    }
+
+    if (settingsBtn) {
+        settingsBtn.addEventListener("click", () => {
+            settingsModal.classList.add("show");
+        });
+    }
+
+    if (settingsModalClose) {
+        settingsModalClose.addEventListener("click", () => {
+            settingsModal.classList.remove("show");
+        });
+    }
+
+    // Close settings modal on outside click
+    window.addEventListener("click", (e) => {
+        if (e.target === settingsModal) {
+            settingsModal.classList.remove("show");
+        }
+    });
+
+    // Handle App Lock Toggle
+    appLockToggle.addEventListener("change", async (e) => {
+        const enable = e.target.checked;
+        if (enable) {
+            // Attempt to register WebAuthn
+            try {
+                if (!window.PublicKeyCredential) {
+                    throw new Error(
+                        "お使いのブラウザは生体認証(WebAuthn)をサポートしていません。",
+                    );
+                }
+
+                appLockToggle.disabled = true;
+                const challenge = new Uint8Array(32);
+                window.crypto.getRandomValues(challenge);
+
+                const userId = new Uint8Array(16);
+                window.crypto.getRandomValues(userId);
+
+                let rpId = window.location.hostname;
+                // WebAuthn spec requires rpId to be a valid domain.
+                // IPs like 127.0.0.1 or 'localhost' can cause SecurityError in some browsers if explicitly set as rpId.
+                // Omitting rp.id makes the browser default to the current effective domain.
+                const isLocalIP =
+                    /^(127\.0\.0\.1|localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.test(
+                        rpId,
+                    );
+
+                const createOptions = {
+                    publicKey: {
+                        challenge: challenge,
+                        rp: {
+                            name: "SoDRé App Lock",
+                        },
+                        user: {
+                            id: userId,
+                            name: currentSession.user.email,
+                            displayName:
+                                currentSession.user.user_metadata?.display_name ||
+                                currentSession.user.email,
+                        },
+                        pubKeyCredParams: [
+                            { type: "public-key", alg: -7 }, // ES256
+                            { type: "public-key", alg: -257 }, // RS256
+                        ],
+                        authenticatorSelection: {
+                            authenticatorAttachment: "platform", // FaceID/TouchID/Windows Hello
+                            userVerification: "required",
+                        },
+                        timeout: 60000,
+                        attestation: "none",
+                    },
+                };
+
+                // Only set rpId explicitly if it's a real domain
+                if (!isLocalIP) {
+                    createOptions.publicKey.rp.id = rpId;
+                }
+
+                const credential = await navigator.credentials.create(createOptions);
+
+                if (credential) {
+                    // Store the credential ID locally
+                    const credIdBase64 = btoa(
+                        String.fromCharCode.apply(null, new Uint8Array(credential.rawId)),
+                    );
+                    localStorage.setItem("sodre_app_lock_cred_id", credIdBase64);
+                    localStorage.setItem("sodre_app_lock_enabled", "true");
+
+                    // Sync with DB
+                    await supabase
+                        .from("profiles")
+                        .update({
+                            app_lock_enabled: true,
+                            app_lock_credential_id: credIdBase64,
+                        })
+                        .eq("id", currentSession.user.id);
+
+                    alert(
+                        "App Lock を有効にしました。次回PWA復帰時より生体認証が要求されます。",
+                    );
+                } else {
+                    throw new Error("認証デバイストークンの作成に失敗しました。");
+                }
+            } catch (err) {
+                console.error("WebAuthn Create Error:", err);
+                alert("App Lock の設定に失敗しました: " + err.message);
+                appLockToggle.checked = false; // Revert
+            } finally {
+                appLockToggle.disabled = false;
+            }
+        } else {
+            // Require authentication to disable App Lock
+            try {
+                const credIdBase64 = localStorage.getItem("sodre_app_lock_cred_id");
+                if (!credIdBase64) throw new Error("No credential ID");
+
+                const credIdBytes = Uint8Array.from(atob(credIdBase64), (c) =>
+                    c.charCodeAt(0),
+                );
+                const challenge = new Uint8Array(32);
+                window.crypto.getRandomValues(challenge);
+
+                let rpId = window.location.hostname;
+                const isLocalIP =
+                    /^(127\.0\.0\.1|localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.test(
+                        rpId,
+                    );
+
+                const getOptions = {
+                    publicKey: {
+                        challenge: challenge,
+                        allowCredentials: [
+                            {
+                                type: "public-key",
+                                id: credIdBytes,
+                            },
+                        ],
+                        userVerification: "required",
+                        timeout: 60000,
+                    },
+                };
+
+                if (!isLocalIP) {
+                    getOptions.publicKey.rpId = rpId;
+                }
+
+                appLockToggle.disabled = true;
+                const assertion = await navigator.credentials.get(getOptions);
+
+                if (assertion) {
+                    localStorage.removeItem("sodre_app_lock_enabled");
+                    localStorage.removeItem("sodre_app_lock_cred_id");
+
+                    // Sync with DB
+                    await supabase
+                        .from("profiles")
+                        .update({
+                            app_lock_enabled: false,
+                            app_lock_credential_id: null,
+                        })
+                        .eq("id", currentSession.user.id);
+
+                    alert("App Lock を無効にしました。");
+                } else {
+                    throw new Error("解除キャンセル");
+                }
+            } catch (err) {
+                console.error("WebAuthn Disable Error:", err);
+                appLockToggle.checked = true; // Revert visually
+            } finally {
+                appLockToggle.disabled = false;
+            }
+        }
+    });
+
+    let isUnlockPending = false;
+
+    // App Lock Unlock Function
+    async function triggerAppUnlock() {
+        const isEnabled = localStorage.getItem("sodre_app_lock_enabled") === "true";
+        const credIdBase64 = localStorage.getItem("sodre_app_lock_cred_id");
+
+        // Only trigger if enabled and in PWA mode
+        if (isEnabled && isPWA && credIdBase64) {
+            appLockOverlay.style.display = "flex";
+            document.body.style.overflow = "hidden"; // Ensure no scrolling while locked
+
+            if (isUnlockPending) return; // Prevent concurrent WebAuthn prompts
+
+            try {
+                isUnlockPending = true;
+                const credIdBytes = Uint8Array.from(atob(credIdBase64), (c) =>
+                    c.charCodeAt(0),
+                );
+                const challenge = new Uint8Array(32);
+                window.crypto.getRandomValues(challenge);
+
+                let rpId = window.location.hostname;
+                const isLocalIP =
+                    /^(127\.0\.0\.1|localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.test(
+                        rpId,
+                    );
+
+                const getOptions = {
+                    publicKey: {
+                        challenge: challenge,
+                        allowCredentials: [
+                            {
+                                type: "public-key",
+                                id: credIdBytes,
+                            },
+                        ],
+                        userVerification: "required",
+                        timeout: 60000,
+                    },
+                };
+
+                if (!isLocalIP) {
+                    getOptions.publicKey.rpId = rpId;
+                }
+
+                const assertion = await navigator.credentials.get(getOptions);
+                if (assertion) {
+                    // Success
+                    appLockOverlay.style.display = "none";
+                    document.body.style.overflow = ""; // Restore scrolling
+                }
+            } catch (err) {
+                console.error("WebAuthn Get Error:", err);
+                // Failed or cancelled - leave overlay up
+                // The unlock button handles retries
+            } finally {
+                isUnlockPending = false;
+            }
+        } else if (
+            isPWA &&
+            !credIdBase64 &&
+            document.getElementById("app-lock-overlay").style.display === "flex"
+        ) {
+            // Edge case: User clicked unlock but cleared localStorage.
+            // Do NOT hide the overlay. Let the session timeout/refresh logic handle logging them out to login.html.
+            console.warn(
+                "App lock active but credentials missing. Waiting for session validation...",
+            );
+            // Optional: force session check here to speed up redirect
+            if (typeof supabase !== "undefined") {
+                supabase.auth.getSession().then(({ data }) => {
+                    if (!data.session) window.location.replace("login.html");
+                });
+            }
+        } else if (
+            !isPWA ||
+            (!isEnabled &&
+                document.getElementById("app-lock-overlay").style.display !== "flex")
+        ) {
+            // Normal unlocked state: ensure it's hidden. Do not carelessly hide if it's already showing.
+            appLockOverlay.style.display = "none";
+            document.body.style.overflow = "";
+        }
+    }
+
+    // Manual unlock button retry
+    btnUnlockApp.addEventListener("click", triggerAppUnlock);
+
+    // Aggressive Visual Lock
+    function lockAppVisually() {
+        const isEnabled = localStorage.getItem("sodre_app_lock_enabled") === "true";
+        if (isEnabled && isPWA) {
+            appLockOverlay.style.display = "flex";
+            document.body.style.overflow = "hidden";
+
+            // Force a synchronous layout/reflow.
+            // This forces the browser to paint the display:flex immediately,
+            // catching the screen BEFORE the OS takes the background snapshot for the App Switcher.
+            void appLockOverlay.offsetHeight;
+        }
+    }
+
+    // Trigger on visibility change
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") {
+            lockAppVisually();
+        } else if (document.visibilityState === "visible") {
+            triggerAppUnlock();
+        }
+    });
+
+    // Aggressive lock on blur (app switcher) and pagehide (app closing)
+    window.addEventListener("blur", lockAppVisually);
+    window.addEventListener("pagehide", lockAppVisually);
+    document.addEventListener("freeze", lockAppVisually); // Page Lifecycle API fallback
+
+    // Initial Trigger if locked
+    if (localStorage.getItem("sodre_app_lock_enabled") === "true" && isPWA) {
+        lockAppVisually();
+        triggerAppUnlock();
+    }
 });
