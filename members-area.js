@@ -2131,30 +2131,48 @@ document.addEventListener("DOMContentLoaded", async () => {
     event.preventDefault();
     const filename = decodeURIComponent(encodedFilename);
 
+    const isIOS =
+      /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
     try {
-      // Fetch the file as a blob (bypass Service Worker cache with cache: 'no-store')
+      // Fetch the file as a blob
+      // cache: 'no-store' bypasses Service Worker opaque cache
       const response = await fetch(url, { cache: "no-store" });
       if (!response.ok) {
         throw new Error("HTTP " + response.status);
       }
       const blob = await response.blob();
 
-      // Create a temporary Object URL from the blob
-      const downloadUrl = URL.createObjectURL(blob);
+      if (isIOS) {
+        // iOS Safari ignores the <a download> attribute entirely.
+        // The only reliable way to "download" on iOS is via Web Share API.
+        const file = new File([blob], filename, {
+          type: blob.type || "application/octet-stream",
+        });
 
-      // Create an anchor element to trigger native download
-      const anchorElement = document.createElement("a");
-      anchorElement.href = downloadUrl;
-      anchorElement.download = filename;
-      document.body.appendChild(anchorElement);
-      anchorElement.click();
-      document.body.removeChild(anchorElement);
-
-      // Cleanup the Object URL
-      URL.revokeObjectURL(downloadUrl);
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: filename,
+          });
+        } else {
+          // If Web Share is not available, open in new tab as last resort
+          window.open(url, "_blank");
+        }
+      } else {
+        // Non-iOS: Use blob URL + download attribute (works on Chrome, Android, etc.)
+        const downloadUrl = URL.createObjectURL(blob);
+        const anchorElement = document.createElement("a");
+        anchorElement.href = downloadUrl;
+        anchorElement.download = filename;
+        document.body.appendChild(anchorElement);
+        anchorElement.click();
+        document.body.removeChild(anchorElement);
+        URL.revokeObjectURL(downloadUrl);
+      }
     } catch (err) {
       console.error("File download error:", err);
-      // Fallback: open in new tab (Safari will handle natively)
+      // Fallback: open in new tab
       window.open(url, "_blank");
     }
   };
