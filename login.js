@@ -157,7 +157,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         submitBtn.disabled = true;
 
         if (!supabase) {
-            alert('システムエラー: データベース接続に失敗しました。再読み込みしてください。');
+            await showAlert('システムエラー: データベース接続に失敗しました。再読み込みしてください。', 'error');
             submitBtn.textContent = originalBtnText;
             submitBtn.disabled = false;
             return;
@@ -264,7 +264,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!targetUrl || targetUrl.includes('YOUR_GAS_WEB_APP_URL_HERE') || targetUrl.includes('AKfycbx...')) {
             resetMsg.textContent = 'Error: GASのURLが設定されていないか、無効です。';
             resetMsg.style.color = 'red';
-            alert('Error: GAS_OTP_URLが見つからないか無効です: ' + targetUrl);
+            await showAlert('Error: GAS_OTP_URLが見つからないか無効です: ' + targetUrl, 'error');
             return;
         }
 
@@ -321,7 +321,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error('Fetch Error:', err);
             resetMsg.textContent = '通信エラー: ' + err.message;
             resetMsg.style.color = 'red';
-            alert('Error: 送信に失敗しました。詳細はコンソールを確認してください。\n' + err.message);
+            await showAlert('Error: 送信に失敗しました。詳細はコンソールを確認してください。\n' + err.message, 'error');
         }
     });
 
@@ -346,7 +346,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             resetMsg.textContent = 'エラー: ' + error.message;
             resetMsg.style.color = 'red';
         } else if (data === 'success') {
-            alert('パスワードのリセットが完了しました！ログインしてください。');
+            await showAlert('パスワードのリセットが完了しました！ログインしてください。', 'success');
             resetModal.style.display = 'none';
             step2.style.display = 'none';
             step1.style.display = 'block';

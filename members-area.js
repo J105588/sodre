@@ -66,6 +66,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const modalTitle = document.getElementById("modal-title");
     const modalPostContent = document.getElementById("modal-post-content");
     const modalSubmitBtn = document.getElementById("modal-submit-btn");
+    const modalPreviewBtn = document.getElementById("modal-preview-btn");
+
+    const previewModal = document.getElementById("preview-modal");
+    const previewContainer = document.getElementById("preview-container");
+    const previewModalClose = document.getElementById("preview-modal-close");
+    const closePreviewBtn = document.getElementById("close-preview-btn");
     // --- Firebase & Notifications ---
     // Initialize Firebase (Compat)
     let messaging = null;
@@ -529,15 +535,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     // --- Tab Switching ---
     tabBtns.forEach((btn) => {
         btn.addEventListener("click", () => {
-            // Ignore settings button which is also a tab btn class for styling
-            if (btn.id === "settings-btn") return;
+            // Only handle buttons with data-tab (ignore settings/other UI buttons using the class for styling)
+            const tab = btn.dataset.tab;
+            if (!tab) return;
 
             tabBtns.forEach((b) => {
-                if (b.id !== "settings-btn") b.classList.remove("active");
+                if (b.dataset.tab) b.classList.remove("active");
             });
             btn.classList.add("active");
-
-            const tab = btn.dataset.tab;
             if (tab === "all") {
                 viewAll.style.display = "block";
                 viewGroups.style.display = "none";
@@ -868,6 +873,82 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
+    // --- Preview Logic ---
+    let previewObjectUrls = [];
+
+    const hidePreview = () => {
+        previewModal.classList.remove("show");
+        // Revoke object URLs to avoid memory leaks
+        previewObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+        previewObjectUrls = [];
+    };
+
+    if (modalPreviewBtn) {
+        modalPreviewBtn.addEventListener("click", () => {
+            let content = "";
+            if (postQuill) {
+                content = postQuill.root.innerHTML;
+            } else {
+                content = modalPostContent.value.trim();
+            }
+
+            if (!content && selectedFiles.length === 0) return;
+
+            // 1. Build Images HTML from selectedFiles (File objects)
+            let filesHtml = "";
+            if (selectedFiles && selectedFiles.length > 0) {
+                filesHtml = `<div class="post-images" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:1rem;">`;
+                selectedFiles.forEach((file) => {
+                    if (file.type.startsWith("image/")) {
+                        const imgUrl = URL.createObjectURL(file);
+                        previewObjectUrls.push(imgUrl);
+                        filesHtml += `<img src="${imgUrl}" style="max-height:200px; max-width:100%; border-radius:8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">`;
+                    } else {
+                        filesHtml += `
+                            <div style="padding:12px; border:1px solid #eee; border-radius:8px; display:flex; align-items:center; gap:8px; background:#f9f9f9; font-size: 0.9rem;">
+                                <i class="${getFileIcon(file.name)}" style="color:var(--primary-color); font-size: 1.2rem;"></i>
+                                <span style="font-weight: 500;">${escapeHtml(file.name)}</span>
+                            </div>`;
+                    }
+                });
+                filesHtml += "</div>";
+            }
+
+            // 2. Reconstruct the container content
+            // We reuse formatContent if it was exported/visible, but here we just sanitize it
+            // because Quill content is already somewhat formatted.
+            previewContainer.innerHTML = `
+                <div class="board-post" style="border:none; padding:0; background:transparent;">
+                    <div class="bp-header" style="margin-bottom: 12px;">
+                        <div class="bp-user-info">
+                            <div class="bp-avatar" style="background: var(--primary-color); color:white; display:flex; align-items:center; justify-content:center;">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <div class="bp-user-meta">
+                                <span class="bp-name">You (Preview)</span>
+                                <span class="bp-date">${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString().substring(0, 5)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    ${filesHtml}
+                    <div class="ql-snow">
+                        <div class="ql-editor post-body-text" style="padding:0;">
+                            ${DOMPurify.sanitize(formatContent(content))}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            previewModal.classList.add("show");
+        });
+    }
+
+    if (previewModalClose) previewModalClose.addEventListener("click", hidePreview);
+    if (closePreviewBtn) closePreviewBtn.addEventListener("click", hidePreview);
+    previewModal.addEventListener("click", (e) => {
+        if (e.target === previewModal) hidePreview();
+    });
+
     modalSubmitBtn.addEventListener("click", async () => {
         let content = "";
         if (postQuill) {
@@ -894,14 +975,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             const dateVal = scheduleDateInput.value;
             const timeVal = scheduleTimeInput.value;
             if (!dateVal || !timeVal) {
-                alert("予約日時を設定してください。");
+                await showAlert("予約日時を設定してください。", "warning");
                 return;
             }
             scheduledAt = new Date(`${dateVal}T${timeVal}`).toISOString();
 
             // Validate future date ONLY for NEW posts
             if (!isEditingPostId && new Date(scheduledAt) <= new Date()) {
-                alert("予約日時は現在より未来の日時を指定してください。");
+                await showAlert("予約日時は現在より未来の日時を指定してください。", "warning");
                 return;
             }
         }
@@ -935,9 +1016,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                     });
                 } else {
                     console.error("Upload error:", uploadData.error);
-                    alert(
+                    await showAlert(
                         "ファイルのアップロードに失敗しました: " +
                         (uploadData.error || "不明なエラー"),
+                        "error"
                     );
                     modalSubmitBtn.disabled = false;
                     modalSubmitBtn.textContent = isEditingPostId
@@ -947,7 +1029,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             } catch (uploadErr) {
                 console.error("Upload fetch error:", uploadErr);
-                alert("ファイルのアップロードに失敗しました。");
+                await showAlert("ファイルのアップロードに失敗しました。", "error");
                 modalSubmitBtn.disabled = false;
                 modalSubmitBtn.textContent = isEditingPostId ? "更新する" : "投稿する";
                 return; // Abort post creation
@@ -981,7 +1063,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             modalSubmitBtn.textContent = "送信";
 
             if (error) {
-                alert("更新に失敗しました: " + error.message);
+                await showAlert("更新に失敗しました: " + error.message, "error");
             } else {
                 postModal.classList.remove("show");
                 if (currentPostContext === "all") loadAllPosts();
@@ -1013,7 +1095,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             modalSubmitBtn.textContent = "送信";
 
             if (error) {
-                alert("投稿に失敗しました: " + error.message);
+                await showAlert("投稿に失敗しました: " + error.message, "error");
             } else {
                 postModal.classList.remove("show");
                 if (currentPostContext === "all") {
@@ -1025,8 +1107,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                 // --- Auto Notification ---
                 if (window.GAS_NOTIFICATION_URL) {
                     try {
+                        // Extract plain text for notification body to avoid HTML tags appearing in system notifications
+                        let notificationBody = "";
+                        if (postQuill) {
+                            notificationBody = postQuill.getText().trim();
+                        } else {
+                            // Fallback: strip HTML tags if Quill is not used but content has them
+                            notificationBody = content.replace(/<[^>]*>/g, "").trim();
+                        }
+
                         const truncatedContent =
-                            content.length > 50 ? content.substring(0, 50) + "..." : content;
+                            notificationBody.length > 50 ? notificationBody.substring(0, 50) + "..." : notificationBody;
                         let notifPayload;
 
                         if (currentPostContext === "group" && currentGroupId) {
@@ -1303,7 +1394,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }, 100);
         } catch (error) {
             console.error("Download failed:", error);
-            alert("ファイルの取得に失敗しました。");
+            await showAlert("ファイルの取得に失敗しました。", "error");
         }
     };
 
@@ -1334,7 +1425,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     window.deleteMemberPost = async (postId) => {
-        if (!confirm("この投稿を削除しますか？")) return;
+        if (!await showConfirm("この投稿を削除しますか？")) return;
 
         try {
             // 1. Get post data to find images
@@ -1371,7 +1462,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 .eq("id", postId);
 
             if (error) {
-                alert("削除に失敗しました: " + error.message);
+                await showAlert("削除に失敗しました: " + error.message, "error");
             } else {
                 if (currentPostContext === "all") loadAllPosts(true);
                 else if (currentPostContext === "group" && currentGroupId)
@@ -1379,7 +1470,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         } catch (err) {
             console.error("Delete error:", err);
-            alert("削除中にエラーが発生しました。");
+            await showAlert("削除中にエラーが発生しました。", "error");
         }
     };
 
@@ -1391,7 +1482,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         if (error) {
-            alert("ピン留めの変更に失敗しました: " + error.message);
+            await showAlert("ピン留めの変更に失敗しました: " + error.message, "error");
         } else {
             if (currentPostContext === "all") loadAllPosts(true);
             else if (currentPostContext === "group" && currentGroupId)
@@ -1409,7 +1500,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             .single();
 
         if (error || !data) {
-            alert("投稿情報の取得に失敗しました。");
+            await showAlert("投稿情報の取得に失敗しました。", "error");
             return;
         }
         openPostModal(data);
@@ -1861,7 +1952,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             .eq("id", commentId);
 
         if (error) {
-            alert("コメントの更新に失敗しました: " + error.message);
+            await showAlert("コメントの更新に失敗しました: " + error.message, "error");
         } else {
             await loadComments(postId);
         }
@@ -2009,9 +2100,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                     });
                 } else {
                     console.error("Comment upload error:", uploadData.error);
-                    alert(
+                    await showAlert(
                         "ファイルのアップロードに失敗しました: " +
                         (uploadData.error || "不明なエラー"),
+                        "error"
                     );
                     if (submitBtn) {
                         submitBtn.disabled = false;
@@ -2021,7 +2113,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             } catch (uploadErr) {
                 console.error("Comment upload fetch error:", uploadErr);
-                alert("ファイルのアップロードに失敗しました。");
+                await showAlert("ファイルのアップロードに失敗しました。", "error");
                 if (submitBtn) {
                     submitBtn.disabled = false;
                     submitBtn.textContent = "送信";
@@ -2045,7 +2137,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         if (error) {
-            alert("コメントの送信に失敗しました: " + error.message);
+            await showAlert("コメントの送信に失敗しました: " + error.message, "error");
         } else {
             // Reset Quill
             if (quill) {
@@ -2064,7 +2156,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     window.deleteComment = async (commentId, postId) => {
-        if (!confirm("本当に削除しますか？")) return;
+        if (!await showConfirm("本当に削除しますか？")) return;
 
         try {
             // 1. Get comment data to find images
@@ -2105,7 +2197,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         } catch (err) {
             console.error("Delete comment error:", err);
-            alert("削除中にエラーが発生しました。");
+            await showAlert("削除中にエラーが発生しました。", "error");
         }
     };
 
@@ -2271,11 +2363,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     const extProceedBtn = document.getElementById("external-link-proceed");
     let targetExternalUrl = "";
 
-    // Delegate click event for dynamically added links
+    // Delegate click event for ALL links (including those from Quill)
     document.addEventListener("click", (e) => {
-        if (e.target.classList.contains("external-link")) {
+        const link = e.target.closest("a");
+        if (!link) return;
+
+        // Check if it's an external link
+        const isExternal =
+            link.hostname && link.hostname !== window.location.hostname;
+
+        // Exempt .sodre.jp domains
+        const isSodreDomain =
+            link.hostname &&
+            (link.hostname === "sodre.jp" || link.hostname.endsWith(".sodre.jp"));
+
+        if ((isExternal && !isSodreDomain) || link.classList.contains("external-link")) {
             e.preventDefault();
-            targetExternalUrl = e.target.href;
+            targetExternalUrl = link.href;
             extUrlDisplay.textContent = targetExternalUrl;
             extModal.classList.add("show");
         }
@@ -2284,6 +2388,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     extCancelBtn.addEventListener("click", () => {
         extModal.classList.remove("show");
         targetExternalUrl = "";
+        // Reset button state to prevent sticky colors/focus
+        extCancelBtn.blur();
     });
 
     extProceedBtn.addEventListener("click", () => {
@@ -2359,7 +2465,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (typeof currentSession !== "undefined" && currentSession?.user) {
         supabase
             .channel(`user_actions_${currentSession.user.id}`)
-            .on("broadcast", { event: "force_unlock" }, (payload) => {
+            .on("broadcast", { event: "force_unlock" }, async (payload) => {
                 console.log("Received force unlock command", payload);
                 // Wipe local lock state
                 localStorage.removeItem("sodre_app_lock_enabled");
@@ -2374,7 +2480,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const toggle = document.getElementById("app-lock-toggle");
                 if (toggle) toggle.checked = false;
 
-                alert("管理者によってApp Lock（生体認証ロック）が強制解除されました。");
+                await showAlert("管理者によってApp Lock（生体認証ロック）が強制解除されました。", "warning");
             })
             .on(
                 "postgres_changes",
@@ -2425,7 +2531,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const enable = e.target.checked;
             if (enable) {
                 if (!messaging) {
-                    alert("お使いのブラウザはプッシュ通知をサポートしていません。");
+                    await showAlert("お使いのブラウザはプッシュ通知をサポートしていません。", "warning");
                     notificationToggle.checked = false;
                     return;
                 }
@@ -2433,8 +2539,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (Notification.permission !== "granted") {
                     const permission = await Notification.requestPermission();
                     if (permission !== "granted") {
-                        alert(
+                        await showAlert(
                             "プッシュ通知が許可されませんでした。ブラウザの設定から許可してください。",
+                            "warning"
                         );
                         notificationToggle.checked = false;
                         return;
@@ -2442,7 +2549,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
 
                 localStorage.removeItem("sodre_notifications_disabled");
-                alert("プッシュ通知をオンにしました。");
+                await showAlert("プッシュ通知をオンにしました。", "success");
                 refreshFCMToken(); // Force refresh and sync to DB
             } else {
                 localStorage.setItem("sodre_notifications_disabled", "true");
@@ -2465,7 +2572,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             }
                         }
                     }
-                    alert("プッシュ通知をオフにしました。");
+                    await showAlert("プッシュ通知をオフにしました。", "info");
                 } catch (err) {
                     console.error("Failed to remove token", err);
                 }
@@ -2570,15 +2677,16 @@ document.addEventListener("DOMContentLoaded", async () => {
                         })
                         .eq("id", currentSession.user.id);
 
-                    alert(
+                    await showAlert(
                         "App Lock を有効にしました。次回PWA復帰時より生体認証が要求されます。",
+                        "success"
                     );
                 } else {
                     throw new Error("認証デバイストークンの作成に失敗しました。");
                 }
             } catch (err) {
                 console.error("WebAuthn Create Error:", err);
-                alert("App Lock の設定に失敗しました: " + err.message);
+                await showAlert("App Lock の設定に失敗しました: " + err.message, "error");
                 appLockToggle.checked = false; // Revert
             } finally {
                 appLockToggle.disabled = false;
@@ -2635,7 +2743,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         })
                         .eq("id", currentSession.user.id);
 
-                    alert("App Lock を無効にしました。");
+                    await showAlert("App Lock を無効にしました。", "info");
                 } else {
                     throw new Error("解除キャンセル");
                 }

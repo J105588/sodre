@@ -603,9 +603,9 @@
 
             if (modeError || listError) {
                 console.error('Maintenance save error:', modeError || listError);
-                alert('設定の保存に失敗しました:\n' + ((modeError?.message || listError?.message)));
+                await showAlert('設定の保存に失敗しました:\n' + ((modeError?.message || listError?.message)), 'error');
             } else {
-                alert('メンテナンス設定を保存しました！');
+                await showAlert('メンテナンス設定を保存しました！', 'success');
             }
             loadingOverlay.style.display = 'none';
         });
@@ -622,7 +622,7 @@
                 .insert([{ label: label, color: color }]);
 
             if (error) {
-                alert('種別の追加に失敗しました: ' + error.message);
+                await showAlert('種別の追加に失敗しました: ' + error.message, 'error');
             } else {
                 document.getElementById('cal-type-label').value = '';
                 loadCalTypes(); // Reload types list
@@ -637,7 +637,7 @@
             const typeId = document.getElementById('cal-event-type-select').value;
 
             if (!typeId) {
-                alert('先にイベント種別を作成・選択してください。');
+                await showAlert('先にイベント種別を作成・選択してください。', 'warning');
                 loadingOverlay.style.display = 'none';
                 return;
             }
@@ -648,9 +648,9 @@
                 .insert([{ event_date: date, type_id: typeId }]);
 
             if (error) {
-                alert('イベント追加エラー（重複の可能性があります）: ' + error.message);
+                await showAlert('イベント追加エラー（重複の可能性があります）: ' + error.message, 'error');
             } else {
-                alert('イベントを追加しました！');
+                await showAlert('イベントを追加しました！', 'success');
                 loadCalEvents();
             }
             loadingOverlay.style.display = 'none';
@@ -734,12 +734,12 @@
                         newImageUrls = uploadData.urls;
                     } else {
                         console.error('Upload error', uploadData.error);
-                        alert('画像のアップロードに失敗しました: ' + (uploadData.error || ''));
+                        await showAlert('画像のアップロードに失敗しました: ' + (uploadData.error || ''), 'error');
                         return; // Abort post update
                     }
                 } catch (uploadErr) {
                     console.error('Upload error', uploadErr);
-                    alert('画像のアップロードに失敗しました。');
+                    await showAlert('画像のアップロードに失敗しました。', 'error');
                     return; // Abort post update
                 }
             }
@@ -757,9 +757,9 @@
                 .eq('id', id);
 
             if (error) {
-                alert('投稿の更新に失敗しました: ' + error.message);
+                await showAlert('投稿の更新に失敗しました: ' + error.message, 'error');
             } else {
-                alert('投稿を更新しました！');
+                await showAlert('投稿を更新しました！', 'success');
                 hidePostEdit();
                 loadPosts(category);
             }
@@ -785,9 +785,9 @@
                 }]);
 
             if (error) {
-                alert('ユーザー作成リクエストに失敗しました: ' + error.message);
+                await showAlert('ユーザー作成リクエストに失敗しました: ' + error.message, 'error');
             } else {
-                alert('ユーザー作成リクエストを送信しました。リストでステータスを確認してください。');
+                await showAlert('ユーザー作成リクエストを送信しました。リストでステータスを確認してください。', 'success');
                 createUserForm.reset();
                 loadAdminUsers();
             }
@@ -881,12 +881,12 @@
 
                 if (!result.success) throw new Error(result.error || '送信に失敗しました');
 
-                alert(`送信成功: ${targetUserIds.length}人に送信リクエストを送りました`);
+                await showAlert(`送信成功: ${targetUserIds.length}人に送信リクエストを送りました`, 'success');
                 notificationForm.reset();
 
             } catch (err) {
                 console.error(err);
-                alert('送信エラー: ' + err.message);
+                await showAlert('送信エラー: ' + err.message, 'error');
             } finally {
                 loadingOverlay.style.display = 'none';
             }
@@ -958,9 +958,9 @@
             .eq('id', id);
 
         if (error) {
-            alert('ユーザー更新エラー: ' + error.message);
+            await showAlert('ユーザー更新エラー: ' + error.message, 'error');
         } else {
-            alert('ユーザーを更新しました！');
+            await showAlert('ユーザーを更新しました！', 'success');
             hideUserEdit();
             loadAdminUsers();
             // Optional: If we edited ourselves and removed admin, we might need to reload/logout, but keep it simple
@@ -970,16 +970,16 @@
 
     // --- Delete User Logic ---
     window.deleteUser = async (userId) => {
-        if (!confirm('本当にこのユーザーを削除しますか？\nこの操作は取り消せません。')) return;
+        if (!await showConfirm('本当にこのユーザーを削除しますか？\nこの操作は取り消せません。')) return;
 
         loadingOverlay.style.display = 'flex';
 
         const { error } = await supabase.rpc('delete_user_by_admin', { target_user_id: userId });
 
         if (error) {
-            alert('ユーザー削除エラー: ' + error.message);
+            await showAlert('ユーザー削除エラー: ' + error.message, 'error');
         } else {
-            alert('ユーザーを削除しました。');
+            await showAlert('ユーザーを削除しました。', 'success');
             loadAdminUsers();
         }
         loadingOverlay.style.display = 'none';
@@ -1051,11 +1051,11 @@
     // Force unlock function (Exposed to window for inline onclick)
     window.forceUnlockApp = async (userId, userName) => {
         if (!currentIsSuperadmin) {
-            alert("この操作は最高管理者権限が必要です。");
+            await showAlert("この操作は最高管理者権限が必要です。", "error");
             return;
         }
 
-        if (confirm(`本当に ${userName} のApp Lock（生体認証ロック）を強制解除しますか？\n（対象がオンラインの場合、即座にロック画面が解除されます）`)) {
+        if (await showConfirm(`本当に ${userName} のApp Lock（生体認証ロック）を強制解除しますか？\n（対象がオンラインの場合、即座にロック画面が解除されます）`)) {
             // Initiate OTP request
             try {
                 const targetUrl = window.GAS_OTP_URL || GAS_OTP_URL;
@@ -1170,7 +1170,7 @@
 
             if (updateError) {
                 console.error("Failed to update profile lock status:", updateError);
-                alert("データベースの更新に失敗しました。シグナル送信を中止します。");
+                await showAlert("データベースの更新に失敗しました。シグナル送信を中止します。", "error");
                 msgEl.style.color = '#555';
                 submitBtn.disabled = false;
                 return;
@@ -1188,9 +1188,9 @@
                     });
 
                     if (sendRes === 'ok') {
-                        alert(`${pendingForceUnlockUserName} へ強制解除シグナルを送信しました。\n対象ユーザーがオンラインであれば即座にロックが解除されます。`);
+                        await showAlert(`${pendingForceUnlockUserName} へ強制解除シグナルを送信しました。\n対象ユーザーがオンラインであれば即座にロックが解除されます。`, 'success');
                     } else {
-                        alert('シグナルの送信に失敗しました。');
+                        await showAlert('シグナルの送信に失敗しました。', 'error');
                     }
                     supabase.removeChannel(channel);
                     document.getElementById('admin-otp-modal').style.opacity = '0';
@@ -1238,7 +1238,7 @@
                 adminCheckInterval = setInterval(async () => {
                     const { data: { session: currentSession } } = await supabase.auth.getSession();
                     if (!currentSession) {
-                        alert("セッションが切れました。再ログインしてください。");
+                        await showAlert("セッションが切れました。再ログインしてください。", "info");
                         window.location.reload();
                         return;
                     }
@@ -1249,14 +1249,14 @@
                         .single();
 
                     if (!checkProfile || !checkProfile.is_admin) {
-                        alert("管理者権限が失われました。ログアウトします。");
+                        await showAlert("管理者権限が失われました。ログアウトします。", "warning");
                         await supabase.auth.signOut();
                         window.location.reload();
                     }
                 }, 5 * 60 * 1000); // 5 minutes polling
 
             } else {
-                alert("アクセス拒否: 管理者権限が必要です。");
+                await showAlert("アクセス拒否: 管理者権限が必要です。", "error");
                 // Optional: Logout if not admin
                 await supabase.auth.signOut();
                 loginSection.style.display = 'flex';
@@ -1331,7 +1331,7 @@
 
 
     async function deletePost(id) {
-        if (!confirm('本当にこの投稿を削除しますか？')) return;
+        if (!await showConfirm('本当にこの投稿を削除しますか？')) return;
 
         // Show loader immediately
         postsContainer.innerHTML = '<div class="loader-container"><div class="loader"></div></div>';
@@ -1369,7 +1369,7 @@
                 .eq('id', id);
 
             if (error) {
-                alert('投稿の削除に失敗しました: ' + error.message);
+                await showAlert('投稿の削除に失敗しました: ' + error.message, 'error');
             }
             // Always reload to restore list or show updates
             loadPosts(currentTab);
@@ -1758,13 +1758,13 @@
             .eq('id', memberId);
 
         if (error) {
-            alert('Error updating permission: ' + error.message);
+            await showAlert('Error updating permission: ' + error.message, 'error');
         }
         loadGroupMembers(currentManagingGroupId);
     };
 
     window.removeMember = async (memberId) => {
-        if (!confirm('Remove this user from the group?')) return;
+        if (!await showConfirm('Remove this user from the group?')) return;
 
         // Show loader
         groupMembersList.innerHTML = '<div class="loader-container"><div class="loader"></div></div>';
@@ -1775,7 +1775,7 @@
             .eq('id', memberId);
 
         if (error) {
-            alert('Error removing member: ' + error.message);
+            await showAlert('Error removing member: ' + error.message, 'error');
         }
         loadGroupMembers(currentManagingGroupId);
     };
@@ -1877,7 +1877,7 @@
             .single();
 
         if (error || !post) {
-            alert('Error fetching post details.');
+            await showAlert('Error fetching post details.', 'error');
             loadingOverlay.style.display = 'none';
             return;
         }
@@ -1903,22 +1903,22 @@
     window.removeMember = removeMember;
 
     window.deleteCalType = async (id) => {
-        if (!confirm('Delete this event type? events using it might be affected.')) return;
+        if (!await showConfirm('Delete this event type? events using it might be affected.')) return;
 
         calTypesList.innerHTML = '<div class="loader-container"><div class="loader"></div></div>';
 
         const { error } = await supabase.from('calendar_types').delete().eq('id', id);
-        if (error) alert(error.message);
+        if (error) await showAlert(error.message, 'error');
         loadCalTypes();
     };
 
     window.deleteCalEvent = async (id) => {
-        if (!confirm('Delete this event?')) return;
+        if (!await showConfirm('Delete this event?')) return;
 
         calEventsList.innerHTML = '<div class="loader-container"><div class="loader"></div></div>';
 
         const { error } = await supabase.from('calendar_events').delete().eq('id', id);
-        if (error) alert(error.message);
+        if (error) await showAlert(error.message, 'error');
         loadCalEvents();
     };
 
