@@ -50,6 +50,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const tabBtns = document.querySelectorAll(".m-tab-btn");
     const viewAll = document.getElementById("view-all");
     const viewGroups = document.getElementById("view-groups");
+    const viewSettings = document.getElementById("view-settings");
 
     // Feeds
     const allFeed = document.getElementById("all-board-feed");
@@ -544,26 +545,39 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
             btn.classList.add("active");
             if (tab === "all") {
-                viewAll.style.display = "block";
-                viewGroups.style.display = "none";
+                if (viewAll) viewAll.style.display = "block";
+                if (viewGroups) viewGroups.style.display = "none";
+                if (viewSettings) viewSettings.style.display = "none";
 
                 // Update Context
                 currentPostContext = "all";
-                fabPost.style.display = "flex"; // Show FAB for All Board
+                if (fabPost) fabPost.style.display = "flex"; // Show FAB for All Board
                 loadAllPosts();
             } else if (tab === "groups") {
-                viewAll.style.display = "none";
-                viewGroups.style.display = "block";
+                if (viewAll) viewAll.style.display = "none";
+                if (viewGroups) viewGroups.style.display = "block";
+                if (viewSettings) viewSettings.style.display = "none";
 
                 // Explicitly Reset View to List
-                groupsList.style.display = "grid"; // or block/flex depending on css, grid seems used in loadMyGroups
-                groupBoardView.style.display = "none";
+                if (groupsList) groupsList.style.display = "grid"; // or block/flex depending on css, grid seems used in loadMyGroups
+                if (groupBoardView) groupBoardView.style.display = "none";
                 currentGroupId = null;
 
                 // Update Context (Initially Group List)
                 currentPostContext = "group_list";
-                fabPost.style.display = "none"; // Hide FAB in Group List
+                if (fabPost) fabPost.style.display = "none"; // Hide FAB in Group List
                 loadMyGroups();
+            } else if (tab === "settings") {
+                if (viewAll) viewAll.style.display = "none";
+                if (viewGroups) viewGroups.style.display = "none";
+                if (viewSettings) viewSettings.style.display = "block";
+
+                // Update Context
+                currentPostContext = "settings";
+                if (fabPost) fabPost.style.display = "none"; // Hide FAB in Settings
+
+                // Focus on our profile
+                loadSettingsProfile(user.id);
             }
         });
     });
@@ -1166,7 +1180,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             .select(
                 `
                 *,
-                profiles(display_name),
+                profiles(display_name, avatar_url, bio),
                 board_comments(count)
             `,
             )
@@ -1300,7 +1314,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             .select(
                 `
                 *,
-                profiles(display_name),
+                profiles(display_name, avatar_url, bio),
                 board_comments(count)
             `,
             )
@@ -1568,7 +1582,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                         : ""
                     }
                 <div class="bp-header" style="justify-content:space-between; align-items:center;">
-                    <span class="bp-author">${post.profiles?.display_name || "Unknown"}</span>
+                    <div style="display:flex; align-items:center; gap:10px; cursor:pointer;" onclick="viewUserProfile('${post.user_id}')">
+                        <div style="width:36px; height:36px; border-radius:50%; overflow:hidden; display:flex; align-items:center; justify-content:center; background:#eee;">
+                            ${post.profiles?.avatar_url
+                        ? `<img src="${getSecureUrl(post.profiles.avatar_url)}" style="width:100%; height:100%; object-fit:cover;">`
+                        : `<i class="fas fa-user-circle" style="font-size:36px; color:#ccc;"></i>`
+                    }
+                        </div>
+                        <span class="bp-author">${post.profiles?.display_name || "Unknown"}</span>
+                    </div>
                     <div style="display:flex; align-items:center; gap:10px;">
                         <span class="bp-date">${scheduledDate.toLocaleString()}</span>
                         
@@ -1771,7 +1793,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             .select(
                 `
                 *,
-                profiles(display_name)
+                profiles(display_name, avatar_url, bio)
             `,
             )
             .eq("post_id", postId)
@@ -1802,7 +1824,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return `
             <div class="comment-item" id="comment-item-${comment.id}">
                 <div class="comment-header">
-                    <span class="comment-author">${comment.profiles?.display_name || "Unknown"}</span>
+                    <div style="display:flex; align-items:center; gap:8px; cursor:pointer;" onclick="viewUserProfile('${comment.user_id}')">
+                        <div style="width:28px; height:28px; border-radius:50%; overflow:hidden; display:flex; align-items:center; justify-content:center; background:#eee;">
+                            ${comment.profiles?.avatar_url
+                        ? `<img src="${getSecureUrl(comment.profiles.avatar_url)}" style="width:100%; height:100%; object-fit:cover;">`
+                        : `<i class="fas fa-user-circle" style="font-size:28px; color:#ccc;"></i>`
+                    }
+                        </div>
+                        <span class="comment-author">${comment.profiles?.display_name || "Unknown"}</span>
+                    </div>
                     <div class="comment-actions">
                         <span>${new Date(comment.created_at).toLocaleString()}</span>
                         ${canEditComment ? `<button onclick="editComment('${comment.id}', '${postId}')" title="編集" style="background:none;border:none;cursor:pointer;color:var(--primary-color);"><i class="fas fa-edit"></i></button>` : ""}
@@ -2580,22 +2610,316 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    if (settingsBtn) {
-        settingsBtn.addEventListener("click", () => {
-            settingsModal.classList.add("show");
+    // --- Settings & Profile Tab Logic ---
+    const profileAvatarPreview = document.getElementById("profile-avatar-preview");
+    const profileAvatarInput = document.getElementById("profile-avatar-input");
+    const profileAvatarImg = document.getElementById("profile-avatar-img");
+    const profileAvatarIconOuter = document.getElementById("profile-avatar-icon");
+    const profileDisplayName = document.getElementById("profile-display-name");
+
+    let profileBioQuill;
+    try {
+        profileBioQuill = new Quill("#profile-bio-editor", {
+            theme: "snow",
+            modules: {
+                toolbar: [
+                    ["bold", "italic", "underline", "strike"],
+                    [{ color: [] }, { background: [] }],
+                    [{ list: "ordered" }, { list: "bullet" }],
+                    [{ indent: "-1" }, { indent: "+1" }],
+                    [{ align: [] }],
+                    ["link", "image"],
+                    ["clean"],
+                ],
+            },
+            placeholder: "自己紹介を入力...",
+        });
+    } catch (e) {
+        console.error("Quill Bio Init Error:", e);
+    }
+    const btnSaveProfile = document.getElementById("btn-save-profile");
+    const btnPreviewProfile = document.getElementById("btn-preview-profile");
+
+    if (btnPreviewProfile) {
+        btnPreviewProfile.addEventListener("click", () => {
+            const modal = document.getElementById("profile-modal");
+            const avatarImg = document.getElementById("profile-modal-img");
+            const avatarIcon = document.getElementById("profile-modal-icon");
+            const nameEl = document.getElementById("profile-modal-name");
+            const bioEl = document.getElementById("profile-modal-bio");
+
+            if (!modal) return;
+
+            // Use current edits for preview
+            nameEl.innerText = profileDisplayName.value.trim() || "ユーザー未設定";
+
+            let bioHTML = "";
+            if (profileBioQuill) {
+                bioHTML = profileBioQuill.root.innerHTML;
+            }
+            // Check if Quill content is effectively empty
+            if (profileBioQuill && profileBioQuill.getText().trim().length > 0 || bioHTML.includes("<img")) {
+                bioEl.innerHTML = DOMPurify.sanitize(bioHTML);
+            } else {
+                bioEl.innerHTML = "<p style='color:#999;font-style:italic;'>自己紹介はまだありません。</p>";
+            }
+
+            if (profileAvatarImg.style.display !== "none" && profileAvatarImg.src) {
+                avatarImg.src = profileAvatarImg.src;
+                avatarImg.style.display = "block";
+                avatarIcon.style.display = "none";
+            } else {
+                avatarImg.src = "";
+                avatarImg.style.display = "none";
+                avatarIcon.style.display = "flex";
+            }
+
+            modal.style.display = "flex";
+            setTimeout(() => {
+                modal.style.opacity = "1";
+            }, 10);
         });
     }
 
-    if (settingsModalClose) {
-        settingsModalClose.addEventListener("click", () => {
-            settingsModal.classList.remove("show");
-        });
+    // Avatar Selection
+    // View-only logic handles the click assignment dynamically
+
+    profileAvatarInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                profileAvatarImg.src = e.target.result;
+                profileAvatarImg.style.display = "block";
+                profileAvatarIconOuter.style.display = "none";
+            }
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Save Profile
+    btnSaveProfile.addEventListener("click", async () => {
+        if (!user) return;
+
+        btnSaveProfile.disabled = true;
+        const originalText = btnSaveProfile.innerText;
+        btnSaveProfile.innerText = "保存中...";
+
+        try {
+            let bioContent = "";
+            if (profileBioQuill) {
+                if (profileBioQuill.getText().trim().length === 0 && !profileBioQuill.root.innerHTML.includes("<img")) {
+                    bioContent = "";
+                } else {
+                    bioContent = profileBioQuill.root.innerHTML;
+                }
+            }
+
+            const updates = {
+                display_name: profileDisplayName.value.trim(),
+                bio: bioContent
+            };
+
+            // Handle Avatar Upload if a new file is selected
+            const file = profileAvatarInput.files[0];
+            if (file) {
+                if (!window.UPLOAD_API_URL) {
+                    throw new Error("アップロードAPIが設定されていません。");
+                }
+                const formData = new FormData();
+                formData.append("files[]", file);
+
+                const response = await fetch(window.UPLOAD_API_URL, {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${currentSession?.access_token}`,
+                    },
+                    body: formData,
+                });
+
+                const result = await response.json();
+                if (result.success && result.urls && result.urls.length > 0) {
+                    updates.avatar_url = `${result.urls[0]}?name=${encodeURIComponent(file.name)}`;
+                } else {
+                    throw new Error(result.error || "画像アップロードに失敗しました");
+                }
+            }
+
+            // Update Postgres
+            const { error: dbError } = await supabase
+                .from("profiles")
+                .update(updates)
+                .eq("id", user.id);
+
+            if (dbError) throw dbError;
+
+            // Update Auth User Metadata as well (keep in sync)
+            const { error: authError } = await supabase.auth.updateUser({
+                data: {
+                    display_name: updates.display_name,
+                    ...(updates.avatar_url ? { avatar_url: updates.avatar_url } : {})
+                }
+            });
+            if (authError) console.error("Auth metadata sync warning:", authError);
+
+            await showAlert("プロフィールを保存しました。", "success");
+
+            // Reload our specific display context to reflect new name/avatar across UI if needed
+            loadProfile(user.id);
+
+        } catch (error) {
+            console.error("Profile update error:", error);
+            await showAlert("プロフィールの保存に失敗しました: " + error.message, "error");
+        } finally {
+            btnSaveProfile.disabled = false;
+            btnSaveProfile.innerText = originalText;
+        }
+    });
+
+    async function loadSettingsProfile(uid) {
+        if (!uid) return;
+        try {
+            const { data, error } = await supabase
+                .from("profiles")
+                .select("display_name, bio, avatar_url")
+                .eq("id", uid)
+                .single();
+
+            if (error) throw error;
+            if (data) {
+                profileDisplayName.value = data.display_name || "";
+
+                if (profileBioQuill) {
+                    profileBioQuill.root.innerHTML = data.bio || "";
+                }
+
+                if (data.avatar_url) {
+                    profileAvatarImg.src = getSecureUrl(data.avatar_url);
+                    profileAvatarImg.style.display = "block";
+                    profileAvatarIconOuter.style.display = "none";
+                } else {
+                    profileAvatarImg.src = "";
+                    profileAvatarImg.style.display = "none";
+                    profileAvatarIconOuter.style.display = "flex";
+                }
+            }
+
+            // Read-only mode logic
+            const isOwnProfile = (uid === user.id);
+            profileDisplayName.disabled = true; // Always display only
+
+            if (profileBioQuill) {
+                profileBioQuill.enable(isOwnProfile);
+                const toolbar = profileBioQuill.getModule('toolbar');
+                if (toolbar && toolbar.container) {
+                    toolbar.container.style.display = isOwnProfile ? 'block' : 'none';
+                }
+            }
+            btnSaveProfile.style.display = isOwnProfile ? "inline-block" : "none";
+
+            // If not our own profile, hide the avatar upload trigger and system settings
+            const avatarOverlay = profileAvatarPreview.querySelector("div[style*='position: absolute']");
+            if (avatarOverlay) {
+                avatarOverlay.style.display = isOwnProfile ? "block" : "none";
+            }
+            // Disable avatar click if not own profile
+            if (isOwnProfile) {
+                profileAvatarPreview.onclick = () => profileAvatarInput.click();
+                profileAvatarPreview.style.cursor = "pointer";
+            } else {
+                profileAvatarPreview.onclick = null;
+                profileAvatarPreview.style.cursor = "default";
+            }
+
+            const systemSettingsSec = document.querySelector(".system-settings-section");
+            if (systemSettingsSec) {
+                systemSettingsSec.style.display = isOwnProfile ? "block" : "none";
+            }
+
+            const headerText = document.querySelector("#view-settings h3");
+            const headerSubText = document.querySelector("#view-settings p");
+            if (headerText) {
+                headerText.innerText = isOwnProfile ? "設定 / プロフィール" : "プロフィール";
+            }
+            if (headerSubText) {
+                headerSubText.innerText = isOwnProfile ? "プロフィールやシステム設定を変更できます。" : "ユーザーのプロフィール情報です。";
+            }
+
+        } catch (error) {
+            console.error("Error loading settings profile:", error);
+        }
     }
 
-    // Close settings modal on outside click
-    window.addEventListener("click", (e) => {
-        if (e.target === settingsModal) {
-            settingsModal.classList.remove("show");
+    // Connect icon click to profile navigation
+    window.viewUserProfile = async function (uid) {
+        if (!uid) return;
+        try {
+            const { data, error } = await supabase
+                .from("profiles")
+                .select("display_name, bio, avatar_url")
+                .eq("id", uid)
+                .single();
+
+            if (error) throw error;
+
+            const modal = document.getElementById("profile-modal");
+            const avatarImg = document.getElementById("profile-modal-img");
+            const avatarIcon = document.getElementById("profile-modal-icon");
+            const nameEl = document.getElementById("profile-modal-name");
+            const bioEl = document.getElementById("profile-modal-bio");
+
+            if (!modal) {
+                console.error("Profile modal not found in HTML!");
+                return;
+            }
+
+            if (data) {
+                nameEl.innerText = data.display_name || "ユーザー未設定";
+
+                // Bio is stored as HTML (from Quill), so we render it safely
+                if (data.bio) {
+                    bioEl.innerHTML = DOMPurify.sanitize(data.bio);
+                } else {
+                    bioEl.innerHTML = "<p style='color:#999;font-style:italic;'>自己紹介はまだありません。</p>";
+                }
+
+                if (data.avatar_url) {
+                    avatarImg.src = getSecureUrl(data.avatar_url);
+                    avatarImg.style.display = "block";
+                    avatarIcon.style.display = "none";
+                } else {
+                    avatarImg.src = "";
+                    avatarImg.style.display = "none";
+                    avatarIcon.style.display = "flex";
+                }
+            }
+
+            modal.style.display = "flex";
+            setTimeout(() => {
+                modal.style.opacity = "1";
+            }, 10);
+        } catch (error) {
+            console.error("Error loading profile for modal:", error);
+            await showAlert("プロフィールの読み込みに失敗しました。", "error");
+        }
+    };
+
+    // Close Profile Modal
+    window.closeProfileModal = function () {
+        const modal = document.getElementById("profile-modal");
+        if (modal) {
+            modal.style.opacity = "0";
+            setTimeout(() => {
+                modal.style.display = "none";
+            }, 300);
+        }
+    };
+
+    // Close on click outside (this should be wired in DOM, but can be done generally)
+    document.addEventListener("click", (e) => {
+        const modal = document.getElementById("profile-modal");
+        if (modal && e.target === modal) {
+            closeProfileModal();
         }
     });
 
