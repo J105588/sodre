@@ -317,28 +317,24 @@ ul {
 /* Header */
 .header {
     background: #ffffff;
-    /* Solid White */
     transition: background 0.5s ease;
     position: fixed;
-    /* Smart Sticky */
     width: 100%;
+    height: 70px;
+    /* Explicit height for desktop */
     z-index: 900;
     top: 0;
     left: 0;
     transition: transform 0.4s ease-in-out, background 0.5s ease;
-    padding-top: 5px;
-    padding-bottom: 5px;
-    /* Add whitespace above content */
-    /* Ensure above overlay */
+    display: flex;
+    align-items: center;
 }
 
-.header.hide {
-    transform: translateY(-100%);
-}
-
-.header.scrolled {
-    background: rgba(255, 255, 255, 0.95);
-    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
+@media (max-width: 768px) {
+    .header {
+        height: 60px;
+        /* Explicit height for mobile */
+    }
 }
 
 /* Header Layout */
@@ -370,33 +366,31 @@ ul {
 /* Hamburger Button */
 .hamburger {
     position: fixed;
-    top: 25px;
-    /* Desktop position */
-    right: 5%;
-    width: 40px;
-    height: 30px;
+    top: 10px;
+    /* (70 - 50) / 2 */
+    right: 40px;
+    width: 50px;
+    height: 50px;
     cursor: pointer;
-    z-index: 200001;
-    transition: transform 0.3s ease, width 0.3s, height 0.3s;
+    z-index: 200005;
+    background: var(--white);
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @media (max-width: 768px) {
     .hamburger {
-        width: 30px;
-        height: 24px;
-        top: 13px;
-        /* Mobile Only: Calculated Center (50px - 24px)/2 */
-        right: 2rem;
-        /* Visually corrected (moved left) from 1.5rem */
-        z-index: 200005;
-    }
-}
-
-@media (min-width: 1600px) {
-    .hamburger {
-        width: 50px;
-        height: 36px;
-        top: 35px;
+        top: 11px;
+        /* Adjusted to 15px for a more balanced vertical position */
+        right: 20px;
+        width: 40px;
+        height: 40px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
     }
 }
 
@@ -404,53 +398,64 @@ ul {
     display: block;
     position: absolute;
     height: 2px;
-    width: 100%;
+    width: 24px;
     background: var(--text-color);
-    border-radius: 2px;
-    opacity: 1;
-    left: 0;
-    transform: rotate(0deg);
-    transition: .25s ease-in-out;
+    border-radius: 4px;
+    transition: all 0.3s cubic-bezier(0.68, -0.6, 0.32, 1.6);
 }
 
 .hamburger span:nth-child(1) {
-    top: 0px;
+    transform: translateY(-8px);
 }
 
 .hamburger span:nth-child(2) {
-    top: 10px;
+    transform: translateY(0);
+    width: 20px;
+    align-self: flex-end;
+    /* Shorter middle bar for style */
+    right: 13px;
 }
 
 .hamburger span:nth-child(3) {
-    top: 20px;
+    transform: translateY(8px);
+}
+
+.hamburger:hover {
+    transform: scale(1.05);
+    background: var(--primary-color);
+    box-shadow: 0 8px 25px rgba(20, 90, 180, 0.2);
 }
 
 .hamburger:hover span {
-    background: var(--primary-color);
+    background: var(--white);
+    width: 24px;
+    /* Expand middle bar on hover */
 }
 
 /* Hamburger active state (X shape) */
 /* Fixed positioning removed to keep button in place within header */
 /* body.menu-open .hamburger { ... } removed */
 
-body.menu-open .hamburger span {
+body.menu-open .hamburger {
     background: var(--text-color);
-    /* Ensure contrast on overlay */
+    box-shadow: none;
+}
+
+body.menu-open .hamburger span {
+    background: var(--white);
 }
 
 body.menu-open .hamburger span:nth-child(1) {
-    top: 10px;
-    transform: rotate(135deg);
+    transform: translateY(0) rotate(45deg);
 }
 
 body.menu-open .hamburger span:nth-child(2) {
     opacity: 0;
-    left: -60px;
+    transform: translateX(20px);
 }
 
 body.menu-open .hamburger span:nth-child(3) {
-    top: 10px;
-    transform: rotate(-135deg);
+    transform: translateY(0) rotate(-45deg);
 }
 
 /* Menu Overlay */
@@ -460,150 +465,124 @@ body.menu-open .hamburger span:nth-child(3) {
     left: 0;
     width: 100%;
     height: 100vh;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(15px);
-    z-index: 10000;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(25px) saturate(180%);
+    -webkit-backdrop-filter: blur(25px) saturate(180%);
+    z-index: 200000;
     display: flex;
     justify-content: center;
     align-items: center;
     opacity: 0;
     visibility: hidden;
-    /* Closing Transition: Delay collapse to let items fade out */
-    transition: clip-path 0.5s ease-in-out 0.3s, opacity 0.3s ease 0.3s, visibility 0.8s;
+    clip-path: circle(0% at 90% 5%);
+    transition: clip-path 0.6s cubic-bezier(0.77, 0, 0.175, 1), opacity 0.4s ease;
+}
+
+@media (max-width: 768px) {
+    #menu-overlay {
+        background: rgba(15, 23, 42, 0.5);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        clip-path: none;
+        transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body.menu-open #menu-overlay {
+        clip-path: none;
+        opacity: 1;
+        visibility: visible;
+    }
 }
 
 body.menu-open #menu-overlay {
     opacity: 1;
     visibility: visible;
     clip-path: circle(150% at 90% 5%);
-    /* Opening Transition: Immediate */
-    transition: clip-path 0.6s ease-in-out, opacity 0.4s ease;
 }
 
 .menu-content {
-    text-align: left;
-    max-width: 900px;
+    max-width: 1100px;
     width: 100%;
-    padding: 2rem;
-    /* Add some padding for safety but remove large top padding */
+    padding: 2rem 4rem;
+    transition: opacity 0.4s ease;
+}
+
+body.menu-open .menu-content {
+    opacity: 1;
 }
 
 .menu-container {
     display: grid;
-    grid-template-columns: 1.5fr 1fr;
-    gap: 4rem;
-    /* align-items: start; REMOVED to allow stretching */
+    grid-template-columns: 1.2fr 1fr;
+    gap: 6rem;
+    align-items: center;
+}
+
+@media (max-width: 992px) {
+    .menu-container {
+        gap: 3rem;
+    }
 }
 
 @media (max-width: 768px) {
     .menu-content {
-        padding-top: 0;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        width: 100%;
+        padding: 0;
+        height: auto;
+        max-height: calc(100dvh - 80px);
+        width: 90%;
+        max-width: 400px;
+        background: #ffffff;
+        border-radius: 20px;
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+        overflow-y: auto;
+        display: block;
+        transform: translateY(20px);
+        opacity: 0;
+        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        margin-top: 70px;
+        /* Position below header */
+    }
+
+    body.menu-open .menu-content {
+        transform: translateY(0);
+        opacity: 1;
     }
 
     .menu-container {
         display: flex;
         flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        /* Center */
-        height: 100dvh;
         gap: 0;
-        /* REMOVED GAP to fix spacing */
+        width: 100%;
         text-align: center;
-        /* Center */
-        padding-bottom: 5vh;
-        padding-top: 80px;
-        overflow-y: auto;
-        padding-left: 1.5rem;
-        padding-right: 1.5rem;
+        padding: 2rem 1.5rem;
     }
 
-    .menu-main {
-        border-right: none;
-        padding-right: 0;
-        width: 100%;
-        margin-bottom: 0;
-        flex-shrink: 0;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        /* Center */
-    }
-
-    /* Reset margins to let flex handle space or use small gap */
-    .menu-list li {
-        margin: 1rem 0;
-        /* Keep consistent margin */
-        width: 100%;
-    }
-
-    /* Remove excessive margin between lists to mimic natural flow */
-    .menu-main .menu-list li:last-child {
-        margin-bottom: 0;
-    }
-
+    .menu-main,
     .menu-sub {
-        margin-top: 0;
-        border-top: none;
-        padding-top: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        /* Center */
+        padding: 0;
+        border: none;
         width: 100%;
-        gap: 0;
-        flex-shrink: 0;
-        justify-content: center;
     }
 
-    .menu-sub .menu-list li:first-child {
-        margin-top: 1rem;
-        /* Ensure standard spacing from valid previous item */
+    .menu-list a {
+        font-size: 1.5rem !important;
+        padding: 0.8rem 0 !important;
+        color: var(--text-color) !important;
+        font-weight: 600;
+        display: block;
+        border-bottom: 1px solid #f5f5f5;
     }
 
-    /* Standard Mobile Menu Styles */
+    .menu-list li:last-child a {
+        border-bottom: none;
+    }
+
     .menu-sub .btn-menu-cta {
         margin-top: 1.5rem;
-        width: 100%;
-        max-width: 280px;
-        text-align: center;
-        padding: 1rem;
-        font-size: 1rem;
-        display: block;
-        margin-left: auto;
-        margin-right: auto;
-    }
-
-    .menu-list a,
-    .menu-list a:visited {
-        font-size: 1.25rem !important;
-        /* Force same size */
-        font-family: var(--font-display);
-        /* Ensure same font */
-        padding: 0.75rem 0;
-        line-height: 1.3;
-        display: block;
-        color: var(--text-color);
-        text-decoration: none;
-        text-align: center;
-        /* Center */
-        padding-left: 0;
-    }
-
-    .menu-sub .menu-list.sub-list a {
-        font-size: 1.25rem !important;
-        /* Force same size */
-        font-family: var(--font-display);
-        /* Ensure same font */
-        padding: 0.75rem 0;
-        text-align: center;
-        /* Center */
+        background: var(--primary-color);
+        color: #fff !important;
+        padding: 1rem !important;
+        border-radius: 10px;
     }
 }
 
@@ -698,76 +677,94 @@ body.menu-open .menu-list li:nth-child(9) {
     transition-delay: 0.5s;
 }
 
-/* Mobile Only: Sequential Animation (Left finishes then Right starts) */
-@media (max-width: 768px) {
-    /* 
-       Left Column (Main Menu) has 7 items approx.
-       Last item (7) starts at 0.4s. Finishes around 0.4s + 0.4s (duration) = 0.8s.
-       
-       Right Column (Sub Menu) items are in .menu-sub .menu-list.
-       We need to target them specifically. 
-       Note: The HTML structure uses .menu-list for both. 
-       We need to be careful with nth-child targeting if they are separate lists.
-       
-       Structure:
-       .menu-main > ul.menu-list (7 items)
-       .menu-sub > ul.menu-list.sub-list (5 items)
-       
-       The global nth-child rules above apply to ALL .menu-list li.
-       So .menu-main li:nth-child(1) gets 0.1s.
-       And .menu-sub li:nth-child(1) ALSO gets 0.1s by default.
-       
-       We need to override the delays for .menu-sub on mobile to start LATER.
-    */
+/* Staggered animation for menu items */
+body.menu-open .menu-list li {
+    transform: translateY(0);
+    opacity: 1;
+}
 
+body.menu-open .menu-list li:nth-child(1) {
+    transition-delay: 0.2s;
+}
+
+body.menu-open .menu-list li:nth-child(2) {
+    transition-delay: 0.25s;
+}
+
+body.menu-open .menu-list li:nth-child(3) {
+    transition-delay: 0.3s;
+}
+
+body.menu-open .menu-list li:nth-child(4) {
+    transition-delay: 0.35s;
+}
+
+body.menu-open .menu-list li:nth-child(5) {
+    transition-delay: 0.4s;
+}
+
+body.menu-open .menu-list li:nth-child(6) {
+    transition-delay: 0.45s;
+}
+
+body.menu-open .menu-list li:nth-child(7) {
+    transition-delay: 0.5s;
+}
+
+/* Mobile Sequential Animation Adjustments */
+@media (max-width: 768px) {
     body.menu-open .menu-sub .menu-list li:nth-child(1) {
-        transition-delay: 0.6s;
+        transition-delay: 0.55s;
     }
 
     body.menu-open .menu-sub .menu-list li:nth-child(2) {
-        transition-delay: 0.65s;
+        transition-delay: 0.6s;
     }
 
     body.menu-open .menu-sub .menu-list li:nth-child(3) {
-        transition-delay: 0.7s;
+        transition-delay: 0.65s;
     }
 
     body.menu-open .menu-sub .menu-list li:nth-child(4) {
-        transition-delay: 0.75s;
+        transition-delay: 0.7s;
     }
 
     body.menu-open .menu-sub .menu-list li:nth-child(5) {
-        transition-delay: 0.8s;
-    }
-
-    body.menu-open .menu-sub .menu-list li:nth-child(6) {
-        transition-delay: 0.85s;
+        transition-delay: 0.75s;
     }
 }
 
 .menu-list a {
     font-family: var(--font-display);
-    font-size: 1.4rem;
+    font-size: 1.6rem;
     color: var(--text-color);
     position: relative;
-    padding: 0.5rem 1rem;
+    padding: 0.5rem 0;
     display: inline-block;
-    transition: color 0.3s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    letter-spacing: 0.05em;
 }
-
-/* Hover effect line logic already exists below */
-
 
 .menu-list a::after {
     content: '';
     position: absolute;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
+    bottom: -2px;
+    left: 0;
     width: 0;
-    height: 2px;
+    height: 1px;
     background: var(--accent-color);
-    transition: width 0.3s ease;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.menu-list a:hover {
+    color: var(--primary-color);
+    transform: translateX(10px);
+}
+
+@media (max-width: 768px) {
+    .menu-list a:hover {
+        transform: scale(1.1);
+    }
 }
 
 .menu-list a:hover::after {
@@ -2986,11 +2983,6 @@ footer {
     .header {
         padding-top: 5px;
         padding-bottom: 5px;
-    }
-
-    .hamburger {
-        top: 0;
-        /* Reset any offset */
     }
 }
 
