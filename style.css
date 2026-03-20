@@ -357,8 +357,8 @@ ul {
 /* Removed redundant .header-container styles */
 
 .logo img {
-    height: 40px;
-    /* Reduced height */
+    height: 32px;
+    /* Further reduced for a cleaner look */
     width: auto;
     display: block;
 }
@@ -370,8 +370,8 @@ ul {
     }
 
     .logo img {
-        height: 18px;
-        /* Much smaller logo for a delicate look */
+        height: 15px;
+        /* Even smaller on mobile for minimalist style */
     }
 }
 
