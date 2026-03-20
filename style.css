@@ -343,8 +343,16 @@ ul {
     justify-content: space-between;
     align-items: center;
     flex-direction: row;
-    padding: 0 4rem;
-    /* Increased from 2rem to move logo right */
+    width: 100%;
+    padding: 0 var(--container-padding-mobile);
+    /* Default to mobile-safe padding (1.5rem) */
+}
+
+@media (min-width: 769px) {
+    .header .container {
+        padding: 0 4rem;
+        /* Apply larger offset only for desktop */
+    }
 }
 
 /* Removed redundant .header-container styles */
@@ -591,7 +599,7 @@ body.menu-open .menu-content {
         border-bottom: 1px solid #f5f5f5 !important;
     }
 
-    .menu-list li:last-child a {
+    .menu-sub .menu-list li:last-child a {
         border-bottom: none !important;
     }
 
@@ -1904,9 +1912,6 @@ footer {
         grid-template-columns: 1fr;
     }
 
-    .header .container {
-        padding: 1rem;
-    }
 
     .member-detail {
         flex-direction: column;
@@ -2985,13 +2990,6 @@ footer {
     .btn-outline {
         width: 100%;
         text-align: center;
-    }
-
-    /* Header & Logo Adjustment for Mobile */
-    .logo img {
-        height: 30px;
-        /* Smaller logo for mobile */
-        width: auto;
     }
 
     .header {
