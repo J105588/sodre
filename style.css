@@ -330,12 +330,7 @@ ul {
     align-items: center;
 }
 
-@media (max-width: 768px) {
-    .header {
-        height: 60px;
-        /* Explicit height for mobile */
-    }
-}
+/* Removed redundant initial mobile height - consolidated at bottom */
 
 .header.hide {
     transform: translateY(-100%);
@@ -370,13 +365,13 @@ ul {
 
 @media (max-width: 768px) {
     .header {
-        height: 50px;
-        /* More compact height */
+        height: 60px;
+        /* Reverted to standard mobile height */
     }
 
     .logo img {
-        height: 22px;
-        /* Even smaller on mobile */
+        height: 18px;
+        /* Much smaller logo for a delicate look */
     }
 }
 
