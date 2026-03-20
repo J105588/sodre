@@ -369,9 +369,14 @@ ul {
 }
 
 @media (max-width: 768px) {
+    .header {
+        height: 50px;
+        /* More compact height */
+    }
+
     .logo img {
-        height: 30px;
-        /* Smaller on mobile */
+        height: 22px;
+        /* Even smaller on mobile */
     }
 }
 
