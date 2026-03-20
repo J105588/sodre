@@ -337,6 +337,10 @@ ul {
     }
 }
 
+.header.hide {
+    transform: translateY(-100%);
+}
+
 /* Header Layout */
 .header .container {
     display: flex;
@@ -358,15 +362,15 @@ ul {
 /* Removed redundant .header-container styles */
 
 .logo img {
-    height: 50px;
-    /* Standard height */
+    height: 40px;
+    /* Reduced height */
     width: auto;
     display: block;
 }
 
 @media (max-width: 768px) {
     .logo img {
-        height: 40px;
+        height: 30px;
         /* Smaller on mobile */
     }
 }
