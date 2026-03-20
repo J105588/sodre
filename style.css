@@ -549,40 +549,71 @@ body.menu-open .menu-content {
     }
 
     .menu-container {
-        display: flex;
-        flex-direction: column;
-        gap: 0;
-        width: 100%;
-        text-align: center;
-        padding: 2rem 1.5rem;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0 !important;
+        width: 100% !important;
+        text-align: center !important;
+        padding: 2rem 0 !important; /* No horizontal padding */
+    }
+
+    .menu-list {
+        padding: 0 !important;
+        margin: 0 !important;
+        list-style: none !important;
+        width: 100% !important;
     }
 
     .menu-main,
     .menu-sub {
-        padding: 0;
-        border: none;
-        width: 100%;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        width: 100% !important;
+        display: block !important;
+    }
+
+    .menu-list li {
+        padding: 0 !important;
+        margin: 0 !important;
+        list-style: none !important;
+        width: 100% !important;
     }
 
     .menu-list a {
         font-size: 1.5rem !important;
-        padding: 0.8rem 0 !important;
+        padding: 1rem 0 !important;
         color: var(--text-color) !important;
         font-weight: 600;
-        display: block;
-        border-bottom: 1px solid #f5f5f5;
+        display: block !important;
+        width: 100% !important;
+        text-align: center !important;
+        border-bottom: 1px solid #f5f5f5 !important;
     }
 
     .menu-list li:last-child a {
-        border-bottom: none;
+        border-bottom: none !important;
     }
 
     .menu-sub .btn-menu-cta {
-        margin-top: 1.5rem;
-        background: var(--primary-color);
+        margin: 1.5rem auto 0 !important; /* Center the CTA */
+        display: block !important;
+        width: 65% !important;
+        max-width: 240px !important;
+        background: var(--primary-color) !important;
         color: #fff !important;
-        padding: 1rem !important;
-        border-radius: 10px;
+        padding: 0.8rem 1rem !important;
+        border-radius: 8px !important;
+        text-align: center !important;
+        font-size: 1.1rem !important;
+    }
+
+    .menu-sub-title {
+        display: none !important;
+    }
+
+    .menu-list .member-login {
+        margin-top: 1rem !important;
     }
 }
 
@@ -602,18 +633,6 @@ body.menu-open .menu-content {
     padding-left: 1rem;
 }
 
-@media (max-width: 768px) {
-    .menu-sub-title {
-        padding-left: 0;
-        display: none;
-        /* Hide subtitle on mobile for cleaner look */
-    }
-
-    .menu-main {
-        border-right: none;
-        /* Remove border */
-    }
-}
 
 .menu-list li {
     margin: 1rem 0;
@@ -629,11 +648,6 @@ body.menu-open .menu-content {
     display: none;
 }
 
-@media (max-width: 768px) {
-    .menu-list .member-login {
-        margin-top: 1rem;
-    }
-}
 
 body.menu-open .menu-list li {
     transform: translateY(0);
