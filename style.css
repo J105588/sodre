@@ -4066,11 +4066,40 @@ footer {
     border-radius: 16px;
     overflow: hidden;
     box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.05);
 }
 
 .note-redirect-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 25px rgba(20,90,180,0.2);
+    transform: translateY(-8px);
+    box-shadow: 0 15px 40px rgba(20,90,180,0.15);
+}
+
+.note-footer {
+    background: #fdfdfd;
+    padding: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.8rem;
+    border-top: 1px solid #f0f0f0;
+    color: var(--text-color);
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.note-redirect-card:hover .note-footer {
+    background: var(--primary-color);
+    color: #fff;
+}
+
+.note-redirect-card:hover .note-footer i {
+    transform: translateX(5px);
+}
+
+.note-footer i {
+    transition: transform 0.3s ease;
+    font-size: 0.9rem;
 }
 
 .note-redirect-card img {
@@ -4295,5 +4324,60 @@ footer {
     .elegant-text-block .lead-serif {
         font-size: 1.2rem;
         text-align: center;
+    }
+}
+@media (max-width: 768px) {
+    .readable-box {
+        padding: 2.5rem 1.5rem !important; /* Consistently reduce side padding */
+        border-radius: 0; /* Use more horizontal space */
+        border-right: none;
+        border-left: none;
+    }
+    
+    .title-1 {
+        font-size: 1.5rem;
+        margin-top: 3rem;
+    }
+    
+    .title-2 {
+        font-size: 1.25rem;
+        margin-top: 2rem;
+    }
+
+    .artistic-rules-grid {
+        margin: 2rem 0;
+        gap: 1rem;
+    }
+
+    .artistic-rule-card {
+        padding: 2rem 1rem;
+    }
+
+    .rule-item {
+        padding: 1rem;
+        gap: 0.8rem;
+    }
+
+    .readable-highlight-box {
+        padding: 1.5rem !important;
+        margin: 2rem 0 !important;
+    }
+
+    .content-image-wrap {
+        margin: 2rem 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 0 1rem; /* Maximize space for very small screens */
+    }
+    
+    .readable-box {
+        padding: 1.5rem 1rem !important;
+    }
+    
+    .rule-item span {
+        font-size: 0.95rem;
     }
 }
