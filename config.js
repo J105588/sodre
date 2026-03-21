@@ -6,6 +6,7 @@ const SUPABASE_URL = ENV.SUPABASE_URL;
 const SUPABASE_KEY = ENV.SUPABASE_KEY;
 const GAS_OTP_URL = ENV.GAS_OTP_URL;
 const UPLOAD_API_URL = ENV.UPLOAD_API_URL;
+const IMAGE_BASE_URL = ENV.IMAGE_BASE_URL || 'https://data.sodre.jp/img';
 
 // Initialize Supabase Client globally if SDK is available
 const supabaseProvider = window.supabase || window.Supabase;
@@ -15,6 +16,7 @@ window.SUPABASE_URL = SUPABASE_URL;
 window.SUPABASE_KEY = SUPABASE_KEY;
 window.GAS_OTP_URL = GAS_OTP_URL;
 window.UPLOAD_API_URL = UPLOAD_API_URL;
+window.IMAGE_BASE_URL = IMAGE_BASE_URL;
 
 // Firebase Configuration
 window.FIREBASE_CONFIG = ENV.FIREBASE_CONFIG;

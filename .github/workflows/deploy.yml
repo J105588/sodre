@@ -44,6 +44,7 @@ jobs:
           echo "    SUPABASE_KEY: '${{ secrets.SUPABASE_KEY }}'," >> env.js
           echo "    GAS_OTP_URL: '${{ secrets.GAS_OTP_URL }}'," >> env.js
           echo "    UPLOAD_API_URL: '${{ secrets.UPLOAD_API_URL }}'," >> env.js
+          echo "    IMAGE_BASE_URL: '${{ secrets.IMAGE_BASE_URL }}'," >> env.js
           echo "    FIREBASE_VAPID_KEY: '${{ secrets.FIREBASE_VAPID_KEY }}'," >> env.js
           echo "    GAS_NOTIFICATION_URL: '${{ secrets.GAS_NOTIFICATION_URL }}'" >> env.js
           echo "  };" >> env.js

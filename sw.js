@@ -11,9 +11,7 @@ const ASSETS_TO_CACHE = [
     "/pwa-manager.js",
     "/login.html",
     "/app.html",
-    "/img/icon-192.png",
-    "/img/icon-512.png",
-    "/img/logo.webp",
+    "/img/pwa-icon.png",
 ];
 
 // --- Firebase Cloud Messaging setup ---
