@@ -208,7 +208,7 @@ class PWAManager {
         const modal = document.createElement('div');
         Object.assign(modal.style, {
             position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
-            backgroundColor: 'rgba(0,0,0,0.9)', zIndex: '999999',
+            backgroundColor: 'rgba(0,0,0,0.9)', zIndex: '1000000',
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
             color: 'white', fontFamily: 'sans-serif'
         });
@@ -236,7 +236,7 @@ class PWAManager {
         const css = `
         #pwa-update-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0, 0, 0, 0.85); z-index: 99999;
+            background-color: rgba(0, 0, 0, 0.85); z-index: 1000000;
             display: flex; align-items: center; justify-content: center;
         }
         #pwa-update-modal .modal-content {
