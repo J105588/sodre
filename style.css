@@ -562,7 +562,8 @@ body.menu-open .menu-content {
         gap: 0 !important;
         width: 100% !important;
         text-align: center !important;
-        padding: 2rem 0 !important; /* No horizontal padding */
+        padding: 2rem 0 !important;
+        /* No horizontal padding */
     }
 
     .menu-list {
@@ -604,7 +605,8 @@ body.menu-open .menu-content {
     }
 
     .menu-sub .btn-menu-cta {
-        margin: 1.5rem auto 0 !important; /* Center the CTA */
+        margin: 1.5rem auto 0 !important;
+        /* Center the CTA */
         display: block !important;
         width: 65% !important;
         max-width: 240px !important;
@@ -644,7 +646,8 @@ body.menu-open .menu-content {
 
 .menu-list li {
     margin: 1rem 0;
-    width: fit-content; /* Make hover trigger only as wide as text */
+    width: fit-content;
+    /* Make hover trigger only as wide as text */
     transform: translateY(20px);
     opacity: 0;
     transition: transform 0.4s ease, opacity 0.4s ease;
@@ -840,7 +843,8 @@ body.menu-open .menu-list li:nth-child(7) {
 }
 
 .submenu-toggle {
-    display: none; /* Desktop hidden */
+    display: none;
+    /* Desktop hidden */
     cursor: pointer;
     padding: 10px;
     color: #999;
@@ -863,7 +867,7 @@ body.menu-open .menu-list li:nth-child(7) {
     left: 100%;
     transform: translateY(-50%) translateX(5px);
     background: #ffffff;
-    border: 1px solid rgba(0,0,0,0.1);
+    border: 1px solid rgba(0, 0, 0, 0.1);
     border-left: 3px solid var(--primary-color);
     padding: 1.5rem 2.5rem;
     list-style: none;
@@ -958,7 +962,7 @@ body.menu-open .menu-list li:nth-child(7) {
         color: #666 !important;
         font-family: var(--font-kaku) !important;
     }
-    
+
     .submenu-tree a:hover {
         background: #f9f9f9;
         transform: none !important;
@@ -1326,7 +1330,8 @@ body.menu-open .menu-list li:nth-child(7) {
 .hero-content {
     text-align: center;
     z-index: 1;
-    max-width: 1100px; /* Increased from 800px */
+    max-width: 1100px;
+    /* Increased from 800px */
     width: 100%;
     padding: 0 1rem;
     margin-top: 3rem;
@@ -1409,7 +1414,8 @@ body.menu-open .menu-list li:nth-child(7) {
     text-align: center;
     display: block;
     width: 95%;
-    max-width: 1000px; /* Increased from 850px */
+    max-width: 1000px;
+    /* Increased from 850px */
     margin: 2rem auto 0;
     padding: 4rem 3rem;
     background: rgba(255, 255, 255, 0.7);
@@ -1434,7 +1440,7 @@ body.menu-open .menu-list li:nth-child(7) {
 /* Subtle leaf-like decoration in corners to echo the image */
 .hero-message::before,
 .hero-message::after {
-    content: '🍃'; 
+    content: '🍃';
     position: absolute;
     font-size: 1.5rem;
     opacity: 0.3;
@@ -1461,11 +1467,25 @@ body.menu-open .menu-list li:nth-child(7) {
     font-family: var(--font-serif);
 }
 
-.logo-inline .s { color: #fab43c; }
-.logo-inline .o { color: #1a4a7c; }
-.logo-inline .d { color: #145ab4; }
-.logo-inline .r { color: #3c7800; }
-.logo-inline .e { color: #1a4a7c; }
+.logo-inline .s {
+    color: #fab43c;
+}
+
+.logo-inline .o {
+    color: #1a4a7c;
+}
+
+.logo-inline .d {
+    color: #145ab4;
+}
+
+.logo-inline .r {
+    color: #3c7800;
+}
+
+.logo-inline .e {
+    color: #1a4a7c;
+}
 
 .logo-inline.small {
     font-size: 0.9em;
@@ -1689,6 +1709,26 @@ body.menu-open .menu-list li:nth-child(7) {
 
 #tajiaki .member-img {
     background-image: url('https://data.sodre.jp/img/tajiaki.png');
+}
+
+#leo .member-img {
+    background-image: url('https://data.sodre.jp/img/leo.png');
+}
+
+#mizu .member-img {
+    background-image: url('https://data.sodre.jp/img/mizu.png');
+}
+
+#towa .member-img {
+    background-image: url('https://data.sodre.jp/img/towa.png');
+}
+
+#hibiki .member-img {
+    background-image: url('https://data.sodre.jp/img/hibiki.png');
+}
+
+#jun .member-img {
+    background-image: url('https://data.sodre.jp/img/jun.jpg');
 }
 
 /* Double ring effect using ::after */
@@ -2583,7 +2623,8 @@ footer {
 .stacked-section {
     padding-top: 5rem !important;
     padding-bottom: 5rem !important;
-    border-bottom: 1px solid rgba(20, 90, 180, 0.05); /* Added subtle separator */
+    border-bottom: 1px solid rgba(20, 90, 180, 0.05);
+    /* Added subtle separator */
 }
 
 .stacked-section:last-of-type {
@@ -2860,14 +2901,16 @@ footer {
 
 @media (max-width: 768px) {
     .member-hero.hero-banner-style {
-        aspect-ratio: 4 / 3; /* More square on mobile to prevent text overflow */
+        aspect-ratio: 4 / 3;
+        /* More square on mobile to prevent text overflow */
         min-height: 350px;
     }
 }
 
 @media (max-width: 480px) {
     .member-hero.hero-banner-style {
-        aspect-ratio: 1 / 1; /* Square on small mobile */
+        aspect-ratio: 1 / 1;
+        /* Square on small mobile */
         min-height: 320px;
     }
 }
@@ -2879,12 +2922,14 @@ footer {
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.45); /* Thin black curtain */
+    background: rgba(0, 0, 0, 0.45);
+    /* Thin black curtain */
     z-index: 1;
 }
 
 .member-hero.hero-banner-style .member-hero-bg {
-    display: none; /* Hide the aurora bg for banner style */
+    display: none;
+    /* Hide the aurora bg for banner style */
 }
 
 .member-hero.hero-banner-style .member-hero-content {
@@ -2911,6 +2956,26 @@ footer {
 /* Specific Member Backgrounds */
 .tajiaki-hero {
     background-image: url('https://data.sodre.jp/img/tajiaki.png');
+}
+
+.leo-hero {
+    background-image: url('https://data.sodre.jp/img/leo.png');
+}
+
+.mizu-hero {
+    background-image: url('https://data.sodre.jp/img/mizu.png');
+}
+
+.towa-hero {
+    background-image: url('https://data.sodre.jp/img/towa.png');
+}
+
+.hibiki-hero {
+    background-image: url('https://data.sodre.jp/img/hibiki.png');
+}
+
+.jun-hero {
+    background-image: url('https://data.sodre.jp/img/jun.jpg');
 }
 
 
@@ -4169,26 +4234,29 @@ footer {
 
 
 .subtle-bg {
-    background: linear-gradient(180deg, #ffffff 0%, rgba(250, 180, 60, 0.02) 50%, rgba(20, 90, 180, 0.02) 100%); 
+    background: linear-gradient(180deg, #ffffff 0%, rgba(250, 180, 60, 0.02) 50%, rgba(20, 90, 180, 0.02) 100%);
     border-bottom: 1px solid #f9f9f9;
 }
 
 /* --- Readability Redesign for about.html --- */
 .readable-section {
-    padding: 0 0 5rem 0; /* Removed top padding to allow overlap */
-    background-color: transparent; /* Removed corporate gray to eliminate color boundary */
+    padding: 0 0 5rem 0;
+    /* Removed top padding to allow overlap */
+    background-color: transparent;
+    /* Removed corporate gray to eliminate color boundary */
     position: relative;
 }
 
 .readable-box {
     background: #ffffff;
     max-width: 900px;
-    margin: 0 auto 4rem auto; /* Removed negative overlap to prevent hiding header */
+    margin: 0 auto 4rem auto;
+    /* Removed negative overlap to prevent hiding header */
     padding: 4rem 4rem;
     position: relative;
     z-index: 10;
     border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
     color: #333333;
     font-size: 1.1rem;
     line-height: 2.2;
@@ -4200,7 +4268,8 @@ footer {
     margin-bottom: 2rem;
     text-align: justify;
     text-justify: inter-ideograph;
-    font-weight: 400; /* Standard readable weight */
+    font-weight: 400;
+    /* Standard readable weight */
 }
 
 /* Reset margin for last elements in specific wrappers */
@@ -4218,7 +4287,7 @@ footer {
     max-width: 100%;
     height: auto;
     border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 .readable-rule-list {
@@ -4231,7 +4300,8 @@ footer {
 
 .readable-rule-list p {
     margin-bottom: 1rem;
-    color: #222; /* Slightly darker for rule list */
+    color: #222;
+    /* Slightly darker for rule list */
 }
 
 .readable-h3 {
@@ -4254,11 +4324,13 @@ footer {
 .readable-highlight-box p {
     margin-bottom: 0.8rem;
     font-weight: 600;
-    color: #111; /* Extremely high contrast for bold elements */
+    color: #111;
+    /* Extremely high contrast for bold elements */
 }
 
 .readable-muted {
-    font-size: 0.95rem !important; /* Force smaller size */
+    font-size: 0.95rem !important;
+    /* Force smaller size */
     color: #666666 !important;
 }
 
@@ -4310,20 +4382,21 @@ footer {
 
 .note-redirect-card {
     display: inline-block;
-    max-width: 600px; /* Increased from 400px */
+    max-width: 600px;
+    /* Increased from 400px */
     width: 100%;
     margin: 3rem 0;
     transition: transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), box-shadow 0.4s;
     border-radius: 16px;
     overflow: hidden;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
     background: #fff;
-    border: 1px solid rgba(0,0,0,0.05);
+    border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .note-redirect-card:hover {
     transform: translateY(-8px);
-    box-shadow: 0 15px 40px rgba(20,90,180,0.15);
+    box-shadow: 0 15px 40px rgba(20, 90, 180, 0.15);
 }
 
 .note-footer {
@@ -4368,7 +4441,7 @@ footer {
     max-width: 100%;
     height: auto;
     border-radius: 8px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
 }
 
 /* Artistic Side-by-Side Cards for rules */
@@ -4378,47 +4451,59 @@ footer {
     gap: 2rem;
     margin: 4rem 0;
 }
+
 .artistic-rule-card {
     background: #ffffff;
     border-radius: 20px;
     padding: 3rem 2rem;
     text-align: center;
     position: relative;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.04);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04);
     transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
     overflow: hidden;
     z-index: 1;
 }
+
 .artistic-rule-card::before {
     content: '';
     position: absolute;
-    top: 0; left: 0; right: 0; height: 6px;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 6px;
     background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
     z-index: 2;
 }
+
 .artistic-rule-card:nth-child(2)::before {
     background: linear-gradient(90deg, var(--green-accent), var(--primary-color));
 }
+
 .artistic-rule-card:nth-child(3)::before {
     background: linear-gradient(90deg, var(--accent-color), var(--green-accent));
 }
+
 .artistic-rule-card:hover {
     transform: translateY(-10px);
-    box-shadow: 0 20px 50px rgba(20,90,180,0.1);
+    box-shadow: 0 20px 50px rgba(20, 90, 180, 0.1);
 }
+
 .artistic-rule-numeral {
     font-family: var(--font-display);
     font-size: 4rem;
     font-weight: 700;
     line-height: 1;
     color: transparent;
-    -webkit-text-stroke: 1px rgba(20,90,180,0.2);
+    -webkit-text-stroke: 1px rgba(20, 90, 180, 0.2);
     margin-bottom: 1rem;
     transition: color 0.4s;
 }
+
 .artistic-rule-card:hover .artistic-rule-numeral {
-    color: rgba(20,90,180,0.05); /* Fills in slightly on hover */
+    color: rgba(20, 90, 180, 0.05);
+    /* Fills in slightly on hover */
 }
+
 .artistic-rule-title {
     font-family: var(--font-serif);
     font-size: 1.4rem;
@@ -4426,6 +4511,7 @@ footer {
     margin-bottom: 1.5rem;
     font-weight: 600;
 }
+
 .artistic-rule-desc {
     font-size: 1.05rem;
     line-height: 1.9;
@@ -4448,6 +4534,7 @@ footer {
         opacity: 0;
         transform: translateY(30px);
     }
+
     100% {
         opacity: 1;
         transform: translateY(0);
@@ -4495,14 +4582,23 @@ footer {
     transform: translateY(0);
 }
 
-.delay-1 { transition-delay: 0.15s; }
-.delay-2 { transition-delay: 0.3s; }
-.delay-3 { transition-delay: 0.45s; }
+.delay-1 {
+    transition-delay: 0.15s;
+}
+
+.delay-2 {
+    transition-delay: 0.3s;
+}
+
+.delay-3 {
+    transition-delay: 0.45s;
+}
 
 .step-title {
     font-family: var(--font-serif);
     font-size: 1.4rem;
-    color: #222222; /* High contrast */
+    color: #222222;
+    /* High contrast */
     margin-bottom: 0.8rem;
     letter-spacing: 0.05em;
     font-weight: 600;
@@ -4521,7 +4617,7 @@ footer {
     border-radius: 4px 12px 12px 4px;
     padding: 1.2rem 2rem;
     margin-bottom: 1.2rem;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
     transition: all 0.3s ease;
     display: flex;
     align-items: center;
@@ -4531,7 +4627,7 @@ footer {
 .rule-item:hover {
     transform: translateX(8px);
     background: #fffcf5;
-    box-shadow: 0 8px 25px rgba(20,90,180,0.06);
+    box-shadow: 0 8px 25px rgba(20, 90, 180, 0.06);
     border-left-color: var(--primary-color);
 }
 
@@ -4550,7 +4646,8 @@ footer {
 .flow-step p {
     font-size: 1.1rem;
     line-height: 2;
-    color: #444444; /* Dark gray */
+    color: #444444;
+    /* Dark gray */
 }
 
 @media (max-width: 900px) {
@@ -4558,38 +4655,41 @@ footer {
         grid-template-columns: 1fr;
         gap: 3rem;
     }
-    
+
     .serif-title {
         font-size: 2rem;
     }
-    
+
     .organic-section {
         padding: 5rem 0;
     }
-    
+
     .elegant-text-block p {
         font-size: 1rem;
         text-align: left;
     }
-    
+
     .elegant-text-block .lead-serif {
         font-size: 1.2rem;
         text-align: center;
     }
 }
+
 @media (max-width: 768px) {
     .readable-box {
-        padding: 2.5rem 1.5rem !important; /* Consistently reduce side padding */
-        border-radius: 0; /* Use more horizontal space */
+        padding: 2.5rem 1.5rem !important;
+        /* Consistently reduce side padding */
+        border-radius: 0;
+        /* Use more horizontal space */
         border-right: none;
         border-left: none;
     }
-    
+
     .title-1 {
         font-size: 1.5rem;
         margin-top: 3rem;
     }
-    
+
     .title-2 {
         font-size: 1.25rem;
         margin-top: 2rem;
@@ -4621,13 +4721,14 @@ footer {
 
 @media (max-width: 480px) {
     .container {
-        padding: 0 1rem; /* Maximize space for very small screens */
+        padding: 0 1rem;
+        /* Maximize space for very small screens */
     }
-    
+
     .readable-box {
         padding: 1.5rem 1rem !important;
     }
-    
+
     .rule-item span {
         font-size: 0.95rem;
     }
