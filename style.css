@@ -1683,6 +1683,12 @@ body.menu-open .menu-list li:nth-child(7) {
     border: 3px solid var(--white);
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
     transition: transform 0.4s;
+    background-size: cover;
+    background-position: center;
+}
+
+#tajiaki .member-img {
+    background-image: url('https://data.sodre.jp/img/tajiaki.png');
 }
 
 /* Double ring effect using ::after */
@@ -2105,6 +2111,14 @@ footer {
 
 .delay-400 {
     transition-delay: 0.4s;
+}
+
+.delay-600 {
+    transition-delay: 0.6s;
+}
+
+.delay-800 {
+    transition-delay: 0.8s;
 }
 
 /* Responsive */
@@ -2829,6 +2843,97 @@ footer {
     font-family: var(--font-serif);
 }
 
+/* --- Banner Style Hero --- */
+.member-hero.hero-banner-style {
+    width: 100%;
+    aspect-ratio: 1150 / 729;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    color: #fff;
+    text-align: center;
+    overflow: hidden;
+}
+
+@media (max-width: 768px) {
+    .member-hero.hero-banner-style {
+        aspect-ratio: 4 / 3; /* More square on mobile to prevent text overflow */
+        min-height: 350px;
+    }
+}
+
+@media (max-width: 480px) {
+    .member-hero.hero-banner-style {
+        aspect-ratio: 1 / 1; /* Square on small mobile */
+        min-height: 320px;
+    }
+}
+
+.member-hero.hero-banner-style::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.45); /* Thin black curtain */
+    z-index: 1;
+}
+
+.member-hero.hero-banner-style .member-hero-bg {
+    display: none; /* Hide the aurora bg for banner style */
+}
+
+.member-hero.hero-banner-style .member-hero-content {
+    z-index: 2;
+}
+
+.member-hero.hero-banner-style .member-hero-text h1 {
+    color: #fdfdfd;
+    justify-content: center;
+}
+
+.member-hero.hero-banner-style .en-name {
+    color: var(--accent-color);
+}
+
+.member-hero.hero-banner-style .hero-divider {
+    background: #fff;
+}
+
+.member-hero.hero-banner-style .catchphrase {
+    color: #e0e0e0;
+}
+
+/* Specific Member Backgrounds */
+.tajiaki-hero {
+    background-image: url('https://data.sodre.jp/img/tajiaki.png');
+}
+
+
+/* Profile Block Enhancements */
+.profile-block {
+    background: #fff;
+    padding: 2.5rem;
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.03);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+    margin-bottom: 3rem;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.profile-block:hover {
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+}
+
+.profile-block h2 {
+    border-bottom: 2px solid var(--accent-color);
+    padding-bottom: 1rem;
+    margin-bottom: 2rem;
+}
 
 /* Layout */
 .profile-container {
@@ -3084,6 +3189,7 @@ footer {
 .back-link-container {
     text-align: center;
     margin-top: 4rem;
+    margin-bottom: 6rem;
 }
 
 .btn-outline {

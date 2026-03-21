@@ -14,7 +14,7 @@
         rel="stylesheet">
     <link rel="stylesheet" href="../style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="page-guard.js"></script>
+    <script src="../page-guard.js"></script>
 </head>
 
 <body>
@@ -78,15 +78,14 @@
     </div>
 
     <!-- Hero Section -->
-    <div class="member-hero">
+    <div class="member-hero hero-banner-style tajiaki-hero">
         <div class="member-hero-bg"></div>
         <div class="container member-hero-content">
-            <div class="member-hero-img"></div>
             <div class="member-hero-text">
-                <h1>たじあき <span class="role-badge">代表</span></h1>
-                <p class="en-name">Tajiaki</p>
-                <div class="hero-divider"></div>
-                <p class="catchphrase">元化学教員 / 自称「教育研究家」</p>
+                <h1 class="reveal-text">たじあき <span class="role-badge">代表</span></h1>
+                <p class="en-name reveal-text delay-200">Tajiaki</p>
+                <div class="hero-divider reveal-text delay-400"></div>
+                <p class="catchphrase reveal-text delay-600">元化学教員 / 自称「教育研究家」</p>
             </div>
         </div>
     </div>
@@ -95,7 +94,7 @@
         <div class="container profile-container">
             <!-- Sidebar: Basic Info & Timeline -->
             <aside class="profile-sidebar">
-                <div class="sidebar-box mt-minus">
+                <div class="sidebar-box mt-minus scroll-reveal">
                     <h3>Basic Info</h3>
                     <ul class="info-list">
                         <li><span class="label">本名</span>田島 明（33才）</li>
@@ -109,7 +108,7 @@
                     </div>
                 </div>
 
-                <div class="sidebar-section">
+                <div class="sidebar-section scroll-reveal delay-200">
                     <h3>History</h3>
                     <div class="timeline">
                         <div class="timeline-item">
@@ -139,11 +138,11 @@
             <!-- Main Content -->
             <div class="profile-main">
 
-                <section class="profile-block">
+                <section class="profile-block scroll-reveal">
                     <h2><span class="en">Personality</span> <span class="jp">人柄・価値観</span></h2>
 
                     <div class="cards-grid">
-                        <div class="info-card">
+                        <div class="info-card scroll-reveal delay-200">
                             <div class="card-icon"><i class="fas fa-heart"></i></div>
                             <h4>趣味・関心</h4>
                             <p><strong>非日常を感じるもの・ワクワクするもの</strong></p>
@@ -152,14 +151,14 @@
                                 class="text-link-small">ピックルボールマガジンを見る <i class="fas fa-arrow-right"></i></a>
                         </div>
 
-                        <div class="info-card">
+                        <div class="info-card scroll-reveal delay-400">
                             <div class="card-icon"><i class="fas fa-lightbulb"></i></div>
                             <h4>価値観</h4>
                             <p>「人は皆、自分のために生きる権利がある。社会の歯車になるために生まれてきたわけじゃない！」</p>
                             <p class="quote-small">ピンチは刺激。思考しないことは罪。</p>
                         </div>
 
-                        <div class="info-card">
+                        <div class="info-card scroll-reveal delay-600">
                             <div class="card-icon"><i class="fas fa-smile"></i></div>
                             <h4>性格</h4>
                             <p>文章だと狂っているように見えますが、実はどこにでもいる優しいお兄さんです（笑）。</p>
@@ -168,25 +167,25 @@
                     </div>
                 </section>
 
-                <section class="profile-block alt-style">
+                <section class="profile-block alt-style scroll-reveal">
                     <h2><span class="en">Activity & Vision</span> <span class="jp">活動とビジョン</span></h2>
                     <div class="vision-content">
-                        <div class="vision-item">
+                        <div class="vision-item scroll-reveal delay-200">
                             <h5>現在の活動</h5>
                             <p>SoDRé（ソドレー♪） / ピックルボール / 海外旅</p>
                         </div>
-                        <div class="vision-item">
+                        <div class="vision-item scroll-reveal delay-400">
                             <h5>運営での役割</h5>
                             <p>「〇〇がしたい！」というアイディア（わがまま）を提案する係。</p>
                         </div>
-                        <div class="vision-highlight">
+                        <div class="vision-highlight scroll-reveal delay-600">
                             <h5>今後の目標</h5>
                             <p>SoDRéが様々な方のウェルビーイングに繋がることを願うとともに、そうなるためのシステム・コンテンツ作りをメンバーと共に頑張ります！</p>
                         </div>
                     </div>
                 </section>
 
-                <section class="profile-block">
+                <section class="profile-block scroll-reveal">
                     <h2><span class="en">Message</span> <span class="jp">参加者へ</span></h2>
                     <blockquote class="message-quote">
                         <i class="fas fa-quote-left quote-icon"></i>
@@ -213,7 +212,7 @@
     <script src="../script.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="/env.js"></script>
-    <script src="config.js"></script>
+    <script src="../config.js"></script>
 
     <script src="/pwa-manager.js"></script>
 </body>
