@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Hamburger Menu Toggle ---
-    const hamburger = document.querySelector('.hamburger'); // Changed from getElementById('hamburger-btn')
+    const hamburger = document.querySelector('.hamburger');
     const body = document.body;
     const menuLinks = document.querySelectorAll('.menu-list a');
 
@@ -95,10 +95,26 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- Sub-menu Accordion Toggle (Mobile) ---
+    const submenuToggles = document.querySelectorAll('.submenu-toggle');
+    submenuToggles.forEach(toggle => {
+        toggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const parent = toggle.closest('.has-submenu');
+            if (parent) {
+                parent.classList.toggle('active');
+            }
+        });
+    });
+
     // Close menu when a link is clicked
     menuLinks.forEach(link => {
         link.addEventListener('click', () => {
-            body.classList.remove('menu-open');
+            // Don't close if it's a submenu toggle being clicked (though it shouldn't be 'a')
+            if (!link.closest('.submenu-toggle')) {
+                body.classList.remove('menu-open');
+            }
         });
     });
 
