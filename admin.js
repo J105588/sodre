@@ -82,6 +82,8 @@
     const pagesManagerArea = document.getElementById('pages-manager-area');
     const adminPagesList = document.getElementById('admin-pages-list');
     const addPageForm = document.getElementById('add-page-form');
+    const savePagesBtn = document.getElementById('save-pages-btn');
+    const pagesSaveMsg = document.getElementById('pages-save-msg');
 
     // System Elements
     const systemManagerArea = document.getElementById('system-manager-area');
@@ -1497,13 +1499,23 @@
                     </div>
                     <div class="post-actions" style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
                         <label class="switch" style="position:relative; display:inline-block; width:50px; height:26px;">
-                            <input type="checkbox" ${page.is_public ? 'checked' : ''} onchange="togglePageVisibility('${page.id}', this.checked)">
+                            <input type="checkbox" class="page-visibility-toggle" data-id="${page.id}" ${page.is_public ? 'checked' : ''}>
                             <span class="slider round"></span>
                         </label>
-                        <span style="font-size:0.85rem; width:45px; text-align:right;">${page.is_public ? 'Public' : 'Private'}</span>
+                        <span class="visibility-status-text" style="font-size:0.85rem; width:45px; text-align:right;">${page.is_public ? 'Public' : 'Private'}</span>
                     </div>
                 </div>
             `).join('');
+
+            // Add event listeners locally to update the status text (Public/Private)
+            document.querySelectorAll('.page-visibility-toggle').forEach(toggle => {
+                toggle.addEventListener('change', (e) => {
+                    const statusText = e.target.parentElement.parentElement.querySelector('.visibility-status-text');
+                    statusText.textContent = e.target.checked ? 'Public' : 'Private';
+                    // Clear save message on change
+                    if (pagesSaveMsg) pagesSaveMsg.textContent = '';
+                });
+            });
 
             // Add style for toggle switch if not exists
             if (!document.getElementById('toggle-style')) {
@@ -1572,20 +1584,52 @@
         }
     });
 
-    window.togglePageVisibility = async (id, isPublic) => {
-        const { error } = await supabase
-            .from('page_settings')
-            .update({ is_public: isPublic })
-            .eq('id', id);
+    if (savePagesBtn) {
+        savePagesBtn.addEventListener('click', async () => {
+            loadingOverlay.style.display = 'flex';
+            pagesSaveMsg.textContent = 'Saving...';
+            pagesSaveMsg.style.color = '#555';
 
-        if (error) {
-            alert('更新に失敗しました: ' + error.message);
-            loadAdminPages(); // Revert UI
-        } else {
-            // alert('Updated'); // Too noisy? maybe just refresh
-            loadAdminPages();
-        }
-    };
+            const toggles = document.querySelectorAll('.page-visibility-toggle');
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (const toggle of toggles) {
+                const id = toggle.dataset.id;
+                const isPublic = toggle.checked;
+
+                const { error } = await supabase
+                    .from('page_settings')
+                    .update({ is_public: isPublic })
+                    .eq('id', id);
+
+                if (error) {
+                    console.error(`Error updating page ${id}:`, error);
+                    errorCount++;
+                } else {
+                    successCount++;
+                }
+            }
+
+            loadingOverlay.style.display = 'none';
+            if (errorCount > 0) {
+                pagesSaveMsg.textContent = `Error: ${errorCount} items failed to save.`;
+                pagesSaveMsg.style.color = 'red';
+            } else {
+                pagesSaveMsg.textContent = 'Saved successfully!';
+                pagesSaveMsg.style.color = 'green';
+                setTimeout(() => {
+                    pagesSaveMsg.style.opacity = '0';
+                    setTimeout(() => {
+                        pagesSaveMsg.textContent = '';
+                        pagesSaveMsg.style.opacity = '1';
+                    }, 300);
+                }, 3000);
+            }
+        });
+    }
+
+    // Keep adding page form logic as is
 
 
     function renderCurrentImages() {
