@@ -1476,6 +1476,8 @@
     };
 
     // --- Page Management ---
+    let pageInitialStates = {}; // Track initial toggle states for dirty checking
+
     async function loadAdminPages() {
         adminPagesList.innerHTML = '<div class="loader-container"><div class="loader"></div></div>';
         const { data, error } = await supabase
@@ -1490,6 +1492,12 @@
                 adminPagesList.innerHTML = '<p>設定が見つかりません。</p>';
                 return;
             }
+
+            // Record initial states for dirty tracking
+            pageInitialStates = {};
+            data.forEach(page => {
+                pageInitialStates[page.id] = page.is_public;
+            });
 
             adminPagesList.innerHTML = data.map(page => `
                 <div class="post-item" style="display:flex; justify-content:space-between; align-items:center;">
@@ -1507,65 +1515,14 @@
                 </div>
             `).join('');
 
-            // Add event listeners locally to update the status text (Public/Private)
+            // Add event listeners to update status text on toggle change
             document.querySelectorAll('.page-visibility-toggle').forEach(toggle => {
                 toggle.addEventListener('change', (e) => {
                     const statusText = e.target.parentElement.parentElement.querySelector('.visibility-status-text');
                     statusText.textContent = e.target.checked ? 'Public' : 'Private';
-                    // Clear save message on change
                     if (pagesSaveMsg) pagesSaveMsg.textContent = '';
                 });
             });
-
-            // Add style for toggle switch if not exists
-            if (!document.getElementById('toggle-style')) {
-                const style = document.createElement('style');
-                style.id = 'toggle-style';
-                style.innerHTML = `
-                    .switch {
-                        position: relative;
-                        display: inline-block;
-                        width: 50px;
-                        height: 26px;
-                    }
-                    .switch input { 
-                        opacity: 0;
-                        width: 0;
-                        height: 0;
-                    }
-                    .slider {
-                        position: absolute;
-                        cursor: pointer;
-                        top: 0;
-                        left: 0;
-                        right: 0;
-                        bottom: 0;
-                        background-color: #ccc;
-                        transition: .4s;
-                        border-radius: 34px;
-                        box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
-                    }
-                    .slider:before {
-                        position: absolute;
-                        content: "";
-                        height: 20px;
-                        width: 20px;
-                        left: 3px;
-                        bottom: 3px;
-                        background-color: white;
-                        transition: .4s;
-                        border-radius: 50%;
-                        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                    }
-                    input:checked + .slider {
-                        background-color: #3c7800; /* Green Accent */
-                    }
-                    input:checked + .slider:before {
-                        transform: translateX(24px);
-                    }
-                `;
-                document.head.appendChild(style);
-            }
         }
     }
 
@@ -1586,18 +1543,39 @@
 
     if (savePagesBtn) {
         savePagesBtn.addEventListener('click', async () => {
-            loadingOverlay.style.display = 'flex';
-            pagesSaveMsg.textContent = 'Saving...';
-            pagesSaveMsg.style.color = '#555';
-
+            // Collect only changed toggles
             const toggles = document.querySelectorAll('.page-visibility-toggle');
-            let successCount = 0;
-            let errorCount = 0;
-
+            const changedToggles = [];
             for (const toggle of toggles) {
                 const id = toggle.dataset.id;
                 const isPublic = toggle.checked;
+                if (pageInitialStates[id] !== isPublic) {
+                    changedToggles.push({ id, isPublic });
+                }
+            }
 
+            // Skip if nothing changed
+            if (changedToggles.length === 0) {
+                pagesSaveMsg.textContent = '変更はありません';
+                pagesSaveMsg.style.color = '#888';
+                setTimeout(() => {
+                    pagesSaveMsg.style.opacity = '0';
+                    setTimeout(() => {
+                        pagesSaveMsg.textContent = '';
+                        pagesSaveMsg.style.opacity = '1';
+                    }, 300);
+                }, 2000);
+                return;
+            }
+
+            loadingOverlay.style.display = 'flex';
+            pagesSaveMsg.textContent = `${changedToggles.length}件を保存中...`;
+            pagesSaveMsg.style.color = '#555';
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (const { id, isPublic } of changedToggles) {
                 const { error } = await supabase
                     .from('page_settings')
                     .update({ is_public: isPublic })
@@ -1608,15 +1586,20 @@
                     errorCount++;
                 } else {
                     successCount++;
+                    // Update initial state to reflect saved value
+                    pageInitialStates[id] = isPublic;
                 }
             }
 
+            // Clear page-guard cache so changes take effect immediately
+            try { sessionStorage.removeItem('page_guard_cache'); } catch {}
+
             loadingOverlay.style.display = 'none';
             if (errorCount > 0) {
-                pagesSaveMsg.textContent = `Error: ${errorCount} items failed to save.`;
+                pagesSaveMsg.textContent = `エラー: ${errorCount}件の保存に失敗しました`;
                 pagesSaveMsg.style.color = 'red';
             } else {
-                pagesSaveMsg.textContent = 'Saved successfully!';
+                pagesSaveMsg.textContent = `${successCount}件を保存しました！`;
                 pagesSaveMsg.style.color = 'green';
                 setTimeout(() => {
                     pagesSaveMsg.style.opacity = '0';

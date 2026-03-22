@@ -37,7 +37,7 @@ insert into public.page_settings (page_path, description) values
 ('news.html', 'News List'),
 ('topics.html', 'Topics List'),
 ('diary.html', 'Diary List'),
-('contact.html', 'Contact & Q&A'),
+('qa.html', 'Q&A'),
 ('application.html', 'Application Form'),
 ('members-area.html', 'Members Area (Should be Private)'),
 ('member/leo.html', 'Member: Leo'),

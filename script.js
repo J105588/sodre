@@ -118,6 +118,58 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // --- Smooth Q&A Accordion ---
+    const qaItems = document.querySelectorAll('.qa-item');
+    qaItems.forEach(item => {
+        const summary = item.querySelector('summary');
+        const content = item.querySelector('.qa-answer');
+
+        if (summary && content) {
+            let isAnimating = false;
+
+            summary.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (isAnimating) return;
+
+                if (item.hasAttribute('open')) {
+                    isAnimating = true;
+                    // Set explicit height before closing
+                    const startHeight = `${item.offsetHeight}px`;
+                    const endHeight = `${summary.offsetHeight}px`;
+                    
+                    item.style.height = startHeight;
+                    // Force reflow
+                    item.offsetHeight;
+                    
+                    item.style.height = endHeight;
+
+                    setTimeout(() => {
+                        item.removeAttribute('open');
+                        item.style.height = '';
+                        isAnimating = false;
+                    }, 300); // Wait for transition
+                } else {
+                    isAnimating = true;
+                    item.setAttribute('open', '');
+                    
+                    const startHeight = `${summary.offsetHeight}px`;
+                    const endHeight = `${summary.offsetHeight + content.offsetHeight}px`;
+                    
+                    item.style.height = startHeight;
+                    // Force reflow
+                    item.offsetHeight;
+                    
+                    item.style.height = endHeight;
+
+                    setTimeout(() => {
+                        item.style.height = '';
+                        isAnimating = false;
+                    }, 300); // Wait for transition
+                }
+            });
+        }
+    });
+
 });
 
 // --- Hero Animations (Global) ---

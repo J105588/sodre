@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon"
+        href="https://lh3.googleusercontent.com/a/ACg8ocKrevxxn-jyPFTJ3zy5r6EFRGmv0Tp8-qWyb3bMaXduuMzHS0Y=s400-c">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Q&A | SoDRé</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Zen+Kaku+Gothic+New:wght@300;400;500;700&family=Shippori+Mincho:wght@400;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="page-guard.js"></script>
+</head>
+
+<body>
+
+    <div class="hamburger" id="hamburger-btn">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+
+    <header class="header">
+        <div class="container header-container">
+            <a href="index.html" class="logo"><img src="https://data.sodre.jp/img/logo.webp" alt="SoDRé"></a>
+        </div>
+    </header>
+
+    <!-- Full Screen Menu Overlay -->
+    <div id="menu-overlay">
+        <div class="menu-content">
+            <div class="menu-container">
+                <!-- Left Column: Main Nav -->
+                <div class="menu-main">
+                    <ul class="menu-list">
+                        <li><a href="index.html">Top</a></li>
+                        <li class="has-submenu">
+                            <div class="submenu-header">
+                                <a href="about.html">SoDRéとは？</a>
+                                <span class="submenu-toggle"><i class="fas fa-chevron-down"></i></span>
+                            </div>
+                            <ul class="submenu-tree">
+                                <li><a href="about.html#section-1">1. 対話的内省教育の暇</a></li>
+                                <li><a href="about.html#section-2">2. 内省とは</a></li>
+                                <li><a href="about.html#section-3">3. 個人的・対話的内省</a></li>
+                                <li><a href="about.html#section-4">4. 対話のルール</a></li>
+                                <li><a href="about.html#section-5">5. 対話のトピック</a></li>
+                                <li><a href="about.html#section-6">6. SoDRéのこだわり</a></li>
+                                <li><a href="about.html#section-7">7. 安全とプライバシー</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="schedule.html">開催スケジュール</a></li>
+                        <li class="has-submenu">
+                            <div class="submenu-header">
+                                <a href="members.html">運営メンバー</a>
+                                <span class="submenu-toggle"><i class="fas fa-chevron-down"></i></span>
+                            </div>
+                            <ul class="submenu-tree">
+                                <li><a href="member/tajiaki.html">たじあき</a></li>
+                                <li><a href="member/mizu.html">葵月 みず</a></li>
+                                <li><a href="member/leo.html">今野 レオ</a></li>
+                                <li><a href="member/towa.html">杉本 とわ</a></li>
+                                <li><a href="member/hibiki.html">寺田 ひびき</a></li>
+                                <li><a href="member/jun.html">ジュンちゃん</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="plans.html">無料体験会・料金</a></li>
+                        <li><a href="voices.html">参加者のお声</a></li>
+                        <li><a href="qa.html">Q&A</a></li>
+                    </ul>
+                </div>
+
+                <!-- Right Column: Updates -->
+                <div class="menu-sub">
+                    <ul class="menu-list sub-list">
+                        <li><a href="news.html">News</a></li>
+                        <li><a href="topics.html">Topics</a></li>
+                        <li><a href="diary.html">Diary</a></li>
+                        <li class="member-login"><a href="login.html"><i class="fas fa-sign-in-alt"></i> Member
+                                Login</a></li>
+                        <li><a href="application.html" class="btn-menu-cta">お申し込み</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="page-header">
+        <div class="container">
+            <h1>Q&A</h1>
+            <p>よくある質問</p>
+        </div>
+    </div>
+
+    <main>
+
+        <section id="qa" class="section">
+            <div class="container scroll-reveal">
+
+                <div class="qa-category">
+                    <h3 class="qa-category-title">SoDRéについて</h3>
+                    <div class="qa-section">
+                        <details class="qa-item">
+                            <summary>SoDRé（ソドレー♪）とは、どのような場ですか？</summary>
+                            <div class="qa-answer">
+                                <p>SoDRéは、対話を通して自分自身を見つめる<span class="qa-highlight">「対話的内省」</span>の場です。</p>
+                                <p>答えを出したり、意見の正しさを競ったりすることを目的としていません。</p>
+                                <p>他者との対話を通じて、自分の感情や考えの動きに気づき、<strong
+                                        class="qa-strong">「自分はどのような人間なのか」</strong>を少しずつ理解していく時間を大切にしています。</p>
+                            </div>
+                        </details>
+                        <details class="qa-item">
+                            <summary>カウンセリングやコーチングとは違うのですか？</summary>
+                            <div class="qa-answer">
+                                <p><strong class="qa-strong">はい、異なります。</strong></p>
+                                <p>SoDRéは、医療行為・カウンセリング・コーチング・治療を行う場ではありません。</p>
+                                <p>診断や評価、指導を行うこともありません。</p>
+                                <p>「教える側」と「教わる側」という構造を作らない場所として、新しいジャンルの取り組みと考えていただければと思います。</p>
+                            </div>
+                        </details>
+                        <details class="qa-item">
+                            <summary>宗教や特定の思想と関係はありますか？</summary>
+                            <div class="qa-answer">
+                                <p><strong class="qa-strong">ありません。</strong></p>
+                                <p>特定の思想・価値観・生き方を押しつけることは一切行っていません。<br>
+                                    参加者それぞれの考えや感じ方を尊重します。</p>
+                                <div class="qa-note">
+                                    ※ただ、宗教上の考えを前提に持ってきてしまうと自分の考えが見えにくくなることがございます。
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <div class="qa-category">
+                    <h3 class="qa-category-title">体験会について</h3>
+                    <div class="qa-section">
+                        <details class="qa-item">
+                            <summary>体験会は無料ですか？</summary>
+                            <div class="qa-answer">
+                                <p><strong class="qa-strong">はい、体験会は無料でご参加いただけます。</strong>お気軽にご参加ください。</p>
+                            </div>
+                        </details>
+                        <details class="qa-item">
+                            <summary>体験会は何回参加しても大丈夫ですか？</summary>
+                            <div class="qa-answer">
+                                <p><strong class="qa-strong">はい、問題ありません。</strong></p>
+                                <p>体験会は何度参加していただいても構いません。</p>
+                                <p>回を重ねることで、<span class="qa-highlight">対話や内省の感触が変わっていくこと</span>も大切にしています。</p>
+                            </div>
+                        </details>
+                        <details class="qa-item">
+                            <summary>体験会では何をしますか？</summary>
+                            <div class="qa-answer">
+                                <p>体験会では、以下の内容を予定しています。</p>
+                                <ul class="qa-list">
+                                    <li>SoDRéが考える「内省」についての簡単な説明</li>
+                                    <li>対話ルールの説明</li>
+                                    <li>実際の対話体験（少人数グループ）</li>
+                                    <li>クロージング（今後のご案内）</li>
+                                </ul>
+                                <div class="qa-note">
+                                    学生コースは約75分、大人コースは約90分を想定しています。
+                                </div>
+                            </div>
+                        </details>
+                        <details class="qa-item">
+                            <summary>話すのが苦手ですが、大丈夫でしょうか？</summary>
+                            <div class="qa-answer">
+                                <p><strong class="qa-strong">問題ありません。</strong></p>
+                                <p>無理に話す必要はありませんし、話す量に正解もありません。</p>
+                                <p><span class="qa-highlight">聞くこと・考えることも立派な参加の形です。</span></p>
+                                <p>安心できるペースでご参加ください。</p>
+                            </div>
+                        </details>
+                        <details class="qa-item">
+                            <summary>対話で何を話せばいいかわからなくなったらどうなりますか？</summary>
+                            <div class="qa-answer">
+                                <p>SoDRéでは、あらかじめ<span class="qa-highlight">「対話のトピック」</span>を用意しています。</p>
+                                <p>また、運営メンバーが場を見守り、必要に応じて静かにサポートします。</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <div class="qa-category">
+                    <h3 class="qa-category-title">対話の進め方・ルールについて</h3>
+                    <div class="qa-section">
+                        <details class="qa-item">
+                            <summary>どのようなルールがありますか？</summary>
+                            <div class="qa-answer">
+                                <p>参加者の心の安全を守るため、いくつかの対話ルールを設けています。</p>
+                                <ul class="qa-list">
+                                    <li>相手の感情や価値観を否定しない</li>
+                                    <li>正しさや結論を求めない</li>
+                                    <li>話した内容を外部で共有しない</li>
+                                    <li>安心・安全な場づくりに協力する</li>
+                                </ul>
+                                <p>詳細は体験会内でも丁寧に説明します。</p>
+                            </div>
+                        </details>
+                        <details class="qa-item">
+                            <summary>他の参加者と意見が合わなかった場合はどうなりますか？</summary>
+                            <div class="qa-answer">
+                                <p>意見が合わないことがなかった場合、自分と相手が同じ人間ということになります。</p>
+                                <p>別の人間の場合、<strong class="qa-strong">意見が合わないことがあって当然です。</strong></p>
+                                <p>SoDRéでは<span class="qa-highlight">「違いに気づくこと」も内省の一部</span>と考えています。</p>
+                                <p>相手を説得したり、結論を出したりする必要はありません。<br>
+                                    大切なのは違いの根本をお互いに探ろうとする対話です。</p>
+                            </div>
+                        </details>
+                        <details class="qa-item">
+                            <summary>他の参加者に不安を感じた場合はどうすればいいですか？</summary>
+                            <div class="qa-answer">
+                                <p>皆さんがいつも安心して対話できるように、運営メンバーが見守っています。</p>
+                                <p>違和感や不安を感じた場合は、体験会中または後で、<span class="qa-highlight">公式LINEからご連絡ください。</span></p>
+                                <p>参加者の心の安全を最優先に対応します。</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <div class="qa-category">
+                    <h3 class="qa-category-title">実施方法・オンライン環境について</h3>
+                    <div class="qa-section">
+                        <details class="qa-item">
+                            <summary>どのツールを使いますか？</summary>
+                            <div class="qa-answer">
+                                <p>原則として <strong class="qa-strong">Zoom</strong> を使用します。</p>
+                                <p>ブレイクアウトルーム機能を活用し、少人数での対話を行います。<br>
+                                    接続トラブルが発生した場合は、別のオンラインツールを使用することがあります。</p>
+                            </div>
+                        </details>
+                        <details class="qa-item">
+                            <summary>グループは何人くらいですか？</summary>
+                            <div class="qa-answer">
+                                <p>原則として <strong class="qa-strong">6人グループ</strong> で対話を行います。</p>
+                                <p>トピックの内容によって、2人または3人など、グループを細分化して対話を活性化させます。</p>
+                                <div class="qa-note">
+                                    ※体験会では3人グループを基本に対話をしていただきます。人数があわなければ2人での対話になります。その点ご容赦くださいませ。
+                                </div>
+                            </div>
+                        </details>
+                        <details class="qa-item">
+                            <summary>カメラやマイクは必須ですか？</summary>
+                            <div class="qa-answer">
+                                <p><strong class="qa-strong">原則として、対話の場ではカメラ・マイクの使用をお願いしています。</strong></p>
+                                <p>相手のしぐさや表情から伝わる情報がございます。<br>
+                                    ただし、事情がある場合は事前にご相談ください。</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <div class="qa-category">
+                    <h3 class="qa-category-title">録画・録音・プライバシーについて</h3>
+                    <div class="qa-section">
+                        <details class="qa-item">
+                            <summary>録画や録音は行われますか？</summary>
+                            <div class="qa-answer">
+                                <p>場の質向上を目的とした分析のため、録画・録音を行う場合がございます。</p>
+                            </div>
+                        </details>
+                        <details class="qa-item">
+                            <summary>録画・録音データはどのように扱われますか？</summary>
+                            <div class="qa-answer">
+                                <p>録画・録音データは以下の方針で取り扱います。</p>
+                                <ul class="qa-list">
+                                    <li>対話の進行や問いの質を振り返るための分析目的のみに使用</li>
+                                    <li>個人情報は慎重に取り扱う</li>
+                                    <li>分析後は速やかにデータを削除</li>
+                                    <li>外部への共有・公開は行わない</li>
+                                </ul>
+                                <p><span class="qa-highlight">安心して参加できる環境づくりを大切にしています。</span></p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <div class="qa-category">
+                    <h3 class="qa-category-title">対象・参加条件について</h3>
+                    <div class="qa-section">
+                        <details class="qa-item">
+                            <summary>学生コースの対象は誰ですか？</summary>
+                            <div class="qa-answer">
+                                <p>学生コースの対象は <strong class="qa-strong">中学2年生〜高校2年生</strong> です。</p>
+                                <p>中学1年生・高校3年生については、ご相談ください。</p>
+                                <div class="qa-note">
+                                    （15,16歳あたりを基準にしてトピックの内容を考えております。そのため中学1年生には難しく、高校3年生には容易な内容になってしまうと想定しているためです。）
+                                </div>
+                            </div>
+                        </details>
+                        <details class="qa-item">
+                            <summary>大人コースには誰が参加できますか？</summary>
+                            <div class="qa-answer">
+                                <p><strong class="qa-strong">成人の方であれば、どなたでも参加可能です。</strong></p>
+                                <p>保護者の方の参加も歓迎しています。</p>
+                            </div>
+                        </details>
+                        <details class="qa-item">
+                            <summary>大学生・専門学校生は参加できますか？</summary>
+                            <div class="qa-answer">
+                                <p><span class="qa-highlight">大学生・専門学校生については要相談</span>としています。</p>
+                                <p>将来的には、大学生・専門学校生向けの専用プランも検討しています。</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <div class="qa-category">
+                    <h3 class="qa-category-title">その他</h3>
+                    <div class="qa-section">
+                        <details class="qa-item">
+                            <summary>途中で合わないと感じた場合はどうすればいいですか？</summary>
+                            <div class="qa-answer">
+                                <p><strong class="qa-strong">無理に参加を続ける必要はありません。</strong></p>
+                                <p>体験会のみの参加でも問題ありません。<br>
+                                    ご自身の感覚を大切にしてください。</p>
+                            </div>
+                        </details>
+                        <details class="qa-item">
+                            <summary>質問や相談はどこからできますか？</summary>
+                            <div class="qa-answer">
+                                <p><span class="qa-highlight">公式LINE</span>からお気軽にご連絡ください。</p>
+                                <p>運営メンバーが 12:00〜23:00 の間に順次対応します。</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <!-- Footer Nav Removed -->
+            <p class="copyright">&copy; 2026 SoDRé & Junxiang Jin. All Rights Reserved.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="env.js"></script>
+    <script src="config.js"></script>
+
+    <script src="/pwa-manager.js"></script>
+</body>
+
+</html>

@@ -47,7 +47,7 @@ VALUES
     ('voices.html', '参加者の声', true),
     ('plans.html', 'プラン・料金', true),
     ('application.html', '申し込みフォーム', true),
-    ('contact.html', 'お問い合わせ', true),
+    ('qa.html', 'Q&A', true),
     ('members.html', 'メンバー紹介', true),
     ('members-area.html', '会員限定エリア', true),
     ('login.html', 'ログインページ', true),

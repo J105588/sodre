@@ -14,6 +14,44 @@
         window.location.href = '404.html';
     };
 
+    // --- Cache Helpers ---
+    const CACHE_KEY = 'page_guard_cache';
+    const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+    function getCachedSetting(pageName) {
+        try {
+            const raw = sessionStorage.getItem(CACHE_KEY);
+            if (!raw) return null;
+            const cache = JSON.parse(raw);
+            if (Date.now() - cache._ts > CACHE_TTL) {
+                sessionStorage.removeItem(CACHE_KEY);
+                return null;
+            }
+            if (pageName in cache) {
+                return { is_public: cache[pageName] };
+            }
+            return null; // Page not in cache yet
+        } catch {
+            return null;
+        }
+    }
+
+    function setCachedSetting(pageName, isPublic) {
+        try {
+            let cache = {};
+            const raw = sessionStorage.getItem(CACHE_KEY);
+            if (raw) {
+                cache = JSON.parse(raw);
+                if (Date.now() - cache._ts > CACHE_TTL) {
+                    cache = {};
+                }
+            }
+            cache[pageName] = isPublic;
+            cache._ts = Date.now();
+            sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+        } catch { /* ignore storage errors */ }
+    }
+
     document.addEventListener('DOMContentLoaded', async () => {
         // Ensure Supabase is loaded
         let attempts = 0;
@@ -23,8 +61,6 @@
                 clearInterval(checkSupabase);
                 await runGuard();
             } else if (attempts > 20 && !document.querySelector('script[src*="supabase.co"]')) {
-                // If not loaded after ~1s and no correct script found (generic check), try emergency load
-                // (Note: we use jsdelivr now, so checking that)
                 if (!window.supabaseLoading) {
                     console.log('Reloading Supabase SDK fallback...');
                     window.supabaseLoading = true;
@@ -36,14 +72,11 @@
             }
         }, 100);
 
-        // Fallback timeout (increased to 10s)
+        // Fallback timeout (10s)
         setTimeout(() => {
             clearInterval(checkSupabase);
             if (!window.supabaseClient && !window.supabase) {
-                console.error('Supabase load timeout in page-guard. Client or SDK missing.');
-                // Fail open so user isn't stuck slightly better than 404ing valid users, 
-                // but strictly this defeats the valid private page. 
-                // However, we default to reveal to avoid broken site.
+                console.error('Supabase load timeout in page-guard.');
                 revealContent();
             }
         }, 10000);
@@ -57,32 +90,43 @@
         const pageName = path.substring(path.lastIndexOf('/') + 1) || 'index.html';
 
         try {
-            // 1. Fetch Page Settings
-            const { data: setting, error } = await supabase
-                .from('page_settings')
-                .select('is_public')
-                .eq('page_path', pageName)
-                .maybeSingle();
+            // 1. Check cache first
+            const cached = getCachedSetting(pageName);
+            let isPublic;
 
-            if (error) {
-                console.error('Guard Check Error:', error);
-                revealContent(); // On error, maybe allow? or block? 
-                return;
+            if (cached !== null) {
+                isPublic = cached.is_public;
+            } else {
+                // 2. Fetch from Supabase
+                const { data: setting, error } = await supabase
+                    .from('page_settings')
+                    .select('is_public')
+                    .eq('page_path', pageName)
+                    .maybeSingle();
+
+                if (error) {
+                    console.error('Guard Check Error:', error);
+                    revealContent();
+                    return;
+                }
+
+                // If no setting exists, assume public
+                if (!setting) {
+                    revealContent();
+                    return;
+                }
+
+                isPublic = setting.is_public;
+                setCachedSetting(pageName, isPublic);
             }
 
-            // If no setting exists, assume public
-            if (!setting) {
+            // 3. Check Visibility
+            if (isPublic) {
                 revealContent();
                 return;
             }
 
-            // 2. Check Visibility
-            if (setting.is_public) {
-                revealContent();
-                return;
-            }
-
-            // 3. If Private, Check Admin
+            // 4. If Private, Check Admin
             const { data: { session } } = await supabase.auth.getSession();
 
             if (!session) {
