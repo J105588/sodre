@@ -886,6 +886,15 @@ body.menu-open .menu-list li:nth-child(7) {
         visibility: visible;
         transform: translateY(-50%) translateX(25px);
     }
+
+    /* Specific adjustment for SoDRe: top edge significantly above center */
+    .submenu-sodre .submenu-tree {
+        transform: translateY(-50px) translateX(5px);
+    }
+
+    .submenu-sodre:hover .submenu-tree {
+        transform: translateY(-50px) translateX(25px);
+    }
 }
 
 .submenu-tree li {
