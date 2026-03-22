@@ -2065,11 +2065,7 @@ footer {
     transform: translateY(-2px);
 }
 
-.copyright {
-    color: #6a8caf;
-    /* Muted Soft Blue */
-    margin-top: 3rem;
-}
+/* .copyright moved to a consolidated block below */
 
 /* Specific Section Tweaks */
 .schedule-note {
@@ -2259,8 +2255,9 @@ footer {
 }
 
 .copyright {
+    color: #6a8caf;
     text-align: center;
-    margin-top: 1rem;
+    margin-top: 0.5rem;
     font-size: 0.8rem;
     opacity: 0.8;
 }
@@ -4413,6 +4410,35 @@ html {
 
 .modern-input:focus {
     border-color: var(--primary-color);
+}
+
+/* Footer Links */
+.footer-links {
+    margin-bottom: 0.3rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.8rem;
+    font-size: 0.8rem;
+    font-family: var(--font-kaku);
+    opacity: 0.8;
+}
+
+.footer-links a {
+    color: #6a8caf;
+    text-decoration: underline;
+    transition: all 0.3s ease;
+}
+
+.footer-links a:hover {
+    color: var(--primary-color);
+    opacity: 1;
+}
+
+.footer-links span {
+    color: #6a8caf;
+    font-size: 0.7rem;
+    opacity: 0.5;
 }
 
 /* Footer */
