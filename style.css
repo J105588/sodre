@@ -1692,144 +1692,99 @@ body.menu-open .menu-list li:nth-child(7) {
     font-weight: 500;
     margin-top: 1rem;
 }
-
 /* Members */
 .members-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 3rem;
-    padding: 1rem;
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 4rem auto;
 }
 
 @media (max-width: 768px) {
     .members-grid {
         grid-template-columns: 1fr;
-        /* Stack members */
-        gap: 2rem;
-        padding: 0;
+        gap: 3rem;
+        padding: 1rem;
     }
 }
 
-.member-card {
-    background: var(--white);
-    padding: 3rem 2rem;
+.member-visual-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.member-visual {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     text-align: center;
+    padding: 1rem;
     transition: all 0.4s ease;
-    border: 1px solid rgba(20, 90, 180, 0.05);
-    /* Very subtle border */
-    border-radius: 4px;
-    /* Slightly squarer for elegance */
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
-    position: relative;
-    overflow: hidden;
 }
 
-/* Accent line at top */
-.member-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
+.member-visual-img-container {
+    width: 280px;
+    margin-bottom: 2rem;
+    position: relative;
+    /* Removed background/border to place the image itself */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    overflow: visible; /* Ensure shadow is not clipped */
+}
+
+.member-visual-img {
     width: 100%;
-    height: 3px;
-    background: var(--primary-color);
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform 0.4s ease;
-}
-
-.member-card:hover {
-    transform: translateY(-8px);
-    /* Higher lift */
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
-    /* Softer, deeper shadow */
-    border-color: transparent;
-}
-
-.member-card:hover::before {
-    transform: scaleX(1);
-}
-
-.member-img {
-    width: 140px;
-    height: 140px;
-    background-color: #f4f4f4;
-    border-radius: 50%;
-    margin: 0 auto 2rem;
-    position: relative;
+    height: auto;
+    border-radius: 24px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    transition: all 0.6s cubic-bezier(0.165, 0.84, 0.44, 1);
+    object-fit: contain;
     z-index: 1;
-    border: 3px solid var(--white);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-    transition: transform 0.4s;
-    background-size: cover;
-    background-position: center;
 }
 
-#tajiaki .member-img {
-    background-image: url('https://data.sodre.jp/img/tajiaki.png');
-}
-
-#leo .member-img {
-    background-image: url('https://data.sodre.jp/img/leo.jpg');
-}
-
-#mizu .member-img {
-    background-image: url('https://data.sodre.jp/img/mizu.png');
-}
-
-#towa .member-img {
-    background-image: url('https://data.sodre.jp/img/towa.png');
-}
-
-#hibiki .member-img {
-    background-image: url('https://data.sodre.jp/img/hibiki.png');
-}
-
-#jun .member-img {
-    background-image: url('https://data.sodre.jp/img/jun.jpg');
-}
-
-/* Double ring effect using ::after */
-.member-img::after {
-    content: '';
-    position: absolute;
-    top: -8px;
-    left: -8px;
-    right: -8px;
-    bottom: -8px;
-    border: 1px solid var(--accent-color);
-    border-radius: 50%;
-    opacity: 0.3;
-    transition: all 0.4s;
-    z-index: -1;
-}
-
-.member-card:hover .member-img {
-    transform: scale(1.05);
-}
-
-.member-card:hover .member-img::after {
-    opacity: 0.8;
-    transform: scale(0.95);
-}
-
-.member-card h3 {
-    font-size: 1.3rem;
+.member-visual h3 {
+    font-size: 1.5rem;
     color: var(--text-color);
     font-family: var(--font-serif);
-    margin-bottom: 0.2rem;
-    letter-spacing: 0.1em;
+    margin-bottom: 0.3rem;
+    position: relative;
+    transition: all 0.3s ease;
 }
 
-.role {
-    font-size: 0.75rem;
-    color: var(--accent-color);
+.member-visual .role {
     display: block;
-    margin-top: 0.8rem;
-    text-transform: uppercase;
+    font-size: 0.8rem;
+    color: var(--primary-color);
+    letter-spacing: 0.15em;
     font-family: var(--font-sans);
-    letter-spacing: 0.2em;
     font-weight: 600;
+    margin-top: 0.6rem;
+    opacity: 0.6;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+}
+
+/* Member Visual Hover State */
+.member-visual-link:hover .member-visual-img {
+    transform: translateY(-12px) scale(1.03);
+    box-shadow: 0 30px 60px rgba(20, 90, 180, 0.2);
+}
+
+.member-visual-link:hover h3 {
+    color: var(--primary-color);
+    transform: translateY(-2px);
+}
+
+.member-visual-link:hover .role {
+    color: var(--accent-color);
+    opacity: 1;
+    letter-spacing: 0.25em; /* Subtle expansion animation */
 }
 
 /* Plans */
@@ -2786,6 +2741,20 @@ footer {
     transform: scale(1.2) rotate(-5deg);
     opacity: 0.3;
     color: var(--accent-color);
+}
+
+.voice-feature-person-img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: all 0.5s ease;
+}
+
+.voice-feature-card:hover .voice-feature-person-img {
+    transform: scale(1.05);
 }
 
 .voice-feature-content {
